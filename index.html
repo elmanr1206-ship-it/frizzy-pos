@@ -7,74 +7,75 @@
     <title>FRIZZY · POS</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="manifest" href="/manifest.json">
-    <!-- Librerías para exportar reportes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="logo-wrap">
-            <h1 style="color: var(--dorado-claro); font-family: sans-serif; letter-spacing: 2px;">FRIZZY POS</h1>
-            <div class="tagline">Crujientes por fuera, suaves por dentro</div>
-        </div>
-    </header>
-
     <main class="app">
         <!-- COLUMNA IZQUIERDA -->
         <div>
             <form id="orderForm" class="panel">
-                <span class="banner">Nuevo pedido</span>
-                <div class="field">
-                    <label for="nombreCliente">Nombre del cliente</label>
-                    <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
-                    <label class="habeas-data">
-                        <input type="checkbox" id="habeasData" required>
-                        Acepto tratamiento de datos (Ley 1581).
-                    </label>
-                </div>
-                <div class="field"><label>Bowl base</label><div class="choice-grid" id="bowlGrid"></div></div>
-                <div class="field"><label>Acompañantes</label><div class="choice-grid" id="acompGrid"></div></div>
-                <div class="field"><label>Toppings</label><div class="choice-grid" id="toppingGrid"></div></div>
-                <div class="field"><label>Medio de pago</label><div class="pay-grid" id="payGrid"></div></div>
+                <span class="banner">NUEVO PEDIDO</span>
+                
+                <label class="seccion-titulo" for="nombreCliente">NOMBRE DEL CLIENTE</label>
+                <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
+                
+                <label class="habeas-data">
+                    <input type="checkbox" id="habeasData" required>
+                    ACEPTO TRATAMIENTO DE DATOS (LEY 1581).
+                </label>
+
+                <label class="seccion-titulo">BOWL BASE</label>
+                <div class="choice-grid" id="bowlGrid"></div>
+
+                <label class="seccion-titulo">ACOMPAÑANTES</label>
+                <div class="choice-grid" id="acompGrid"></div>
+
+                <label class="seccion-titulo">TOPPINGS</label>
+                <div class="choice-grid" id="toppingGrid"></div>
+
+                <label class="seccion-titulo">MEDIO DE PAGO</label>
+                <div class="choice-grid" id="payGrid"></div>
                 
                 <div class="total-bar">
-                    <div><div class="label">Total del pedido</div><div class="amount" id="totalPedido">$0</div></div>
+                    <div class="label">TOTAL DEL PEDIDO</div>
+                    <div class="amount" id="totalPedido">$0</div>
                 </div>
                 
-                <button type="submit" class="btn-guardar" id="btnGuardar" disabled>Guardar pedido</button>
-                <button type="button" class="btn-secundario" id="btnApartar" disabled>Apartar para después</button>
+                <button type="submit" class="btn-guardar" id="btnGuardar" disabled>GUARDAR PEDIDO</button>
             </form>
-
-            <div class="panel orders-panel">
-                <span class="banner">Apartados (Para después)</span>
-                <div id="apartadosList"></div>
-            </div>
-
-            <div class="panel orders-panel">
-                <span class="banner">Pedidos de hoy (Sincronización)</span>
+            
+            <!-- Listas Offline (Ocultas por defecto si están vacías, funcionales para SRP) -->
+            <div id="ordersListContainer" class="panel" style="display:none;">
+                <span class="banner">PEDIDOS EN COLA OFFLINE</span>
                 <div id="ordersList"></div>
             </div>
         </div>
 
         <!-- COLUMNA DERECHA -->
         <div>
-            <div class="panel" style="position:sticky; top:14px;">
-                <div id="summaryCapture">
-                    <span class="banner small">Cierre de caja</span>
-                    <div class="summary-grid">
-                        <div class="stat"><div class="n" id="statPedidos">0</div><div class="l">Pedidos hoy</div></div>
-                        <div class="stat"><div class="n" id="statTotal">$0</div><div class="l">Ventas hoy</div></div>
-                    </div>
-                    <span class="banner small">Por medio de pago</span>
-                    <div class="pay-summary" id="paySummary"></div>
+            <div class="panel" id="summaryCapture" style="position:sticky; top:20px;">
+                <span class="banner">CIERRE DE CAJA</span>
+                
+                <div class="stat-block">
+                    <div class="n" id="statPedidos">0</div>
+                    <div class="l">Pedidos hoy</div>
+                </div>
+                <div class="stat-block" style="margin-bottom: 24px;">
+                    <div class="n" id="statTotal">$0</div>
+                    <div class="l">Ventas hoy</div>
                 </div>
 
-                <p class="subhead" style="margin-top: 20px;">Descargar reporte del día</p>
+                <span class="banner">POR MEDIO DE PAGO</span>
+                <div id="paySummary" style="margin-bottom: 24px;"></div>
+
+                <div class="l" style="margin-bottom: 8px;">Descargar reporte del día</div>
                 <div class="export-row">
-                    <button type="button" class="btn-export" id="btnExcel">Excel</button>
-                    <button type="button" class="btn-export" id="btnImagen">Imagen</button>
+                    <button type="button" class="btn-sm" id="btnExcel">Excel</button>
+                    <button type="button" class="btn-sm" id="btnImagen">Imagen</button>
                 </div>
-                <button type="button" class="btn-secundario" id="btnCerrarDia">Cerrar día / Reiniciar</button>
+                
+                <button type="button" class="btn-cerrar" id="btnCerrarDia">CERRAR DÍA / REINICIAR</button>
             </div>
         </div>
     </main>

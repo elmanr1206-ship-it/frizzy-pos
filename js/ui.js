@@ -5,7 +5,7 @@ export const ui = {
         items.forEach(it => {
             const btn = document.createElement('div');
             btn.className = 'choice-card' + (selectedId === it.id ? ' selected' : '');
-            btn.innerHTML = `<div class="name">${it.nombre}</div><div class="price">$${it.precio.toLocaleString('es-CO')}</div>`;
+            btn.innerHTML = `<div class="card-name">${it.nombre}</div><div class="card-price">$${it.precio.toLocaleString('es-CO')}</div>`;
             btn.onclick = () => onSelect(it.id);
             container.appendChild(btn);
         });
@@ -17,13 +17,15 @@ export const ui = {
         items.forEach(it => {
             const qty = store[it.id] || 0;
             const card = document.createElement('div');
-            card.className = 'qty-card' + (qty > 0 ? ' active' : '');
+            card.className = 'qty-card';
+            if(qty > 0) card.classList.add('selected');
+            
             card.innerHTML = `
-                <div class="info"><div class="name">${it.nombre}</div><div class="price">$${it.precio.toLocaleString('es-CO')}</div></div>
+                <div><div class="card-name">${it.nombre}</div><div class="card-price">$${it.precio.toLocaleString('es-CO')}</div></div>
                 <div class="qty-controls">
-                    <button type="button" class="qty-btn" aria-label="Quitar">>−</button>
-                    <span class="qty-num">${qty}</span>
-                    <button type="button" class="qty-btn" aria-label="Agregar">+</button>
+                    <button type="button" class="qty-btn">−</button>
+                    <span style="font-weight:bold;">${qty}</span>
+                    <button type="button" class="qty-btn">+</button>
                 </div>
             `;
             const btns = card.querySelectorAll('.qty-btn');
