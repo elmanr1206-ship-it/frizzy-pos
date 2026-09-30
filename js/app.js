@@ -28,8 +28,9 @@ function calcularTotal() {
     estado.total = t;
     document.getElementById('totalPedido').textContent = ui.fmt(t);
     
-    // Validación actualizada sin el habeasData
-    const ok = document.getElementById('nombreCliente').value.trim().length > 0 && estado.bowl && estado.pago;
+    // Validar que tenga nombre, pago y al menos UN producto seleccionado (bowl o cualquier extra)
+    const tieneItems = estado.bowl || Object.keys(estado.acomp).length > 0 || Object.keys(estado.toppings).length > 0 || Object.keys(estado.bebidas).length > 0;
+    const ok = document.getElementById('nombreCliente').value.trim().length > 0 && estado.pago && tieneItems;
     
     document.getElementById('btnGuardar').disabled = !ok;
     document.getElementById('btnApartar').disabled = !ok;
@@ -41,13 +42,15 @@ function construirPedido() {
         return { id: item.id, nombre: item.nombre, cantidad: cant, precio: item.precio, subtotal: item.precio * cant };
     });
 
+    const bowlObj = BOWLS.find(b => b.id === estado.bowl);
+
     return {
-        id: crypto.randomUUID(), // <-- Genera un UUID v4 válido que PostgreSQL acepta sin errores
+        id: crypto.randomUUID(),
         hora: new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}),
         nombre: document.getElementById('nombreCliente').value.trim(),
         notas: document.getElementById('notas').value.trim(),
-        bowl: BOWLS.find(b => b.id === estado.bowl).nombre,
-        bowlId: estado.bowl,
+        bowl: bowlObj ? bowlObj.nombre : 'Solo Extras / Bebida',
+        bowlId: estado.bowl || null,
         acompDetalle: mapDetalle(estado.acomp, ACOMPANANTES),
         toppingDetalle: mapDetalle(estado.toppings, TOPPINGS),
         bebidaDetalle: mapDetalle(estado.bebidas, BEBIDAS),
@@ -164,6 +167,22 @@ document.getElementById('btnCerrar').addEventListener('click', () => {
         pedidos = []; apartados = []; saveState(); renderAll(); ui.mostrarToast('Día cerrado.');
     });
 });
+
+async function abrirModoAdmin() {
+    const nuevoPrecioStr = prompt("Ingresa el ID del producto a modificar (ej: papas, vasito, salchicha):");
+    if(!nuevoPrecioStr) return;
+    
+    const precioNum = prompt(`Ingresa el NUEVO precio para "${nuevoPrecioStr}":`);
+    if(!precioNum || isNaN(precioNum)) return;
+
+    // Actualizar directamente en la tabla productos de Supabase
+    const { error } = await supabaseClientAdminUpdate(nuevoPrecioStr, parseFloat(precioNum));
+    if(error) {
+        ui.mostrarToast("Error al actualizar precio en la nube");
+    } else {
+        ui.mostrarToast("¡Precio actualizado en Supabase con éxito! Recarga la página.");
+    }
+}
 
 window.addEventListener('beforeunload', (e) => { if(pedidos.length > 0 || apartados.length > 0) { e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('online', sincronizarCola);

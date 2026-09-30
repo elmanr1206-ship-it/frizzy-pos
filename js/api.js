@@ -24,21 +24,22 @@ export const api = {
             
             const clienteId = clienteData.id;
 
-            // 3. SEGUNDO: Insertar el pedido usando el cliente_id[cite: 9]
+            // 3. SEGUNDO: Insertar el pedido usando el cliente_id
             const { error: pedidoError } = await supabase
-                .from('pedidos')
-                .insert([{
-                    id: pedidoLocal.id, 
-                    cliente_id: clienteId, // <-- Cambio clave: usamos el ID del cliente
-                    medio_pago: pedidoLocal.pago,
-                    total: pedidoLocal.total
-                }]);
+              .from('pedidos')
+              .insert([{
+                id: pedidoLocal.id, 
+                cliente_id: clienteId,
+                medio_pago: pedidoLocal.pago,
+                total: pedidoLocal.total,
+                notas: pedidoLocal.notas || null // Ahora las notas viajan correctamente
+            }]);
 
             if (pedidoError && pedidoError.code !== '23505') {
                 throw pedidoError;
             }
 
-            // 4. TERCERO: Mapear e insertar los detalles[cite: 9]
+            // 4. TERCERO: Mapear e insertar los detalles
             const detalles = pedidoLocal.items.map(item => ({
                 pedido_id: pedidoLocal.id,
                 producto_id: item.id,
@@ -60,5 +61,14 @@ export const api = {
             console.error("Fallo al sincronizar con Supabase:", error);
             return false; 
         }
+    },
+
+    // Método independiente (hermano de pushPedido) para actualizar precios en la nube
+    async actualizarPrecioProducto(productoId, nuevoPrecio) {
+        const { error } = await supabase
+            .from('productos')
+            .update({ precio_actual: nuevoPrecio })
+            .eq('id', productoId);
+        return { error };
     }
 };
