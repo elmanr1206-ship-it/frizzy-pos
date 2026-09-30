@@ -7,32 +7,38 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export const api = {
     async pushPedido(pedidoLocal) {
         try {
-            // 1. Filtro de seguridad: descartar pedidos corruptos o de versiones anteriores[cite: 6]
+            // 1. Filtro de seguridad
             if (!pedidoLocal.items || !Array.isArray(pedidoLocal.items)) {
                 console.warn('Formato de pedido obsoleto o corrupto ignorado:', pedidoLocal);
-                return true; // Retornamos true para que dbSync lo saque de la cola
+                return true; 
             }
 
-            // 2. Insertar el pedido principal
+            // 2. PRIMERO: Crear o buscar al cliente y obtener su ID
+            const { data: clienteData, error: clienteError } = await supabase
+                .from('clientes')
+                .upsert([{ nombre: pedidoLocal.cliente }], { onConflict: 'nombre' })
+                .select('id')
+                .single();
+
+            if (clienteError) throw clienteError;
+            
+            const clienteId = clienteData.id;
+
+            // 3. SEGUNDO: Insertar el pedido usando el cliente_id[cite: 9]
             const { error: pedidoError } = await supabase
                 .from('pedidos')
                 .insert([{
                     id: pedidoLocal.id, 
-                    cliente: pedidoLocal.cliente,
+                    cliente_id: clienteId, // <-- Cambio clave: usamos el ID del cliente
                     medio_pago: pedidoLocal.pago,
                     total: pedidoLocal.total
                 }]);
 
-            const { error: clienteError } = await supabase
-                .from('clientes')
-                .upsert([{ nombre: pedidoLocal.cliente }], { onConflict: 'nombre' });
-
-            // Si el error es 409 (23505 - Unique violation), significa que ya se había subido. Lo ignoramos.
             if (pedidoError && pedidoError.code !== '23505') {
                 throw pedidoError;
             }
 
-            // 3. Mapear y asegurar los campos obligatorios para el detalle (incluyendo precio_unitario_historico)[cite: 6]
+            // 4. TERCERO: Mapear e insertar los detalles[cite: 9]
             const detalles = pedidoLocal.items.map(item => ({
                 pedido_id: pedidoLocal.id,
                 producto_id: item.id,
@@ -40,7 +46,6 @@ export const api = {
                 precio_unitario_historico: item.precio || 0
             }));
 
-            // 4. Insertar los detalles
             const { error: detallesError } = await supabase
                 .from('pedido_detalles')
                 .insert(detalles);
@@ -49,11 +54,10 @@ export const api = {
                 throw detallesError;
             }
 
-            return true; // Inserción limpia
+            return true; // Sincronización exitosa
 
         } catch (error) {
             console.error("Fallo al sincronizar con Supabase:", error);
-            // Retornamos false para que el pedido se quede seguro en IndexedDB y reintente más tarde[cite: 6]
             return false; 
         }
     }
