@@ -27,7 +27,10 @@ function calcularTotal() {
     
     estado.total = t;
     document.getElementById('totalPedido').textContent = ui.fmt(t);
-    const ok = document.getElementById('nombreCliente').value.trim().length > 0 && document.getElementById('habeasData').checked && estado.bowl && estado.pago;
+    
+    // Validación actualizada sin el habeasData
+    const ok = document.getElementById('nombreCliente').value.trim().length > 0 && estado.bowl && estado.pago;
+    
     document.getElementById('btnGuardar').disabled = !ok;
     document.getElementById('btnApartar').disabled = !ok;
 }
@@ -115,7 +118,6 @@ async function sincronizarCola() {
 document.getElementById('orderForm').addEventListener('submit', (e) => { e.preventDefault(); procesarGuardado(construirPedido()); });
 document.getElementById('btnApartar').addEventListener('click', () => { apartados.unshift(construirPedido()); saveState(); ui.mostrarToast('Pedido apartado'); resetForm(); });
 document.getElementById('nombreCliente').addEventListener('input', calcularTotal);
-document.getElementById('habeasData').addEventListener('change', calcularTotal);
 
 // Exportar Excel
 document.getElementById('btnExcel').addEventListener('click', () => {

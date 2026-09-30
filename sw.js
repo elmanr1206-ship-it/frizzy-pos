@@ -10,7 +10,7 @@ self.addEventListener('fetch', e => {
             const fetchPromise = fetch(e.request).then(res => {
                 caches.open(CACHE_NAME).then(c => c.put(e.request, res.clone()));
                 return res;
-            }).catch(() => cached); // Si falla la red, devuelve caché
+            }).catch(() => cached);
             return cached || fetchPromise;
         })
     );

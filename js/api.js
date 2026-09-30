@@ -2,7 +2,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // Asegúrate de mantener tu URL y ANON_KEY reales aquí
 const supabaseUrl = 'https://satsdiydoeilmdruyiru.supabase.co';
-const supabaseKey = 'TU_ANON_KEY'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhdHNkaXlkb2VpbG1kcnV5aXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODM2NDMsImV4cCI6MjEwNjM1OTY0M30.YMDXmmBrwzeXYKiO2CAA_QR1xrDnGqzgXNhtMrfAvJE'; 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const api = {
