@@ -1,6 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-// Asegúrate de mantener tu URL y ANON_KEY reales aquí
 const supabaseUrl = 'https://satsdiydoeilmdruyiru.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhdHNkaXlkb2VpbG1kcnV5aXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODM2NDMsImV4cCI6MjEwNjM1OTY0M30.YMDXmmBrwzeXYKiO2CAA_QR1xrDnGqzgXNhtMrfAvJE'; 
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -23,6 +22,10 @@ export const api = {
                     medio_pago: pedidoLocal.pago,
                     total: pedidoLocal.total
                 }]);
+
+            const { error: clienteError } = await supabase
+                .from('clientes')
+                .upsert([{ nombre: pedidoLocal.cliente }], { onConflict: 'nombre' });
 
             // Si el error es 409 (23505 - Unique violation), significa que ya se había subido. Lo ignoramos.
             if (pedidoError && pedidoError.code !== '23505') {
