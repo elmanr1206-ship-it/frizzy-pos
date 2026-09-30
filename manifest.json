@@ -1,0 +1,9 @@
+{
+  "name": "Frizzy POS",
+  "short_name": "Frizzy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1B0836",
+  "theme_color": "#1B0836",
+  "orientation": "landscape"
+}

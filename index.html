@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>FRIZZY · POS</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+    <div class="app-container">
+        <main class="panel" role="main">
+            <h2>Nuevo Pedido Frizzy</h2>
+            <form id="orderForm">
+                <fieldset>
+                    <legend>Cliente</legend>
+                    <input type="text" id="nombreCliente" placeholder="Nombre del cliente" aria-required="true">
+                    <!-- Microcopy de consentimiento explícito (Ley 1581)[cite: 3] -->
+                    <label class="habeas-data">
+                        <input type="checkbox" id="habeasData" required>
+                        Acepto tratamiento de datos personales en la nube (Ley 1581).
+                    </label>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Bowl Base</legend>
+                    <div id="bowlGrid" class="grid" role="group" aria-label="Selección de Bowl"></div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Acompañantes</legend>
+                    <div id="acompGrid" class="grid" role="group" aria-label="Acompañantes"></div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Toppings</legend>
+                    <div id="toppingGrid" class="grid" role="group" aria-label="Toppings"></div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Medio de Pago</legend>
+                    <div id="payGrid" class="grid" role="group" aria-label="Medios de pago"></div>
+                </fieldset>
+
+                <div class="total-bar">
+                    <span>Total Pedido:</span>
+                    <span id="totalPedido">$0</span>
+                </div>
+                <button type="submit" id="btnGuardar" class="btn-guardar" disabled>Guardar Pedido</button>
+            </form>
+        </main>
+    </div>
+    <div id="toast"></div>
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+:root {
+  --morado-950: #1B0836; --morado-900: #2A0E4F; --morado-800: #3B1766;
+  --morado-700: #4E2286; --dorado: #F5A623; --dorado-claro: #FBBB1E;
+  --crema: #F7EFDD; --crema-2: #FFFAEF; --rojo: #D1272B;
+  --sombra: 0 10px 28px rgba(15,3,34,.4);
+  --sombra-suave: 0 4px 12px rgba(15,3,34,.14);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background-color: var(--morado-950); color: var(--crema); font-family: 'Segoe UI', sans-serif; }
+
+/* Optimización estricta para iPadOS (evita zoom y mejora touch) */
+input, textarea, select { 
+    font-size: 16px !important; 
+    width: 100%; 
+    padding: 12px; 
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+button, .choice-card, .qty-btn { 
+    min-width: 44px; 
+    min-height: 44px; 
+    touch-action: manipulation; 
+    cursor: pointer;
+}
+
+/* Layout PWA */
+.app-container { max-width: 1200px; margin: 0 auto; padding: 20px; display: grid; gap: 20px; grid-template-columns: 2fr 1fr; }
+.panel { background: var(--crema-2); color: var(--morado-900); padding: 20px; border-radius: 16px; }
+
+/* Grillas de selección */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.choice-card {
+  border: 2px solid #E9DEC0; background: var(--crema-2); border-radius: 12px; padding: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+.choice-card.selected { border-color: var(--dorado); background: #FFE3A0; box-shadow: var(--sombra-suave); }
+
+/* Controles de cantidad (Toppings/Acompañantes) */
+.qty-card {
+  border: 2px solid #E9DEC0; background: var(--crema-2); border-radius: 12px; padding: 10px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.qty-card.active { border-color: var(--dorado); background: #FFE3A0; }
+.qty-controls { display: flex; align-items: center; gap: 10px; }
+.qty-btn { background: var(--morado-900); color: var(--dorado-claro); border: none; border-radius: 50%; font-weight: bold; }
+
+/* Barra de totales */
+.total-bar {
+  background: var(--morado-900); color: var(--crema); padding: 15px; border-radius: 12px;
+  display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: bold;
+}
+.btn-guardar {
+  background: var(--dorado); color: var(--morado-950); width: 100%; font-weight: bold; font-size: 1.1rem;
+  padding: 15px; border: none; border-radius: 12px; margin-top: 15px; text-transform: uppercase;
+}
+.btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+.habeas-data { font-size: 0.85rem; display: flex; align-items: center; gap: 8px; color: var(--morado-800); }
+
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--morado-950); color: var(--dorado-claro); padding: 12px 24px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; z-index: 1000; }
+#toast.show { opacity: 1; }
