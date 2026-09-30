@@ -28,12 +28,15 @@ function calcularTotal() {
     estado.total = t;
     document.getElementById('totalPedido').textContent = ui.fmt(t);
     
-    // Validar que tenga nombre, pago y al menos UN producto seleccionado (bowl o cualquier extra)
+    // Validación flexible: Nombre + Medio de pago + Al menos 1 producto de cualquier categoría
+    const nombreOk = document.getElementById('nombreCliente').value.trim().length > 0;
+    const pagoOk = estado.pago !== null;
     const tieneItems = estado.bowl || Object.keys(estado.acomp).length > 0 || Object.keys(estado.toppings).length > 0 || Object.keys(estado.bebidas).length > 0;
-    const ok = document.getElementById('nombreCliente').value.trim().length > 0 && estado.pago && tieneItems;
     
-    document.getElementById('btnGuardar').disabled = !ok;
-    document.getElementById('btnApartar').disabled = !ok;
+    const habilitado = nombreOk && pagoOk && tieneItems;
+    
+    document.getElementById('btnGuardar').disabled = !habilitado;
+    document.getElementById('btnApartar').disabled = !habilitado;
 }
 
 function construirPedido() {
@@ -67,7 +70,7 @@ function resetForm() {
 }
 
 function renderAll() {
-    ui.renderChoiceGrid('bowlGrid', BOWLS, () => estado.bowl, (id) => { estado.bowl = id; renderAll(); });
+    ui.renderChoiceGrid('bowlGrid', BOWLS, () => estado.bowl, (id) => { estado.bowl = (estado.bowl === id ? null : id); renderAll(); });
     ui.renderChoiceGrid('payGrid', PAGOS, () => estado.pago, (id) => { estado.pago = id; renderAll(); });
     ui.renderQtyGrid('acompGrid', ACOMPANANTES, estado.acomp, (id, v) => { v===0 ? delete estado.acomp[id] : estado.acomp[id]=v; renderAll(); });
     ui.renderQtyGrid('toppingGrid', TOPPINGS, estado.toppings, (id, v) => { v===0 ? delete estado.toppings[id] : estado.toppings[id]=v; renderAll(); });
@@ -99,9 +102,22 @@ function renderAll() {
 async function procesarGuardado(pedido) {
     pedidos.unshift(pedido); saveState();
     
+    // Preparar items de forma segura (soporta pedidos sin bowl)
+    const itemsArray = [];
+    if (pedido.bowlId) {
+        const bowlObj = BOWLS.find(b => b.id === pedido.bowlId);
+        if (bowlObj) {
+            itemsArray.push({ id: bowlObj.id, precio: bowlObj.precio, cantidad: 1 });
+        }
+    }
+
     const pedidoAdaptadoAPI = {
-        id: pedido.id, cliente: pedido.nombre, pago: pedido.pago, total: pedido.total,
-        items: [{id: pedido.bowlId, precio: BOWLS.find(b => b.id === pedido.bowlId).precio, cantidad: 1}, ...pedido.acompDetalle, ...pedido.toppingDetalle, ...pedido.bebidaDetalle]
+        id: pedido.id, 
+        cliente: pedido.nombre, 
+        pago: pedido.pago, 
+        total: pedido.total,
+        notas: pedido.notas, // Las notas viajan hacia IndexedDB y Supabase
+        items: [...itemsArray, ...pedido.acompDetalle, ...pedido.toppingDetalle, ...pedido.bebidaDetalle]
     };
     
     await dbSync.saveToQueue(pedidoAdaptadoAPI);
@@ -121,6 +137,31 @@ async function sincronizarCola() {
 document.getElementById('orderForm').addEventListener('submit', (e) => { e.preventDefault(); procesarGuardado(construirPedido()); });
 document.getElementById('btnApartar').addEventListener('click', () => { apartados.unshift(construirPedido()); saveState(); ui.mostrarToast('Pedido apartado'); resetForm(); });
 document.getElementById('nombreCliente').addEventListener('input', calcularTotal);
+
+// Evento para abrir el Modo Administrador y actualizar precios en Supabase
+const btnAdmin = document.getElementById('btnAdmin');
+if (btnAdmin) {
+    btnAdmin.addEventListener('click', async () => {
+        const productoId = prompt("Ingresa el ID exacto del producto a modificar (ej: papas, yuca, vasito, salchicha, chorizo, pollo, carne, papachongo, lechuga, queso):");
+        if(!productoId) return;
+        
+        const nuevoPrecio = prompt(`Ingresa el NUEVO precio para "${productoId}":`);
+        if(!nuevoPrecio || isNaN(nuevoPrecio)) {
+            ui.mostrarToast("Precio inválido");
+            return;
+        }
+
+        ui.mostrarToast("Actualizando precio en la nube...");
+        const { error } = await api.actualizarPrecioProducto(productoId.trim().toLowerCase(), parseFloat(nuevoPrecio));
+        
+        if(error) {
+            ui.mostrarToast("Error al actualizar en Supabase");
+            console.error(error);
+        } else {
+            ui.mostrarToast("¡Precio actualizado con éxito! Recarga la página.");
+        }
+    });
+}
 
 // Exportar Excel
 document.getElementById('btnExcel').addEventListener('click', () => {
@@ -152,7 +193,7 @@ document.getElementById('btnExcel').addEventListener('click', () => {
     XLSX.writeFile(wb, `Frizzy_${f.replaceAll('/','-')}.xlsx`);
 });
 
-// Generar Imagen y Cerrar Caja[cite: 7]
+// Generar Imagen y Cerrar Caja
 document.getElementById('btnImagen').addEventListener('click', () => {
     html2canvas(document.getElementById('summaryCapture'), {backgroundColor:'#F7EFDD', scale:2}).then(c => {
         const link = document.createElement('a');
@@ -167,22 +208,6 @@ document.getElementById('btnCerrar').addEventListener('click', () => {
         pedidos = []; apartados = []; saveState(); renderAll(); ui.mostrarToast('Día cerrado.');
     });
 });
-
-async function abrirModoAdmin() {
-    const nuevoPrecioStr = prompt("Ingresa el ID del producto a modificar (ej: papas, vasito, salchicha):");
-    if(!nuevoPrecioStr) return;
-    
-    const precioNum = prompt(`Ingresa el NUEVO precio para "${nuevoPrecioStr}":`);
-    if(!precioNum || isNaN(precioNum)) return;
-
-    // Actualizar directamente en la tabla productos de Supabase
-    const { error } = await supabaseClientAdminUpdate(nuevoPrecioStr, parseFloat(precioNum));
-    if(error) {
-        ui.mostrarToast("Error al actualizar precio en la nube");
-    } else {
-        ui.mostrarToast("¡Precio actualizado en Supabase con éxito! Recarga la página.");
-    }
-}
 
 window.addEventListener('beforeunload', (e) => { if(pedidos.length > 0 || apartados.length > 0) { e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('online', sincronizarCola);
