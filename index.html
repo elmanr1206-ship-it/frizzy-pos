@@ -1,86 +1,116 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>FRIZZY · POS</title>
-    <link rel="stylesheet" href="/css/styles.css">
-    <link rel="manifest" href="/manifest.json">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FRIZZY · Pedidos</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700;900&family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<link rel="manifest" href="/manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <main class="app">
-        <!-- COLUMNA IZQUIERDA -->
-        <div>
-            <form id="orderForm" class="panel">
-                <span class="banner">NUEVO PEDIDO</span>
-                
-                <label class="seccion-titulo" for="nombreCliente">NOMBRE DEL CLIENTE</label>
-                <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
-                
-                <label class="habeas-data">
-                    <input type="checkbox" id="habeasData" required>
-                    ACEPTO TRATAMIENTO DE DATOS (LEY 1581).
-                </label>
+<header>
+  <div class="logo-wrap">
+    <div class="logo-plate">
+      <svg width="230" height="132" viewBox="0 0 220 130" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="110" cy="108" rx="95" ry="14" fill="#F5A623"/>
+        <path d="M45 108 Q80 122 110 108 Q140 122 175 108" stroke="#FBBB1E" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M60 100 Q90 118 110 100" stroke="#F7EFDD" stroke-width="9" fill="none" stroke-linecap="round"/>
+        <path d="M100 96 Q130 112 150 96" stroke="#F5A623" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <text x="110" y="66" text-anchor="middle" font-family="'Fredoka', sans-serif" font-weight="900" font-size="46" fill="#FBBB1E" stroke="#2A0E4F" stroke-width="2" letter-spacing="1">FRIZZY</text>
+        <circle cx="122" cy="20" r="7" fill="#D1272B" stroke="#2A0E4F" stroke-width="2"/>
+        <path d="M122 27 q-4 8 0 14" stroke="#F5A623" stroke-width="5" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="tagline">Crujientes por fuera, suaves por dentro</div>
+  </div>
+</header>
 
-                <label class="seccion-titulo">BOWL BASE</label>
-                <div class="choice-grid" id="bowlGrid"></div>
+<div class="app">
+  <!-- COLUMNA IZQUIERDA -->
+  <div>
+    <form id="orderForm" class="panel">
+      <span class="banner">Nuevo pedido</span>
+      
+      <div class="field">
+        <label for="nombreCliente">Nombre del cliente</label>
+        <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
+        <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 5px; margin-top: 8px;">
+            <input type="checkbox" id="habeasData" required> Acepto tratamiento de datos (Ley 1581)
+        </label>
+      </div>
 
-                <label class="seccion-titulo">ACOMPAÑANTES</label>
-                <div class="choice-grid" id="acompGrid"></div>
+      <div class="field"><label>Bowl base</label><div class="choice-grid" id="bowlGrid"></div></div>
+      <div class="field"><label>Acompañantes</label><div class="choice-grid" id="acompGrid"></div></div>
+      <div class="field"><label>Toppings</label><div class="choice-grid" id="toppingGrid"></div></div>
+      <div class="field"><label>Bebidas</label><div class="choice-grid" id="bebidaGrid"></div></div>
+      <div class="field"><label>Medio de pago</label><div class="pay-grid" id="payGrid"></div></div>
 
-                <label class="seccion-titulo">TOPPINGS</label>
-                <div class="choice-grid" id="toppingGrid"></div>
+      <div class="field">
+        <label for="notas">Notas</label>
+        <textarea id="notas" placeholder="Ej. sin cebolla, para llevar..."></textarea>
+      </div>
 
-                <label class="seccion-titulo">MEDIO DE PAGO</label>
-                <div class="choice-grid" id="payGrid"></div>
-                
-                <div class="total-bar">
-                    <div class="label">TOTAL DEL PEDIDO</div>
-                    <div class="amount" id="totalPedido">$0</div>
-                </div>
-                
-                <button type="submit" class="btn-guardar" id="btnGuardar" disabled>GUARDAR PEDIDO</button>
-            </form>
-            
-            <!-- Listas Offline (Ocultas por defecto si están vacías, funcionales para SRP) -->
-            <div id="ordersListContainer" class="panel" style="display:none;">
-                <span class="banner">PEDIDOS EN COLA OFFLINE</span>
-                <div id="ordersList"></div>
-            </div>
+      <div class="total-bar">
+        <div><div class="label">Total del pedido</div><div class="amount" id="totalPedido">$0</div></div>
+      </div>
+      <button type="submit" class="btn-guardar" id="btnGuardar" disabled>Guardar pedido</button>
+      <button type="button" class="btn-secundario" id="btnApartar" disabled style="margin-top:8px;">Apartar para después</button>
+    </form>
+
+    <div class="panel orders-panel">
+      <span class="banner">Apartados (pedidos para después)</span>
+      <div id="apartadosList"></div>
+    </div>
+
+    <div class="panel orders-panel">
+      <span class="banner">Pedidos de hoy</span>
+      <div id="ordersList"></div>
+    </div>
+  </div>
+
+  <!-- COLUMNA DERECHA -->
+  <div>
+    <div class="panel" style="position:sticky; top:14px;">
+      <div id="summaryCapture">
+        <span class="banner small">Cierre de caja</span>
+        <div class="summary-grid">
+          <div class="stat"><div class="n" id="statPedidos">0</div><div class="l">Pedidos hoy</div></div>
+          <div class="stat"><div class="n" id="statTotal">$0</div><div class="l">Ventas hoy</div></div>
         </div>
 
-        <!-- COLUMNA DERECHA -->
-        <div>
-            <div class="panel" id="summaryCapture" style="position:sticky; top:20px;">
-                <span class="banner">CIERRE DE CAJA</span>
-                
-                <div class="stat-block">
-                    <div class="n" id="statPedidos">0</div>
-                    <div class="l">Pedidos hoy</div>
-                </div>
-                <div class="stat-block" style="margin-bottom: 24px;">
-                    <div class="n" id="statTotal">$0</div>
-                    <div class="l">Ventas hoy</div>
-                </div>
+        <span class="banner small">Por medio de pago</span>
+        <div class="pay-summary" id="paySummary"></div>
 
-                <span class="banner">POR MEDIO DE PAGO</span>
-                <div id="paySummary" style="margin-bottom: 24px;"></div>
+        <span class="banner small">Más vendidos</span>
+        <div class="top-list" id="topList"></div>
+      </div>
 
-                <div class="l" style="margin-bottom: 8px;">Descargar reporte del día</div>
-                <div class="export-row">
-                    <button type="button" class="btn-sm" id="btnExcel">Excel</button>
-                    <button type="button" class="btn-sm" id="btnImagen">Imagen</button>
-                </div>
-                
-                <button type="button" class="btn-cerrar" id="btnCerrarDia">CERRAR DÍA / REINICIAR</button>
-            </div>
-        </div>
-    </main>
+      <p class="subhead">Descargar reporte del día</p>
+      <div class="export-row">
+        <button type="button" class="btn-export" id="btnExcel">Excel</button>
+        <button type="button" class="btn-export" id="btnImagen">Imagen</button>
+      </div>
+      <button type="button" class="btn-secundario" id="btnCerrar">Cerrar día / Reiniciar</button>
+    </div>
+  </div>
+</div>
 
-    <div id="toast"></div>
-    <script type="module" src="/js/app.js"></script>
+<div id="toast"></div>
+
+<!-- Modal personalizado -->
+<div id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="msg" id="confirmMsg"></div>
+    <div class="btns">
+      <button type="button" class="btn-no" id="confirmNo">Cancelar</button>
+      <button type="button" class="btn-si" id="confirmSi">Sí, continuar</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="/js/app.js"></script>
 </body>
 </html>
