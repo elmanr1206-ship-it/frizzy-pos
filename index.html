@@ -2,55 +2,106 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>FRIZZY · POS</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>FRIZZY · POS Offline</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="manifest" href="/manifest.json">
 </head>
 <body>
-    <div class="app-container">
-        <main class="panel" role="main">
-            <h2>Nuevo Pedido Frizzy</h2>
-            <form id="orderForm">
-                <fieldset>
-                    <legend>Cliente</legend>
-                    <input type="text" id="nombreCliente" placeholder="Nombre del cliente" aria-required="true">
-                    <!-- Microcopy de consentimiento explícito (Ley 1581)[cite: 3] -->
+    <header>
+        <div class="logo-wrap">
+            <div class="logo-plate">
+                <svg width="230" height="132" viewBox="0 0 220 130" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="110" cy="108" rx="95" ry="14" fill="#F5A623"/>
+                    <path d="M45 108 Q80 122 110 108 Q140 122 175 108" stroke="#FBBB1E" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <path d="M60 100 Q90 118 110 100" stroke="#F7EFDD" stroke-width="9" fill="none" stroke-linecap="round"/>
+                    <path d="M100 96 Q130 112 150 96" stroke="#F5A623" stroke-width="7" fill="none" stroke-linecap="round"/>
+                    <text x="110" y="66" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="46" fill="#FBBB1E" stroke="#2A0E4F" stroke-width="2">FRIZZY</text>
+                    <circle cx="122" cy="20" r="7" fill="#D1272B" stroke="#2A0E4F" stroke-width="2"/>
+                    <path d="M122 27 q-4 8 0 14" stroke="#F5A623" stroke-width="5" fill="none" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="tagline">Crujientes por fuera, suaves por dentro</div>
+        </div>
+    </header>
+
+    <main class="app">
+        <!-- ============ COLUMNA IZQUIERDA ============ -->
+        <div>
+            <form id="orderForm" class="panel">
+                <span class="banner">Nuevo pedido</span>
+
+                <div class="field">
+                    <label for="nombreCliente">Nombre del cliente</label>
+                    <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
+                    <!-- Cumplimiento Habeas Data[cite: 5] -->
                     <label class="habeas-data">
                         <input type="checkbox" id="habeasData" required>
-                        Acepto tratamiento de datos personales en la nube (Ley 1581).
+                        Acepto tratamiento de datos en la nube (Ley 1581).
                     </label>
-                </fieldset>
+                </div>
 
-                <fieldset>
-                    <legend>Bowl Base</legend>
-                    <div id="bowlGrid" class="grid" role="group" aria-label="Selección de Bowl"></div>
-                </fieldset>
+                <div class="field">
+                    <label>Bowl base</label>
+                    <div class="choice-grid" id="bowlGrid"></div>
+                </div>
 
-                <fieldset>
-                    <legend>Acompañantes</legend>
-                    <div id="acompGrid" class="grid" role="group" aria-label="Acompañantes"></div>
-                </fieldset>
+                <div class="field">
+                    <label>Acompañantes</label>
+                    <div class="choice-grid" id="acompGrid"></div>
+                </div>
 
-                <fieldset>
-                    <legend>Toppings</legend>
-                    <div id="toppingGrid" class="grid" role="group" aria-label="Toppings"></div>
-                </fieldset>
+                <div class="field">
+                    <label>Toppings</label>
+                    <div class="choice-grid" id="toppingGrid"></div>
+                </div>
 
-                <fieldset>
-                    <legend>Medio de Pago</legend>
-                    <div id="payGrid" class="grid" role="group" aria-label="Medios de pago"></div>
-                </fieldset>
+                <div class="field">
+                    <label>Bebidas</label>
+                    <div class="choice-grid" id="bebidaGrid"></div>
+                </div>
+
+                <div class="field">
+                    <label>Medio de pago</label>
+                    <div class="pay-grid" id="payGrid"></div>
+                </div>
 
                 <div class="total-bar">
-                    <span>Total Pedido:</span>
-                    <span id="totalPedido">$0</span>
+                    <div>
+                        <div class="label">Total del pedido</div>
+                        <div class="amount" id="totalPedido">$0</div>
+                    </div>
                 </div>
-                <button type="submit" id="btnGuardar" class="btn-guardar" disabled>Guardar Pedido</button>
+                <button type="submit" class="btn-guardar" id="btnGuardar" disabled>Guardar pedido</button>
             </form>
-        </main>
-    </div>
+
+            <div class="panel">
+                <span class="banner">Pedidos Pendientes de Sincronización</span>
+                <div id="ordersList"></div>
+            </div>
+        </div>
+
+        <!-- ============ COLUMNA DERECHA ============ -->
+        <div>
+            <div class="panel" style="position:sticky; top:14px;">
+                <span class="banner small">Cierre de caja Local</span>
+                <div style="text-align: center; margin: 20px 0;">
+                    <h3 style="margin:0; font-size: 2rem; color: var(--morado-900)" id="statTotalDiario">$0</h3>
+                    <p style="margin:0; color: var(--morado-700)">Ventas hoy</p>
+                </div>
+                
+                <p style="font-size: 0.8rem; color: var(--morado-700); text-align: center;">
+                    *El cierre detallado y descarga de Excel se administrará desde el Dashboard web.
+                </p>
+                
+                <!-- Botón para forzar sync manual si es necesario -->
+                <button type="button" class="btn-secundario" id="btnSyncNow" style="margin-top: 20px;">Forzar Sincronización a Nube</button>
+            </div>
+        </div>
+    </main>
+
     <div id="toast"></div>
     <script type="module" src="/js/app.js"></script>
 </body>

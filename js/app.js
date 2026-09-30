@@ -115,6 +115,25 @@ async function init() {
         // Intentar sincronizar inmediatamente si hay internet
         sincronizarColaOffline();
     });
+
+    // Mostrar cola actual en UI
+    async function actualizarListaOffline() {
+        const cola = await dbSync.getQueue();
+        ui.renderOrdersList(cola);
+    }
+    
+    // Llamar esto después de guardar o sincronizar
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+        // ... (tu código actual de submit) ...
+        await actualizarListaOffline(); 
+    });
+
+    document.getElementById('btnSyncNow').addEventListener('click', () => {
+        ui.mostrarToast('Intentando sincronizar con la nube...');
+        sincronizarColaOffline().then(actualizarListaOffline);
+    });
+
+    actualizarListaOffline();
 }
 
 document.addEventListener('DOMContentLoaded', init);
