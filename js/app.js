@@ -42,7 +42,7 @@ function construirPedido() {
     });
 
     return {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(), // <-- Genera un UUID v4 válido que PostgreSQL acepta sin errores
         hora: new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}),
         nombre: document.getElementById('nombreCliente').value.trim(),
         notas: document.getElementById('notas').value.trim(),
