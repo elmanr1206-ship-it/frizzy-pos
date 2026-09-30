@@ -5,7 +5,7 @@ export const dbSync = {
         return new Promise((resolve, reject) => {
             // El número 1 es la versión de la base de datos. 
             // Si en el futuro necesitas más tablas, lo cambias a 2.
-            const request = indexedDB.open('FrizzyDB', 1);
+            const request = indexedDB.open('FrizzyDB', 2);
 
             // Este evento es el único lugar donde IndexedDB permite crear o modificar "tablas"
             request.onupgradeneeded = (event) => {
