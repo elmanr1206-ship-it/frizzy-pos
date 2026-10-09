@@ -131,13 +131,18 @@ async function init() {
     const modal = document.getElementById('adminModal');
     const listaDiv = document.getElementById('adminListaProductos');
     
-    document.getElementById('btnAdmin')?.addEventListener('click', () => {
+document.getElementById('btnAdmin')?.addEventListener('click', () => {
         listaDiv.innerHTML = '';
         TODO_EL_MENU.forEach(prod => {
+            // Se inyecta el HTML con colores forzados para garantizar el contraste
             listaDiv.innerHTML += `
-                <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:5px;">
-                    <span>${prod.nombre}</span>
-                    <input type="number" data-id="${prod.id}" value="${prod.precio}" style="width:100px; text-align:right;">
+                <div style="display:flex; justify-content:space-between; align-items: center; border-bottom:1px solid #e0e0e0; padding: 12px 0; margin-bottom: 5px;">
+                    <span style="color: #1A1A1A; font-weight: 600; font-size: 1rem;">${prod.nombre}</span>
+                    <div style="display: flex; align-items: center; background: #f5f5f5; border-radius: 8px; padding: 4px 8px; border: 1px solid #ccc;">
+                        <span style="color: #666; margin-right: 5px; font-weight: bold;">$</span>
+                        <input type="number" data-id="${prod.id}" value="${prod.precio}" 
+                            style="width: 80px; text-align: right; border: none; background: transparent; font-size: 1rem; color: #1A1A1A; outline: none; -webkit-appearance: none; margin: 0;">
+                    </div>
                 </div>`;
         });
         modal.style.display = 'flex';
