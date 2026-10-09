@@ -26,14 +26,14 @@ export const api = {
 
             // 3. SEGUNDO: Insertar el pedido usando el cliente_id
             const { error: pedidoError } = await supabase
-              .from('pedidos')
-              .insert([{
-                id: pedidoLocal.id, 
-                cliente_id: clienteId,
-                medio_pago: pedidoLocal.pago,
-                total: pedidoLocal.total,
-                notas: pedidoLocal.notas || null // Ahora las notas viajan correctamente
-            }]);
+               .from('pedidos')
+               .insert([{
+               id: pedidoLocal.id, 
+               cliente_id: clienteId,
+               medio_pago: pedidoLocal.pago,
+               total: pedidoLocal.total,
+               notas: pedidoLocal.notas // Justificación: Ahora viaja siempre como texto, nunca null
+         }]);
 
             if (pedidoError && pedidoError.code !== '23505') {
                 throw pedidoError;
