@@ -7,13 +7,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export const api = {
     async pushPedido(pedidoLocal) {
         try {
-            // 1. Filtro de seguridad
             if (!pedidoLocal.items || !Array.isArray(pedidoLocal.items)) {
                 console.warn('Formato de pedido obsoleto o corrupto ignorado:', pedidoLocal);
                 return true; 
             }
 
-            // 2. PRIMERO: Crear o buscar al cliente y obtener su ID
             const { data: clienteData, error: clienteError } = await supabase
                 .from('clientes')
                 .upsert([{ nombre: pedidoLocal.cliente }], { onConflict: 'nombre' })
@@ -24,22 +22,20 @@ export const api = {
             
             const clienteId = clienteData.id;
 
-            // 3. SEGUNDO: Insertar el pedido usando el cliente_id
             const { error: pedidoError } = await supabase
                .from('pedidos')
                .insert([{
-               id: pedidoLocal.id, 
-               cliente_id: clienteId,
-               medio_pago: pedidoLocal.pago,
-               total: pedidoLocal.total,
-               notas: pedidoLocal.notas // Justificación: Ahora viaja siempre como texto, nunca null
-         }]);
+                   id: pedidoLocal.id, 
+                   cliente_id: clienteId,
+                   medio_pago: pedidoLocal.pago,
+                   total: pedidoLocal.total,
+                   notas: pedidoLocal.notas
+               }]);
 
             if (pedidoError && pedidoError.code !== '23505') {
                 throw pedidoError;
             }
 
-            // 4. TERCERO: Mapear e insertar los detalles
             const detalles = pedidoLocal.items.map(item => ({
                 pedido_id: pedidoLocal.id,
                 producto_id: item.id,
@@ -55,7 +51,7 @@ export const api = {
                 throw detallesError;
             }
 
-            return true; // Sincronización exitosa
+            return true; 
 
         } catch (error) {
             console.error("Fallo al sincronizar con Supabase:", error);
@@ -63,12 +59,33 @@ export const api = {
         }
     },
 
-    // Método independiente (hermano de pushPedido) para actualizar precios en la nube
     async actualizarPrecioProducto(productoId, nuevoPrecio) {
         const { error } = await supabase
             .from('productos')
             .update({ precio_actual: nuevoPrecio })
             .eq('id', productoId);
         return { error };
+    }, // <-- Aquí faltaba esta coma
+
+    async obtenerComprasCliente(nombreCliente) {
+        try {
+            const { data: cliente, error: errCli } = await supabase
+                .from('clientes')
+                .select('id')
+                .eq('nombre', nombreCliente)
+                .single();
+                
+            if (errCli || !cliente) return 0;
+
+            const { count, error: errPed } = await supabase
+                .from('pedidos')
+                .select('*', { count: 'exact', head: true })
+                .eq('cliente_id', cliente.id);
+                
+            return count || 0;
+        } catch (error) {
+            console.error("Error consultando fidelización:", error);
+            return 0;
+        }
     }
 };

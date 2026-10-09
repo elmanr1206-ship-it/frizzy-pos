@@ -29,7 +29,6 @@ function calcularTotal() {
     estado.total = t;
     document.getElementById('totalPedido').textContent = ui.fmt(t);
     
-    // Validación justificada: Nombre NO vacío + Método de pago + Al menos 1 producto en cualquier categoría
     const nombreOk = document.getElementById('nombreCliente').value.trim().length > 0;
     const pagoOk = estado.pago !== null;
     const tieneItems = estado.bowl !== null || Object.keys(estado.acomp).length > 0 || Object.keys(estado.toppings).length > 0 || Object.keys(estado.bebidas).length > 0;
@@ -51,10 +50,9 @@ function construirPedido() {
         id: crypto.randomUUID(),
         hora: new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}),
         nombre: document.getElementById('nombreCliente').value.trim(),
-        // Justificación: Si el input de notas está vacío, se envía un string vacío, no un null que rompa la tabla.
         notas: document.getElementById('notas').value.trim() || "", 
         bowl: bowlObj ? bowlObj.nombre : 'Individual', 
-        bowlId: estado.bowl || 'ninguno', // Evita enviar null al array de items si no hay bowl
+        bowlId: estado.bowl || 'ninguno', 
         acompDetalle: mapDetalle(estado.acomp, ACOMPANANTES),
         toppingDetalle: mapDetalle(estado.toppings, TOPPINGS),
         bebidaDetalle: mapDetalle(estado.bebidas, BEBIDAS),
@@ -68,7 +66,7 @@ function resetForm() {
     estado = { bowl: null, acomp: {}, toppings: {}, bebidas: {}, pago: null, total: 0 };
     document.getElementById('orderForm').reset();
     renderAll();
-    calcularTotal(); // Justificación: Fuerza el re-bloqueo del botón al limpiar
+    calcularTotal();
 }
 
 function renderAll() {
@@ -83,7 +81,16 @@ function renderAll() {
         onDelete: (id) => { pedidos = pedidos.filter(x => x.id !== id); saveState(); ui.mostrarToast('Pedido eliminado'); renderAll(); }
     });
     
-    // ... Código de apartados y summary igual ...
+    ui.renderOrders(apartados, 'apartadosList', true, {
+        onToggle: (id) => { const p = apartados.find(x => x.id === id); p.abierto = !p.abierto; renderAll(); },
+        onDelete: (id) => { apartados = apartados.filter(x => x.id !== id); saveState(); ui.mostrarToast('Apartado cancelado'); renderAll(); },
+        onConfirm: async (p) => { 
+            apartados = apartados.filter(x => x.id !== p.id); 
+            p.abierto = false; p.hora = new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+            procesarGuardado(p);
+        }
+    });
+
     const conteo = {};
     pedidos.forEach(p => { [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].forEach(i => conteo[i.nombre] = (conteo[i.nombre] || 0) + i.cantidad); });
     ui.renderSummary(pedidos, PAGOS, Object.entries(conteo).sort((a,b) => b[1]-a[1]).slice(0,6));
@@ -117,7 +124,7 @@ async function sincronizarCola() {
     }
 }
 
-// ---------------- EVENTOS y LÓGICA DE MODAL (Asignados en init) ----------------
+// ---------------- EVENTOS y LÓGICA DE INTERFAZ ----------------
 async function init() {
     await dbSync.init();
     renderAll();
@@ -125,23 +132,40 @@ async function init() {
     
     document.getElementById('orderForm').addEventListener('submit', (e) => { e.preventDefault(); procesarGuardado(construirPedido()); });
     document.getElementById('btnApartar').addEventListener('click', () => { apartados.unshift(construirPedido()); saveState(); ui.mostrarToast('Pedido apartado'); resetForm(); });
-    document.getElementById('nombreCliente').addEventListener('input', calcularTotal);
     
-    // Asignación segura del Modal Admin
+    const inputNombre = document.getElementById('nombreCliente');
+    inputNombre.addEventListener('input', calcularTotal);
+    
+    // SISTEMA DE FIDELIZACIÓN: Verifica compras al salir del campo de texto
+    inputNombre.addEventListener('blur', async (e) => {
+        const nombre = e.target.value.trim();
+        if (nombre.length > 0 && navigator.onLine) {
+            const numeroCompras = await api.obtenerComprasCliente(nombre);
+            if (numeroCompras > 0 && numeroCompras % 5 === 0) {
+                ui.mostrarToast(`🌟 ¡Atención! ${nombre} lleva ${numeroCompras} compras. ¡Ofrécele un topping gratis!`);
+                e.target.style.borderColor = "var(--dorado)";
+                e.target.style.boxShadow = "0 0 8px rgba(255, 215, 0, 0.5)";
+            } else {
+                e.target.style.borderColor = "#ccc";
+                e.target.style.boxShadow = "none";
+            }
+        }
+    });
+    
+    // Lógica del Modal Admin
     const modal = document.getElementById('adminModal');
     const listaDiv = document.getElementById('adminListaProductos');
     
-document.getElementById('btnAdmin')?.addEventListener('click', () => {
+    document.getElementById('btnAdmin')?.addEventListener('click', () => {
         listaDiv.innerHTML = '';
         TODO_EL_MENU.forEach(prod => {
-            // Se inyecta el HTML con colores forzados para garantizar el contraste
             listaDiv.innerHTML += `
                 <div style="display:flex; justify-content:space-between; align-items: center; border-bottom:1px solid #e0e0e0; padding: 12px 0; margin-bottom: 5px;">
                     <span style="color: #1A1A1A; font-weight: 600; font-size: 1rem;">${prod.nombre}</span>
                     <div style="display: flex; align-items: center; background: #f5f5f5; border-radius: 8px; padding: 4px 8px; border: 1px solid #ccc;">
                         <span style="color: #666; margin-right: 5px; font-weight: bold;">$</span>
                         <input type="number" data-id="${prod.id}" value="${prod.precio}" 
-                            style="width: 80px; text-align: right; border: none; background: transparent; font-size: 1rem; color: #1A1A1A; outline: none; -webkit-appearance: none; margin: 0;">
+                            style="width: 80px; text-align: right; border: none; background: transparent; font-size: 1rem; color: #1A1A1A; outline: none; margin: 0;">
                     </div>
                 </div>`;
         });
@@ -161,8 +185,8 @@ document.getElementById('btnAdmin')?.addEventListener('click', () => {
             const ref = TODO_EL_MENU.find(x => x.id === id);
             
             if(ref && ref.precio !== nuevo) {
-                ref.precio = nuevo; // Cambia local
-                const { error } = await api.actualizarPrecioProducto(id, nuevo); // Sincroniza Supabase
+                ref.precio = nuevo; 
+                const { error } = await api.actualizarPrecioProducto(id, nuevo); 
                 if(error) fallos++;
             }
         }
@@ -174,5 +198,51 @@ document.getElementById('btnAdmin')?.addEventListener('click', () => {
     });
 }
 
+// ---------------- EXPORTACIÓN Y CIERRE ----------------
+document.getElementById('btnExcel').addEventListener('click', () => {
+    if(pedidos.length === 0) return ui.mostrarToast('No hay pedidos');
+    const f = new Date().toLocaleDateString('es-CO');
+    
+    const peds = XLSX.utils.json_to_sheet(pedidos.map(p => ({
+        'Hora': p.hora, 'Cliente': p.nombre, 'Bowl': p.bowl,
+        'Extras': [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].map(i => `${i.nombre} x${i.cantidad}`).join(', '),
+        'Notas': p.notas, 'Pago': p.pago, 'Total': p.total
+    })));
+    peds['!cols'] = [{wch:8},{wch:18},{wch:10},{wch:40},{wch:20},{wch:14},{wch:10}];
+
+    const totalDia = pedidos.reduce((s,p) => s + p.total, 0);
+    const resArr = [{Concepto:'Fecha', Valor:f}, {Concepto:'Total pedidos', Valor:pedidos.length}, {Concepto:'Total ventas', Valor:totalDia}, {Concepto:'', Valor:''}];
+    PAGOS.forEach(pg => {
+        const d = pedidos.filter(p => p.pago === pg.nombre);
+        resArr.push({Concepto: `${pg.nombre} pedidos`, Valor: d.length}, {Concepto: `${pg.nombre} total`, Valor: d.reduce((s,p) => s + p.total, 0)});
+    });
+    
+    const conteo = {};
+    pedidos.forEach(p => [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].forEach(i => conteo[i.nombre] = (conteo[i.nombre]||0) + i.cantidad));
+    const rnk = XLSX.utils.json_to_sheet(Object.entries(conteo).sort((a,b)=>b[1]-a[1]).map(([n,c]) => ({Producto:n, Vendidos:c})));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resArr, {skipHeader:true}), 'Resumen');
+    XLSX.utils.book_append_sheet(wb, peds, 'Pedidos');
+    XLSX.utils.book_append_sheet(wb, rnk, 'Ranking');
+    XLSX.writeFile(wb, `Frizzy_${f.replaceAll('/','-')}.xlsx`);
+});
+
+document.getElementById('btnImagen').addEventListener('click', () => {
+    html2canvas(document.getElementById('summaryCapture'), {backgroundColor:'#F7EFDD', scale:2}).then(c => {
+        const link = document.createElement('a');
+        link.download = `Frizzy_${new Date().toLocaleDateString('es-CO').replaceAll('/','-')}.png`;
+        link.href = c.toDataURL(); link.click();
+    });
+});
+
+document.getElementById('btnCerrar').addEventListener('click', () => {
+    if(pedidos.length === 0) return ui.mostrarToast('No hay pedidos');
+    ui.confirmarAccion('¿Cerrar el día y borrar ventas locales?', () => {
+        pedidos = []; apartados = []; saveState(); renderAll(); ui.mostrarToast('Día cerrado.');
+    });
+});
+
+window.addEventListener('beforeunload', (e) => { if(pedidos.length > 0 || apartados.length > 0) { e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('online', sincronizarCola);
 document.addEventListener('DOMContentLoaded', init);
