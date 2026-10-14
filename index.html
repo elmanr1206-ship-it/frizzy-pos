@@ -3,31 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#2B113F" />
+  <meta name="theme-color" content="#1B0836" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Frizzy POS — Caja & Pedidos</title>
   <link rel="manifest" href="manifest.json" />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-badge">POS</span>
-      <h1>FRIZZY</h1>
+  <header>
+    <div class="logo-wrap">
+      <div class="logo-plate">
+        <svg width="210" height="58" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Frizzy">
+          <rect x="3" y="4" width="204" height="50" rx="16" fill="#2A0E4F" stroke="#F5A623" stroke-width="3.5" />
+          <text x="105" y="39" text-anchor="middle" fill="#FBBB1E" font-family="Fredoka, sans-serif" font-size="32" font-weight="700" letter-spacing="3">FRIZZY</text>
+        </svg>
+      </div>
+      <div class="tagline">PUNTO DE VENTA · CAJA &amp; PEDIDOS</div>
     </div>
   </header>
 
-  <main class="layout">
-    <!-- COLUMNA IZQUIERDA: FORMULARIO Y PEDIDOS -->
-    <section class="col-main">
+  <main class="app">
+    <!-- COLUMNA IZQUIERDA: FORMULARIO, APARTADOS Y PEDIDOS DE HOY -->
+    <section>
       <div class="panel">
-        <span class="section-tag">Nuevo Pedido</span>
+        <div class="banner">Nuevo Pedido</div>
+
         <form id="orderForm" novalidate>
-          <div class="field" style="position: relative;">
+          <div class="field">
             <label for="nombreCliente">Nombre del cliente</label>
             <input
               type="text"
@@ -36,119 +42,120 @@
               autocomplete="off"
               required
             />
-            <small style="display:block; font-size:0.75rem; color:#6D5E78; margin-top:4px;">
+            <small style="display:block; font-size:0.74rem; color:#4E2286; font-weight:700; margin-top:5px;">
               Al registrar el nombre, el cliente autoriza su uso para la gestión del pedido y fidelización (Ley 1581 de 2012).
             </small>
             <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
           </div>
 
           <p class="subhead">Bowl Base (Opcional si es compra individual)</p>
-          <div id="bowlGrid" class="choice-grid"></div>
+          <div id="bowlGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Acompañantes</p>
-          <div id="acompGrid" class="qty-grid"></div>
+          <div id="acompGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Toppings</p>
-          <div id="toppingGrid" class="qty-grid"></div>
+          <div id="toppingGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Bebidas</p>
-          <div id="bebidaGrid" class="qty-grid"></div>
+          <div id="bebidaGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Medio de Pago</p>
-          <div id="payGrid" class="choice-grid pay-grid"></div>
+          <div id="payGrid" class="pay-grid" style="margin-bottom: 16px;"></div>
 
-          <div class="field" style="margin-top: 14px;">
+          <div class="field">
             <label for="notas">Notas</label>
             <textarea id="notas" rows="2" placeholder="Ej. sin cebolla, para llevar..."></textarea>
           </div>
 
           <div class="total-bar">
-            <div>
-              <span class="total-label">TOTAL DEL PEDIDO</span>
-              <div id="totalPedido" class="total-amount">$0</div>
-            </div>
+            <span class="label">TOTAL DEL PEDIDO</span>
+            <span id="totalPedido" class="amount">$0</span>
           </div>
 
           <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
-            GUARDAR PEDIDO
+            Guardar Pedido
           </button>
-          <button type="button" class="btn-secundario" id="btnApartar" disabled>
-            APARTAR PARA DESPUÉS
+
+          <button type="button" class="btn-secundario" id="btnApartar" style="margin-top: 10px;" disabled>
+            Apartar para Después
           </button>
         </form>
       </div>
 
-      <div class="panel" style="margin-top: 18px;">
-        <span class="section-tag">Apartados (Pedidos para después)</span>
-        <div id="apartadosList" class="orders-list"></div>
+      <div class="panel">
+        <div class="banner small">Apartados (Pedidos para después)</div>
+        <div id="apartadosList"></div>
       </div>
 
-      <div class="panel" style="margin-top: 18px;">
-        <span class="section-tag">Pedidos de Hoy</span>
-        <div id="ordersList" class="orders-list"></div>
+      <div class="panel">
+        <div class="banner small">Pedidos de Hoy</div>
+        <div id="ordersList"></div>
       </div>
     </section>
 
-    <!-- COLUMNA DERECHA: CIERRE DE CAJA -->
-    <aside class="col-side">
-      <div class="panel" id="summaryCapture">
-        <span class="section-tag">Cierre de Caja</span>
+    <!-- COLUMNA DERECHA: CIERRE DE CAJA Y REPORTES -->
+    <aside>
+      <div class="panel">
+        <div id="summaryCapture">
+          <div class="banner">Cierre de Caja</div>
 
-        <div class="kpi-row">
-          <div class="kpi-box">
-            <div class="kpi-num" id="sumCount">0</div>
-            <div class="kpi-label">PEDIDOS HOY</div>
+          <div class="summary-grid">
+            <div class="stat">
+              <div class="n" id="sumCount">0</div>
+              <div class="l">PEDIDOS HOY</div>
+            </div>
+            <div class="stat">
+              <div class="n" id="sumTotal">$0</div>
+              <div class="l">VENTAS HOY</div>
+            </div>
           </div>
-          <div class="kpi-box">
-            <div class="kpi-num" id="sumTotal">$0</div>
-            <div class="kpi-label">VENTAS HOY</div>
-          </div>
+
+          <div class="banner small">Por Medio de Pago</div>
+          <div id="payBreakdown" class="pay-summary"></div>
+
+          <div class="banner small">Más Vendidos</div>
+          <div id="topList" class="top-list"></div>
         </div>
 
-        <span class="section-tag" style="margin-top: 14px;">Por Medio de Pago</span>
-        <div id="payBreakdown" class="pay-breakdown"></div>
+        <hr class="divider" />
 
-        <span class="section-tag" style="margin-top: 14px;">Más Vendidos</span>
-        <div id="topList" class="top-list"></div>
-      </div>
-
-      <div class="panel" style="margin-top: 14px;">
         <p class="subhead">Descargar reporte del día</p>
         <div class="export-row">
-          <button type="button" class="btn-export" id="btnExcel">EXCEL</button>
-          <button type="button" class="btn-export" id="btnImagen">IMAGEN</button>
+          <button type="button" class="btn-export" id="btnExcel">Excel</button>
+          <button type="button" class="btn-export" id="btnImagen">Imagen</button>
         </div>
 
         <button type="button" class="btn-secundario btn-admin" id="btnAdmin">
-          ⚙️ MODO ADMINISTRADOR (PRECIOS)
+          ⚙️ Modo Administrador (Precios)
         </button>
 
         <a href="dashboard.html" class="btn-secundario btn-dashboard">
-          📊 VER DASHBOARD HISTÓRICO
+          📊 Ver Dashboard Histórico
         </a>
 
         <button type="button" class="btn-secundario" id="btnCerrar">
-          CERRAR DÍA / REINICIAR
+          Cerrar Día / Reiniciar
         </button>
       </div>
     </aside>
   </main>
 
   <!-- MODAL ADMINISTRADOR -->
-  <div id="adminModal" class="modal-backdrop" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>⚙️ Gestión de Precios</h3>
-        <button type="button" id="btnCerrarAdmin" class="modal-close" aria-label="Cerrar modal">&times;</button>
+  <div id="adminModal" style="display: none;">
+    <div class="admin-modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px dashed #E9DEC0;">
+        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.25rem;">⚙️ Gestión de Precios</h3>
+        <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background: #E9DEC0; border: none; width: 38px; height: 38px; border-radius: 50%; font-size: 1.4rem; color: var(--morado-950); font-weight: 900; cursor: pointer;">&times;</button>
       </div>
-      <div id="adminListaProductos" class="modal-body"></div>
-      <button type="button" id="btnGuardarPrecios" class="btn-primario" style="width: 100%; margin-top: 16px;">
+      <div id="adminListaProductos" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="margin-top: 16px;">
         Guardar Cambios en Nube
       </button>
     </div>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="js/app.js"></script>
 </body>
