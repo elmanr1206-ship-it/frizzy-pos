@@ -1,141 +1,155 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>FRIZZY · Pedidos</title>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700;900&family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/styles.css">
-<link rel="manifest" href="/manifest.json">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2B113F" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Frizzy POS — Caja & Pedidos</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
-<header>
-  <div class="logo-wrap">
-    <div class="logo-plate">
-      <svg width="230" height="132" viewBox="0 0 220 130" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="110" cy="108" rx="95" ry="14" fill="#F5A623"/>
-        <path d="M45 108 Q80 122 110 108 Q140 122 175 108" stroke="#FBBB1E" stroke-width="4" fill="none" stroke-linecap="round"/>
-        <path d="M60 100 Q90 118 110 100" stroke="#F7EFDD" stroke-width="9" fill="none" stroke-linecap="round"/>
-        <path d="M100 96 Q130 112 150 96" stroke="#F5A623" stroke-width="7" fill="none" stroke-linecap="round"/>
-        <text x="110" y="66" text-anchor="middle" font-family="'Fredoka', sans-serif" font-weight="900" font-size="46" fill="#FBBB1E" stroke="#2A0E4F" stroke-width="2" letter-spacing="1">FRIZZY</text>
-        <circle cx="122" cy="20" r="7" fill="#D1272B" stroke="#2A0E4F" stroke-width="2"/>
-        <path d="M122 27 q-4 8 0 14" stroke="#F5A623" stroke-width="5" fill="none" stroke-linecap="round"/>
-      </svg>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-badge">POS</span>
+      <h1>FRIZZY</h1>
     </div>
-    <div class="tagline">Crujientes por fuera, suaves por dentro</div>
-  </div>
-</header>
+  </header>
 
-<div class="app">
-  <!-- COLUMNA IZQUIERDA -->
-  <div>
-    <form id="orderForm" class="panel">
-      <span class="banner">Nuevo pedido</span>
-      
-<div class="field" style="position: relative;">
-  <label for="nombreCliente">Nombre del cliente</label>
-  <input
-    type="text"
-    id="nombreCliente"
-    placeholder="Ej. Camila"
-    autocomplete="off"
-    required
-  />
-  <!-- Menú desplegable con las 3 primeras coincidencias -->
-  <div
-    id="sugerenciasClientes"
-    role="listbox"
-    aria-label="Sugerencias de clientes"
-    style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #FFFFFF; border: 2px solid #2B113F; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.18); z-index: 200; margin-top: 4px; overflow: hidden;"
-  ></div>
-</div>
+  <main class="layout">
+    <!-- COLUMNA IZQUIERDA: FORMULARIO Y PEDIDOS -->
+    <section class="col-main">
+      <div class="panel">
+        <span class="section-tag">Nuevo Pedido</span>
+        <form id="orderForm" novalidate>
+          <div class="field" style="position: relative;">
+            <label for="nombreCliente">Nombre del cliente</label>
+            <input
+              type="text"
+              id="nombreCliente"
+              placeholder="Ej. Camila"
+              autocomplete="off"
+              required
+            />
+            <small style="display:block; font-size:0.75rem; color:#6D5E78; margin-top:4px;">
+              Al registrar el nombre, el cliente autoriza su uso para la gestión del pedido y fidelización (Ley 1581 de 2012).
+            </small>
+            <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
+          </div>
 
-      <div class="field"><label>Bowl base</label><div class="choice-grid" id="bowlGrid"></div></div>
-      <div class="field"><label>Acompañantes</label><div class="choice-grid" id="acompGrid"></div></div>
-      <div class="field"><label>Toppings</label><div class="choice-grid" id="toppingGrid"></div></div>
-      <div class="field"><label>Bebidas</label><div class="choice-grid" id="bebidaGrid"></div></div>
-      <div class="field"><label>Medio de pago</label><div class="pay-grid" id="payGrid"></div></div>
+          <p class="subhead">Bowl Base (Opcional si es compra individual)</p>
+          <div id="bowlGrid" class="choice-grid"></div>
 
-      <div class="field">
-        <label for="notas">Notas</label>
-        <textarea id="notas" placeholder="Ej. sin cebolla, para llevar..."></textarea>
+          <p class="subhead">Acompañantes</p>
+          <div id="acompGrid" class="qty-grid"></div>
+
+          <p class="subhead">Toppings</p>
+          <div id="toppingGrid" class="qty-grid"></div>
+
+          <p class="subhead">Bebidas</p>
+          <div id="bebidaGrid" class="qty-grid"></div>
+
+          <p class="subhead">Medio de Pago</p>
+          <div id="payGrid" class="choice-grid pay-grid"></div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label for="notas">Notas</label>
+            <textarea id="notas" rows="2" placeholder="Ej. sin cebolla, para llevar..."></textarea>
+          </div>
+
+          <div class="total-bar">
+            <div>
+              <span class="total-label">TOTAL DEL PEDIDO</span>
+              <div id="totalPedido" class="total-amount">$0</div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
+            GUARDAR PEDIDO
+          </button>
+          <button type="button" class="btn-secundario" id="btnApartar" disabled>
+            APARTAR PARA DESPUÉS
+          </button>
+        </form>
       </div>
 
-      <div class="total-bar">
-        <div><div class="label">Total del pedido</div><div class="amount" id="totalPedido">$0</div></div>
+      <div class="panel" style="margin-top: 18px;">
+        <span class="section-tag">Apartados (Pedidos para después)</span>
+        <div id="apartadosList" class="orders-list"></div>
       </div>
-      <button type="submit" class="btn-guardar" id="btnGuardar" disabled>Guardar pedido</button>
-      <button type="button" class="btn-secundario" id="btnApartar" disabled style="margin-top:8px;">Apartar para después</button>
-    </form>
 
-    <div class="panel orders-panel">
-      <span class="banner">Apartados (pedidos para después)</span>
-      <div id="apartadosList"></div>
-    </div>
+      <div class="panel" style="margin-top: 18px;">
+        <span class="section-tag">Pedidos de Hoy</span>
+        <div id="ordersList" class="orders-list"></div>
+      </div>
+    </section>
 
-    <div class="panel orders-panel">
-      <span class="banner">Pedidos de hoy</span>
-      <div id="ordersList"></div>
-    </div>
-  </div>
+    <!-- COLUMNA DERECHA: CIERRE DE CAJA -->
+    <aside class="col-side">
+      <div class="panel" id="summaryCapture">
+        <span class="section-tag">Cierre de Caja</span>
 
-  <!-- COLUMNA DERECHA -->
-  <div>
-    <div class="panel" style="position:sticky; top:14px;">
-      <div id="summaryCapture">
-        <span class="banner small">Cierre de caja</span>
-        <div class="summary-grid">
-          <div class="stat"><div class="n" id="statPedidos">0</div><div class="l">Pedidos hoy</div></div>
-          <div class="stat"><div class="n" id="statTotal">$0</div><div class="l">Ventas hoy</div></div>
+        <div class="kpi-row">
+          <div class="kpi-box">
+            <div class="kpi-num" id="sumCount">0</div>
+            <div class="kpi-label">PEDIDOS HOY</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-num" id="sumTotal">$0</div>
+            <div class="kpi-label">VENTAS HOY</div>
+          </div>
         </div>
 
-        <span class="banner small">Por medio de pago</span>
-        <div class="pay-summary" id="paySummary"></div>
+        <span class="section-tag" style="margin-top: 14px;">Por Medio de Pago</span>
+        <div id="payBreakdown" class="pay-breakdown"></div>
 
-        <span class="banner small">Más vendidos</span>
-        <div class="top-list" id="topList"></div>
+        <span class="section-tag" style="margin-top: 14px;">Más Vendidos</span>
+        <div id="topList" class="top-list"></div>
       </div>
 
-      <p class="subhead">Descargar reporte del día</p>
-      <div class="export-row">
-        <button type="button" class="btn-export" id="btnExcel">Excel</button>
-        <button type="button" class="btn-export" id="btnImagen">Imagen</button>
-      </div>
-
-<!-- Botones de Administración y Reportes en la columna derecha de index.html -->
-<button type="button" class="btn-secundario" id="btnAdmin" style="margin-bottom:8px; border-color: var(--dorado); color: var(--dorado);">⚙️ Modo Administrador (Precios)</button>
-<a href="dashboard.html" class="btn-secundario" style="display:block; text-align:center; text-decoration:none; margin-bottom:8px;">📊 Ver Dashboard Histórico</a>
-<button type="button" class="btn-secundario" id="btnCerrar">Cerrar día / Reiniciar</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<!-- Modal personalizado -->
-<div id="confirmOverlay">
-  <div class="confirm-box">
-    <div class="msg" id="confirmMsg"></div>
-    <div class="btns">
-      <button type="button" class="btn-no" id="confirmNo">Cancelar</button>
-      <button type="button" class="btn-si" id="confirmSi">Sí, continuar</button>
-    </div>
-  </div>
-</div>
-<script type="module" src="/js/app.js"></script>
-<!-- MODAL ADMINISTRADOR CORREGIDO (antes de </body>) -->
-<div id="adminModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; justify-content: center; align-items: center; padding: 16px;">
-    <div style="background: #FFFFFF; color: #1A1A1A; padding: 20px; border-radius: 12px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(0,0,0,0.25);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0; color: #2B113F; font-size: 1.25rem;">⚙️ Cambiar Precios</h3>
-            <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#1A1A1A;">&times;</button>
+      <div class="panel" style="margin-top: 14px;">
+        <p class="subhead">Descargar reporte del día</p>
+        <div class="export-row">
+          <button type="button" class="btn-export" id="btnExcel">EXCEL</button>
+          <button type="button" class="btn-export" id="btnImagen">IMAGEN</button>
         </div>
-        <div id="adminListaProductos" style="display:flex; flex-direction:column; gap:8px;"></div>
-        <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="width: 100%; margin-top: 20px; padding: 12px; background: #2B113F; color: #F4B41A; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Guardar Cambios en Nube</button>
+
+        <button type="button" class="btn-secundario btn-admin" id="btnAdmin">
+          ⚙️ MODO ADMINISTRADOR (PRECIOS)
+        </button>
+
+        <a href="dashboard.html" class="btn-secundario btn-dashboard">
+          📊 VER DASHBOARD HISTÓRICO
+        </a>
+
+        <button type="button" class="btn-secundario" id="btnCerrar">
+          CERRAR DÍA / REINICIAR
+        </button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL ADMINISTRADOR -->
+  <div id="adminModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ Gestión de Precios</h3>
+        <button type="button" id="btnCerrarAdmin" class="modal-close" aria-label="Cerrar modal">&times;</button>
+      </div>
+      <div id="adminListaProductos" class="modal-body"></div>
+      <button type="button" id="btnGuardarPrecios" class="btn-primario" style="width: 100%; margin-top: 16px;">
+        Guardar Cambios en Nube
+      </button>
     </div>
-</div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

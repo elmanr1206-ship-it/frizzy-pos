@@ -2,10 +2,10 @@ import { ui } from './ui.js';
 import { dbSync } from './dbSync.js';
 import { api, normalizarNombreCliente } from './api.js';
 
-const BOWLS = [{id:'papas', nombre:'Papas', precio:10000}, {id:'yuca', nombre:'Yuca', precio:8000}];
-const ACOMPANANTES = [{id:'salchicha', nombre:'Salchicha', precio:3000}, {id:'chorizo', nombre:'Chorizo', precio:5000}, {id:'pollo', nombre:'Pollo (Nuggets)', precio:4000}, {id:'carne', nombre:'Carne', precio:5000}];
-const TOPPINGS = [{id:'papachongo', nombre:'Papa Chongo', precio:1000}, {id:'lechuga', nombre:'Lechuga', precio:500}, {id:'picodegallo', nombre:'Pico de Gallo', precio:1000}, {id:'queso', nombre:'Queso', precio:2000}, {id:'tocineta', nombre:'Salsa de Tocineta', precio:2000}];
-const BEBIDAS = [{id:'vasito', nombre:'Vasito', precio:1500}];
+const BOWLS = [{id:'papas', nombre:'Papas', precio:10000, cat:'Bowls Base'}, {id:'yuca', nombre:'Yuca', precio:8000, cat:'Bowls Base'}];
+const ACOMPANANTES = [{id:'salchicha', nombre:'Salchicha', precio:3000, cat:'Acompañantes'}, {id:'chorizo', nombre:'Chorizo', precio:5000, cat:'Acompañantes'}, {id:'pollo', nombre:'Pollo (Nuggets)', precio:4000, cat:'Acompañantes'}, {id:'carne', nombre:'Carne', precio:5000, cat:'Acompañantes'}];
+const TOPPINGS = [{id:'papachongo', nombre:'Papa Chongo', precio:1000, cat:'Toppings'}, {id:'lechuga', nombre:'Lechuga', precio:500, cat:'Toppings'}, {id:'picodegallo', nombre:'Pico de Gallo', precio:1000, cat:'Toppings'}, {id:'queso', nombre:'Queso', precio:2000, cat:'Toppings'}, {id:'tocineta', nombre:'Salsa de Tocineta', precio:2000, cat:'Toppings'}];
+const BEBIDAS = [{id:'vasito', nombre:'Vasito', precio:1500, cat:'Bebidas'}];
 const PAGOS = [{id:'efectivo', nombre:'Efectivo'}, {id:'llave', nombre:'Llave'}, {id:'nequi', nombre:'Nequi'}];
 const TODO_EL_MENU = [...BOWLS, ...ACOMPANANTES, ...TOPPINGS, ...BEBIDAS];
 
@@ -357,7 +357,6 @@ async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
 
         await dbSync.saveToQueue(pedidoAdaptadoAPI);
 
-        // Cerrar el detalle de los pedidos anteriores y dejar abierto el recién creado
         pedidos.forEach((p) => { p.abierto = false; });
         pedido.abierto = true;
 
@@ -415,6 +414,99 @@ async function sincronizarCola() {
     }
 }
 
+// ---------------- PANEL ADMINISTRADOR VISUAL (SIN PROMPTS) ----------------
+function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
+    if (btnGuardar) btnGuardar.style.display = 'block';
+    listaDiv.innerHTML = '';
+
+    const categorias = ['Bowls Base', 'Acompañantes', 'Toppings', 'Bebidas'];
+    categorias.forEach((catNombre) => {
+        const productosCat = TODO_EL_MENU.filter((p) => p.cat === catNombre);
+        if (productosCat.length === 0) return;
+
+        const headerCat = document.createElement('div');
+        headerCat.style.cssText = 'font-size:0.76rem; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; color:#2B113F; background:#F4B41A; display:inline-block; padding:4px 10px; border-radius:99px; margin:10px 0 4px 0; align-self:flex-start;';
+        headerCat.textContent = catNombre;
+        listaDiv.appendChild(headerCat);
+
+        productosCat.forEach((prod) => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#FFF9EC; border:1px solid #E2D5B5; border-radius:12px; padding:10px 12px; margin-bottom:6px; gap:8px;';
+            row.innerHTML = `
+                <div style="flex:1; min-width:0;">
+                    <div style="color:#2B113F; font-weight:800; font-size:0.95rem;">${ui.esc(prod.nombre)}</div>
+                    <div style="color:#6D5E78; font-size:0.75rem;">ID: ${ui.esc(prod.id)}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <button type="button" class="btn-step-minus" style="width:36px; height:36px; border-radius:8px; border:1px solid #D3C4A3; background:#FFF; color:#2B113F; font-weight:900; cursor:pointer;">−500</button>
+                    <div style="display:flex; align-items:center; background:#FFFFFF; border-radius:8px; padding:6px 10px; border:2px solid #2B113F;">
+                        <span style="color:#2B113F; margin-right:4px; font-weight:900;">$</span>
+                        <input type="number" min="100" step="100" data-id="${ui.esc(prod.id)}" value="${Number(prod.precio)}"
+                            style="width:82px; text-align:right; border:none; background:transparent; font-size:16px; font-weight:800; color:#2B113F; outline:none;">
+                    </div>
+                    <button type="button" class="btn-step-plus" style="width:36px; height:36px; border-radius:8px; border:none; background:#F4B41A; color:#2B113F; font-weight:900; cursor:pointer;">+500</button>
+                </div>
+            `;
+
+            const input = row.querySelector('input');
+            row.querySelector('.btn-step-minus').addEventListener('click', () => {
+                input.value = Math.max(100, (Number(input.value) || 0) - 500);
+            });
+            row.querySelector('.btn-step-plus').addEventListener('click', () => {
+                input.value = (Number(input.value) || 0) + 500;
+            });
+
+            listaDiv.appendChild(row);
+        });
+    });
+
+    modal.style.display = 'flex';
+}
+
+function mostrarLoginEnModal(modal, listaDiv, btnGuardar) {
+    if (btnGuardar) btnGuardar.style.display = 'none';
+    listaDiv.innerHTML = `
+        <div style="background:#FFF9EC; border:1px solid #E2D5B5; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <p style="margin:0; font-size:0.9rem; color:#5A4B65; font-weight:600;">
+                🔒 Ingresa con tu cuenta de Administrador para modificar los precios del menú en la nube.
+            </p>
+            <div>
+                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2B113F; margin-bottom:4px;">CORREO ELECTRÓNICO</label>
+                <input type="email" id="adminLoginEmail" placeholder="elmanr248@gmail.com" autocomplete="username"
+                    style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1.5px solid #C9B896; font-size:16px; color:#1A1A1A;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2B113F; margin-bottom:4px;">CONTRASEÑA</label>
+                <input type="password" id="adminLoginPass" placeholder="••••••••" autocomplete="current-password"
+                    style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1.5px solid #C9B896; font-size:16px; color:#1A1A1A;">
+            </div>
+            <button type="button" id="btnSubmitAdminLogin"
+                style="width:100%; min-height:46px; background:#2B113F; color:#F4B41A; border:none; border-radius:10px; font-weight:900; font-size:0.98rem; cursor:pointer; margin-top:4px;">
+                Desbloquear Panel de Precios
+            </button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+
+    document.getElementById('btnSubmitAdminLogin')?.addEventListener('click', async () => {
+        const email = document.getElementById('adminLoginEmail')?.value.trim();
+        const pass = document.getElementById('adminLoginPass')?.value;
+        const btn = document.getElementById('btnSubmitAdminLogin');
+        if (!email || !pass) return ui.mostrarToast('Completa correo y contraseña');
+
+        btn.disabled = true;
+        btn.textContent = 'Verificando...';
+        const { error } = await api.loginAdmin(email, pass);
+        if (error) {
+            btn.disabled = false;
+            btn.textContent = 'Desbloquear Panel de Precios';
+            return ui.mostrarToast('🔒 Credenciales inválidas');
+        }
+        ui.mostrarToast('🔓 Sesión de Administrador iniciada');
+        abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar);
+    });
+}
+
 async function init() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('SW error:', err));
@@ -465,52 +557,33 @@ async function init() {
 
     const modal = document.getElementById('adminModal');
     const listaDiv = document.getElementById('adminListaProductos');
+    const btnGuardarPrecios = document.getElementById('btnGuardarPrecios');
 
     document.getElementById('btnAdmin')?.addEventListener('click', async () => {
         const session = await api.getSession();
         if (!session) {
-            const email = prompt('Correo de Administrador:');
-            if (!email) return;
-            const password = prompt('Contraseña de Administrador:');
-            if (!password) return;
-            const { error } = await api.loginAdmin(email.trim(), password);
-            if (error) {
-                return ui.mostrarToast('🔒 Acceso denegado: credenciales inválidas');
-            }
+            mostrarLoginEnModal(modal, listaDiv, btnGuardarPrecios);
+        } else {
+            abrirEditorPreciosEnModal(modal, listaDiv, btnGuardarPrecios);
         }
-
-        listaDiv.innerHTML = '';
-        TODO_EL_MENU.forEach((prod) => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e0e0e0; padding:10px 0;';
-            row.innerHTML = `
-                <span style="color:#1A1A1A; font-weight:600; font-size:1rem;">${ui.esc(prod.nombre)}</span>
-                <div style="display:flex; align-items:center; background:#f5f5f5; border-radius:8px; padding:4px 8px; border:1px solid #ccc;">
-                    <span style="color:#666; margin-right:5px; font-weight:bold;">$</span>
-                    <input type="number" min="100" step="100" data-id="${ui.esc(prod.id)}" value="${Number(prod.precio)}"
-                        style="width:90px; text-align:right; border:none; background:transparent; font-size:16px; color:#1A1A1A; outline:none;">
-                </div>
-            `;
-            listaDiv.appendChild(row);
-        });
-        modal.style.display = 'flex';
     });
 
     document.getElementById('btnCerrarAdmin')?.addEventListener('click', () => {
         modal.style.display = 'none';
     });
 
-    document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
-        const inputs = listaDiv.querySelectorAll('input');
-        const btn = document.getElementById('btnGuardarPrecios');
-        btn.disabled = true;
+    btnGuardarPrecios?.addEventListener('click', async () => {
+        const inputs = listaDiv.querySelectorAll('input[data-id]');
+        btnGuardarPrecios.disabled = true;
+        btnGuardarPrecios.textContent = 'Sincronizando...';
         let fallos = 0;
 
         for (const inpt of inputs) {
             const val = Number(inpt.value);
             if (!Number.isFinite(val) || val <= 0) {
-                btn.disabled = false;
-                return ui.mostrarToast('⚠️ Todos los precios deben ser números mayores a 0');
+                btnGuardarPrecios.disabled = false;
+                btnGuardarPrecios.textContent = 'Guardar Cambios en Nube';
+                return ui.mostrarToast('⚠️ Todos los precios deben ser mayores a $0');
             }
         }
 
@@ -535,9 +608,10 @@ async function init() {
 
         localStorage.setItem('fz_precios', JSON.stringify(cachePrecios));
         modal.style.display = 'none';
-        btn.disabled = false;
+        btnGuardarPrecios.disabled = false;
+        btnGuardarPrecios.textContent = 'Guardar Cambios en Nube';
         renderAll();
-        ui.mostrarToast(fallos === 0 ? '✅ Precios actualizados y persistidos' : `⚠️ Actualizados con ${fallos} errores`);
+        ui.mostrarToast(fallos === 0 ? '✅ Precios actualizados en caja y nube' : `⚠️ Guardado con ${fallos} errores`);
     });
 
     document.getElementById('btnExcel')?.addEventListener('click', () => {

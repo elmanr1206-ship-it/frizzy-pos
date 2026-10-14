@@ -3,50 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <title>Frizzy | Dashboard Administrativo</title>
+    <title>Frizzy | Dashboard Ejecutivo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
-        :root { --fondo: #F7EFDD; --primario: #5F2C82; --texto: #333; }
-        body { font-family: 'Nunito', sans-serif; background: var(--fondo); margin: 0; padding: 20px; color: var(--texto); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .grid-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .kpi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
-        .kpi-card h3 { margin: 0 0 10px 0; font-size: 1rem; color: #666; }
-        .kpi-card h2 { margin: 0; font-size: 2rem; color: var(--primario); }
-        .grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .chart-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        :root {
+            --morado-oscuro: #2B113F;
+            --morado-medio: #5F2C82;
+            --dorado: #F4B41A;
+            --crema: #F7EFDD;
+            --crema-card: #FFF9EC;
+            --borde: #E2D5B5;
+            --texto: #2B113F;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at top, #3B1854 0%, #1E0B2E 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px 16px;
+            color: var(--texto);
+        }
+        .dashboard-shell {
+            max-width: 1220px;
+            margin: 0 auto;
+            background: var(--crema);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+        }
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--borde);
+        }
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .badge-tag {
+            background: var(--dorado);
+            color: var(--morado-oscuro);
+            font-weight: 900;
+            font-size: 0.78rem;
+            padding: 5px 12px;
+            border-radius: 99px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            font-weight: 900;
+            color: var(--morado-oscuro);
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-btn {
+            background: var(--crema-card);
+            border: 1.5px solid var(--borde);
+            color: var(--morado-oscuro);
+            padding: 8px 14px;
+            border-radius: 99px;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .filter-btn.active {
+            background: var(--morado-oscuro);
+            color: var(--dorado);
+            border-color: var(--morado-oscuro);
+        }
+        .btn-pos {
+            text-decoration: none;
+            background: var(--dorado);
+            color: var(--morado-oscuro);
+            font-weight: 900;
+            padding: 9px 16px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            box-shadow: 0 3px 0 #C88F0A;
+        }
+        .grid-kpi {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+        .kpi-card {
+            background: var(--crema-card);
+            border: 1.5px solid var(--borde);
+            padding: 18px 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(43,17,63,0.04);
+        }
+        .kpi-card span {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6D5E78;
+            margin-bottom: 6px;
+        }
+        .kpi-card h2 {
+            margin: 0;
+            font-size: 1.9rem;
+            font-weight: 900;
+            color: var(--morado-oscuro);
+        }
+        .grid-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: var(--crema-card);
+            border: 1.5px solid var(--borde);
+            padding: 20px;
+            border-radius: 18px;
+        }
+        .chart-card h3 {
+            margin: 0 0 14px 0;
+            font-size: 1rem;
+            font-weight: 900;
+            color: var(--morado-oscuro);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .canvas-wrap {
+            position: relative;
+            height: 270px;
+            width: 100%;
+        }
+        /* Modal Login del Dashboard */
+        #dashAuthModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 7, 32, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .auth-box {
+            background: var(--crema);
+            border: 2px solid var(--dorado);
+            border-radius: 20px;
+            padding: 26px;
+            width: 100%;
+            max-width: 390px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 Frizzy Dashboard</h1>
-        <a href="index.html" style="text-decoration: none; color: var(--primario); font-weight: bold;">← Volver al POS</a>
+
+    <div class="dashboard-shell">
+        <div class="header">
+            <div class="brand-title">
+                <span class="badge-tag">Reporte Ejecutivo</span>
+                <h1>📊 Frizzy Inteligencia de Ventas</h1>
+            </div>
+            <div class="toolbar">
+                <button type="button" class="filter-btn" data-range="hoy">Hoy</button>
+                <button type="button" class="filter-btn" data-range="7d">7 Días</button>
+                <button type="button" class="filter-btn" data-range="30d">30 Días</button>
+                <button type="button" class="filter-btn active" data-range="todo">Histórico</button>
+                <a href="index.html" class="btn-pos">← Volver al POS</a>
+            </div>
+        </div>
+
+        <div class="grid-kpi">
+            <div class="kpi-card">
+                <span>💰 Ingresos del Periodo</span>
+                <h2 id="kpiIngresos">$0</h2>
+            </div>
+            <div class="kpi-card">
+                <span>🧾 Pedidos Completados</span>
+                <h2 id="kpiPedidos">0</h2>
+            </div>
+            <div class="kpi-card">
+                <span>📈 Ticket Promedio</span>
+                <h2 id="kpiTicket">$0</h2>
+            </div>
+            <div class="kpi-card">
+                <span>🥣 Unidades Despachadas</span>
+                <h2 id="kpiUnidades">0</h2>
+            </div>
+        </div>
+
+        <div class="grid-charts">
+            <div class="chart-card">
+                <h3>
+                    <span>⏰ Horas Pico de Ventas</span>
+                    <span class="badge-tag" style="font-size:0.68rem;">Demanda por Hora</span>
+                </h3>
+                <div class="canvas-wrap">
+                    <canvas id="chartHoras"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3>
+                    <span>🏆 Productos Más Vendidos</span>
+                    <span class="badge-tag" style="font-size:0.68rem;">Unidades</span>
+                </h3>
+                <div class="canvas-wrap">
+                    <canvas id="chartProductos"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <h3>
+                    <span>💳 Ingresos por Medio de Pago</span>
+                    <span class="badge-tag" style="font-size:0.68rem;">Distribución $</span>
+                </h3>
+                <div class="canvas-wrap">
+                    <canvas id="chartPagos"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="grid-kpi">
-        <div class="kpi-card">
-            <h3>Ingresos Totales (Histórico)</h3>
-            <h2 id="kpiIngresos">$0</h2>
-        </div>
-        <div class="kpi-card">
-            <h3>Pedidos Completados</h3>
-            <h2 id="kpiPedidos">0</h2>
-        </div>
-        <div class="kpi-card">
-            <h3>Ticket Promedio</h3>
-            <h2 id="kpiTicket">$0</h2>
-        </div>
-    </div>
-
-    <div class="grid-charts">
-        <div class="chart-container">
-            <h3 style="text-align: center;">Top Productos Más Vendidos</h3>
-            <canvas id="chartProductos"></canvas>
-        </div>
-        <div class="chart-container">
-            <h3 style="text-align: center;">Horas Pico de Ventas</h3>
-            <canvas id="chartHoras"></canvas>
+    <!-- Modal de Autenticación para el Dashboard -->
+    <div id="dashAuthModal">
+        <div class="auth-box">
+            <h2 style="margin:0 0 8px 0; color:#2B113F;">🔒 Acceso Gerencial</h2>
+            <p style="margin:0 0 16px 0; font-size:0.9rem; color:#5A4B65; font-weight:600;">
+                Inicia sesión con tu cuenta de Administrador para consultar las métricas financieras.
+            </p>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CORREO</label>
+                <input type="email" id="dashEmail" placeholder="elmanr248@gmail.com" style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #C9B896; font-size:16px;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CONTRASEÑA</label>
+                <input type="password" id="dashPass" placeholder="••••••••" style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #C9B896; font-size:16px;">
+            </div>
+            <p id="dashAuthError" style="display:none; color:#B71C1C; font-size:0.85rem; font-weight:700; margin:0 0 10px 0;"></p>
+            <div style="display:flex; gap:10px;">
+                <a href="index.html" style="flex:1; text-align:center; padding:12px; border-radius:10px; border:1.5px solid #C9B896; text-decoration:none; color:#2B113F; font-weight:800;">Volver</a>
+                <button type="button" id="btnDashLogin" style="flex:2; padding:12px; border-radius:10px; border:none; background:#2B113F; color:#F4B41A; font-weight:900; cursor:pointer;">Entrar</button>
+            </div>
         </div>
     </div>
 

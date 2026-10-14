@@ -27,16 +27,18 @@ export const ui = {
             div.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 
             div.style.cssText = isSelected
-                ? 'border: 2px solid #2B113F; background: #FFFDF7; box-shadow: 0 4px 12px rgba(43,17,63,0.14); position: relative; transition: all 0.18s ease;'
-                : 'position: relative; transition: all 0.18s ease;';
+                ? 'border: 2px solid #2B113F; background: linear-gradient(135deg, #FFFDF9 0%, #FFF5D6 100%); box-shadow: 0 6px 14px rgba(43,17,63,0.14); position: relative; transition: all 0.18s ease;'
+                : 'border: 1px solid #E2D5B5; background: #FFF9EC; position: relative; transition: all 0.18s ease;';
 
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px;">
                     <div>
-                        <div class="choice-title" style="font-weight:700;">${this.esc(it.nombre)}</div>
-                        ${it.precio !== undefined ? `<div class="choice-price" style="font-weight:600; color:#5F2C82;">${this.fmt(it.precio)}</div>` : ''}
+                        <div class="choice-title" style="font-weight:800; color:#2B113F; font-size:0.98rem;">${this.esc(it.nombre)}</div>
+                        ${it.precio !== undefined ? `<div class="choice-price" style="font-weight:700; color:#6D5E78; font-size:0.86rem; margin-top:2px;">${this.fmt(it.precio)}</div>` : ''}
                     </div>
-                    ${isSelected ? '<span style="background:#2B113F; color:#F4B41A; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:900;">✓</span>' : ''}
+                    ${isSelected
+                        ? '<span style="background:#2B113F; color:#F4B41A; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:900; flex-shrink:0;">✓</span>'
+                        : '<span style="border:2px solid #D3C4A3; width:22px; height:22px; border-radius:50%; display:inline-block; flex-shrink:0;"></span>'}
                 </div>
             `;
 
@@ -61,21 +63,19 @@ export const ui = {
             const cant = stateObj[it.id] || 0;
             const div = document.createElement('div');
             div.className = 'qty-card' + (cant > 0 ? ' active selected' : '');
-            if (cant > 0) {
-                div.style.borderColor = '#2B113F';
-                div.style.background = '#FFFDF7';
-                div.style.boxShadow = '0 4px 10px rgba(43,17,63,0.1)';
-            }
+            div.style.cssText = cant > 0
+                ? 'border: 2px solid #2B113F; background: linear-gradient(135deg, #FFFDF9 0%, #FFF5D6 100%); box-shadow: 0 5px 12px rgba(43,17,63,0.12); transition: all 0.16s ease;'
+                : 'border: 1px solid #E2D5B5; background: #FFF9EC; transition: all 0.16s ease;';
 
             div.innerHTML = `
                 <div class="qty-info" style="cursor:pointer; flex:1;" title="Toca para sumar 1">
-                    <div class="qty-title" style="font-weight:700;">${this.esc(it.nombre)}</div>
-                    <div class="qty-price" style="color:#5F2C82; font-weight:600;">${this.fmt(it.precio)}</div>
+                    <div class="qty-title" style="font-weight:800; color:#2B113F;">${this.esc(it.nombre)}</div>
+                    <div class="qty-price" style="color:#6D5E78; font-weight:700; font-size:0.85rem;">${this.fmt(it.precio)}</div>
                 </div>
-                <div class="qty-controls">
-                    <button type="button" class="qty-btn" style="min-width:44px; min-height:44px;" aria-label="Disminuir ${this.esc(it.nombre)}">−</button>
-                    <span class="qty-val" style="min-width:22px; text-align:center; font-weight:800;">${cant}</span>
-                    <button type="button" class="qty-btn" style="min-width:44px; min-height:44px;" aria-label="Aumentar ${this.esc(it.nombre)}">+</button>
+                <div class="qty-controls" style="display:flex; align-items:center; gap:6px;">
+                    <button type="button" class="qty-btn" style="min-width:42px; min-height:42px; border-radius:50%; font-weight:900;" aria-label="Disminuir ${this.esc(it.nombre)}">−</button>
+                    <span class="qty-val" style="min-width:24px; text-align:center; font-weight:900; font-size:1.02rem; color:#2B113F;">${cant}</span>
+                    <button type="button" class="qty-btn" style="min-width:42px; min-height:42px; border-radius:50%; font-weight:900;" aria-label="Aumentar ${this.esc(it.nombre)}">+</button>
                 </div>
             `;
 
@@ -84,15 +84,11 @@ export const ui = {
             });
 
             const botones = div.querySelectorAll('.qty-btn');
-            const btnMenos = botones[0];
-            const btnMas = botones[1];
-
-            btnMenos.addEventListener('click', (e) => {
+            botones[0].addEventListener('click', (e) => {
                 e.stopPropagation();
                 onChange(it.id, Math.max(0, cant - 1));
             });
-
-            btnMas.addEventListener('click', (e) => {
+            botones[1].addEventListener('click', (e) => {
                 e.stopPropagation();
                 onChange(it.id, cant + 1);
             });
@@ -105,7 +101,7 @@ export const ui = {
         const c = document.getElementById(containerId);
         if (!c) return;
         if (!lista || lista.length === 0) {
-            c.innerHTML = `<p class="empty-msg" style="text-align:center; padding:18px; color:#776B80; font-style:italic;">${esApartado ? 'No hay pedidos apartados en este momento' : 'Aún no hay pedidos registrados hoy'}</p>`;
+            c.innerHTML = `<p class="empty-msg" style="text-align:center; padding:20px; color:#776B80; font-style:italic; background:#FFF9EC; border-radius:12px; border:1px dashed #D8C9A8;">${esApartado ? 'No hay pedidos apartados en este momento' : 'Aún no hay pedidos registrados hoy'}</p>`;
             return;
         }
         c.innerHTML = '';
@@ -113,7 +109,7 @@ export const ui = {
         lista.forEach((p) => {
             const card = document.createElement('div');
             card.className = 'order-item order-card' + (p.abierto ? ' open' : '');
-            card.style.cssText = 'background:#FFF9EC; border:1px solid #E2D5B5; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:0 3px 8px rgba(43,17,63,0.06); transition:all 0.2s ease;';
+            card.style.cssText = 'background:#FFF9EC; border:1.5px solid #E2D5B5; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:0 4px 10px rgba(43,17,63,0.06); transition:all 0.2s ease;';
 
             const acomp = p.acompDetalle || [];
             const top = p.toppingDetalle || [];
@@ -129,43 +125,43 @@ export const ui = {
             const precioBowl = Math.max(0, Number(p.total || 0) - sumaExtras);
 
             const filasDetalleHTML = todosLosExtras.map((i) => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #E2D5B5; font-size:0.9rem; color:#2B113F;">
-                    <span>• ${this.esc(i.nombre)} <strong style="background:#F4B41A; color:#2B113F; padding:1px 7px; border-radius:99px; font-size:0.78rem; margin-left:4px;">x${Number(i.cantidad)}</strong></span>
-                    <strong style="font-weight:700;">${this.fmt((i.precio || 0) * i.cantidad)}</strong>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px dashed #E2D5B5; font-size:0.9rem; color:#2B113F;">
+                    <span>• ${this.esc(i.nombre)} <strong style="background:#F4B41A; color:#2B113F; padding:1px 8px; border-radius:99px; font-size:0.76rem; margin-left:4px;">x${Number(i.cantidad)}</strong></span>
+                    <strong style="font-weight:800;">${this.fmt((i.precio || 0) * i.cantidad)}</strong>
                 </div>
             `).join('');
 
             const badgeSync = !esApartado
                 ? `<span style="font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${p.syncError ? '#FDECEA' : p.sincronizado ? '#E6F4EA' : '#FFF4D6'}; color:${p.syncError ? '#B71C1C' : p.sincronizado ? '#1E7E34' : '#9A6700'};">
-                    ${p.syncError ? '⚠️ Error' : p.sincronizado ? '☁️ Sincronizado' : '⏳ En cola local'}
+                    ${p.syncError ? '⚠️ Error' : p.sincronizado ? '☁️ Sincronizado' : '⏳ En cola'}
                    </span>`
                 : '<span style="font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:800; background:#EDE7F6; color:#4A148C;">📌 Apartado</span>';
 
             card.innerHTML = `
-                <div class="order-head" role="button" tabindex="0" aria-expanded="${p.abierto ? 'true' : 'false'}" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                    <div style="flex:1;">
+                <div class="order-head" role="button" tabindex="0" aria-expanded="${p.abierto ? 'true' : 'false'}" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
                             <strong style="font-size:1.05rem; color:#2B113F;">${this.esc(p.nombre)}</strong>
-                            <span style="font-size:0.8rem; color:#6D5E78; font-weight:600;">· ${this.esc(p.hora)} ·</span>
-                            <span style="font-size:0.76rem; background:#2B113F; color:#F4B41A; padding:2px 8px; border-radius:6px; font-weight:700;">${this.esc(p.pago)}</span>
+                            <span style="font-size:0.8rem; color:#6D5E78; font-weight:600;">· ${this.esc(p.hora)}</span>
+                            <span style="font-size:0.74rem; background:#2B113F; color:#F4B41A; padding:2px 8px; border-radius:6px; font-weight:800;">${this.esc(p.pago)}</span>
                             ${badgeSync}
                         </div>
                         <div style="font-size:0.85rem; color:#5A4B65; margin-top:4px; font-weight:600;">
                             🥣 ${resumenCorto}
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="order-total" style="font-size:1.1rem; font-weight:900; color:#2B113F;">${this.fmt(p.total)}</div>
-                        <span style="font-size:0.78rem; color:#2B113F; font-weight:800; padding:6px 10px; background:#F4B41A; border-radius:8px; user-select:none;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                        <div class="order-total" style="font-size:1.12rem; font-weight:900; color:#2B113F;">${this.fmt(p.total)}</div>
+                        <span style="font-size:0.76rem; color:#2B113F; font-weight:800; padding:6px 10px; background:#F4B41A; border-radius:8px; user-select:none;">
                             ${p.abierto ? '▲ Cerrar' : '▼ Ver'}
                         </span>
                     </div>
                 </div>
 
                 ${p.abierto ? `
-                <div class="order-body open" style="display:block !important; margin-top:12px; padding:12px; background:#FFFFFF; border-radius:10px; border:1px solid #E6DEC8;">
-                    <div style="font-size:0.76rem; text-transform:uppercase; letter-spacing:0.06em; color:#776B80; font-weight:800; margin-bottom:6px;">
-                        Desglose del Pedido
+                <div class="order-body open" style="display:block !important; margin-top:12px; padding:14px; background:#FFFFFF; border-radius:12px; border:1px solid #E6DEC8;">
+                    <div style="font-size:0.74rem; text-transform:uppercase; letter-spacing:0.06em; color:#776B80; font-weight:800; margin-bottom:6px;">
+                        Recibo de Preparación
                     </div>
 
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #EFE8D5; font-size:0.92rem; color:#2B113F;">
@@ -177,7 +173,7 @@ export const ui = {
 
                     ${p.notas ? `
                     <div style="background:#FFF8E1; border-left:4px solid #F4B41A; padding:8px 10px; border-radius:6px; margin-top:8px; font-size:0.88rem; color:#2B113F;">
-                        <strong>📝 Nota de cocina:</strong> ${this.esc(p.notas)}
+                        <strong>📝 Nota:</strong> ${this.esc(p.notas)}
                     </div>` : ''}
 
                     <div class="order-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:10px;">
@@ -202,20 +198,14 @@ export const ui = {
             });
 
             if (p.abierto) {
-                const btnDel = card.querySelector('.btn-delete');
-                if (btnDel) {
-                    btnDel.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onDelete(p.id);
-                    });
-                }
-                const btnConf = card.querySelector('.btn-confirm');
-                if (btnConf) {
-                    btnConf.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onConfirm(p);
-                    });
-                }
+                card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    callbacks.onDelete(p.id);
+                });
+                card.querySelector('.btn-confirm')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    callbacks.onConfirm(p);
+                });
             }
             c.appendChild(card);
         });
@@ -230,7 +220,7 @@ export const ui = {
             box = document.createElement('div');
             box.id = 'sugerenciasClientes';
             box.setAttribute('role', 'listbox');
-            box.style.cssText = 'display:none; position:absolute; top:100%; left:0; right:0; background:#FFFFFF; border:2px solid #2B113F; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.18); z-index:200; margin-top:4px; overflow:hidden;';
+            box.style.cssText = 'display:none; position:absolute; top:100%; left:0; right:0; background:#FFFFFF; border:2px solid #2B113F; border-radius:12px; box-shadow:0 10px 24px rgba(43,17,63,0.2); z-index:200; margin-top:4px; overflow:hidden;';
             inputNombre.parentElement.appendChild(box);
         }
 
@@ -242,9 +232,9 @@ export const ui = {
 
         box.innerHTML = coincidencias.map((nombre) => `
             <button type="button" class="sugerencia-item" data-nombre="${this.esc(nombre)}"
-                style="width:100%; min-height:44px; text-align:left; padding:10px 14px; background:#fff; border:none; border-bottom:1px solid #eee; font-size:16px; color:#1A1A1A; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                style="width:100%; min-height:46px; text-align:left; padding:10px 14px; background:#fff; border:none; border-bottom:1px solid #EFE8D5; font-size:16px; color:#2B113F; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                 <span>👤 ${this.esc(nombre)}</span>
-                <span style="font-size:0.75rem; background:#F4B41A; color:#2B113F; padding:2px 8px; border-radius:99px; font-weight:800;">Cliente frecuente</span>
+                <span style="font-size:0.75rem; background:#F4B41A; color:#2B113F; padding:3px 9px; border-radius:99px; font-weight:800;">Elegir cliente</span>
             </button>
         `).join('');
         box.style.display = 'block';
@@ -310,27 +300,44 @@ export const ui = {
 
         const payContainer = this._buscarContenedorPagos();
         if (payContainer) {
+            const iconosPago = { Efectivo: '💵', Llave: '🔑', Nequi: '📱' };
+
             payContainer.innerHTML = pagos.map((pg) => {
                 const filtrados = pedidos.filter((p) => (p.pago || '').toLowerCase() === pg.nombre.toLowerCase());
                 const subtotal = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
                 const porcentaje = totalDia > 0 ? Math.round((subtotal / totalDia) * 100) : 0;
                 const esActivo = filtroPagoActivo === pg.nombre;
+                const icono = iconosPago[pg.nombre] || '💳';
 
+                // CORRECCIÓN: flex-direction: column !important evita que styles.css ponga la barra al lado del precio
                 return `
                     <div class="pay-row" data-pago="${this.esc(pg.nombre)}"
-                        style="background:#FFF9EC; border:${esActivo ? '2px solid #2B113F' : '1px solid #E2D5B5'}; border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:${onFiltrarPago ? 'pointer' : 'default'}; transition:all 0.15s ease;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <strong style="color:#2B113F; font-size:0.98rem;">${this.esc(pg.nombre)}</strong>
-                                ${esActivo ? '<span style="font-size:0.7rem; background:#2B113F; color:#F4B41A; padding:1px 6px; border-radius:4px; margin-left:6px;">Filtro activo</span>' : ''}
-                                <div class="pay-sub" style="font-size:0.8rem; color:#6D5E78; margin-top:2px;">
-                                    ${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'} · ${porcentaje}%
+                        style="display:flex !important; flex-direction:column !important; align-items:stretch !important; gap:10px !important; background:${esActivo ? '#FFF3D1' : '#FFF9EC'}; border:${esActivo ? '2px solid #2B113F' : '1px solid #E2D5B5'}; border-radius:14px; padding:14px 16px; margin-bottom:10px; cursor:${onFiltrarPago ? 'pointer' : 'default'}; box-shadow:0 2px 6px rgba(43,17,63,0.04); transition:all 0.18s ease;">
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                                <span style="width:36px; height:36px; border-radius:10px; background:#F4E8C6; display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">${icono}</span>
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <strong style="color:#2B113F; font-size:1.02rem; font-weight:800;">${this.esc(pg.nombre)}</strong>
+                                        ${esActivo ? '<span style="font-size:0.68rem; background:#2B113F; color:#F4B41A; padding:2px 7px; border-radius:99px; font-weight:800;">FILTRADO</span>' : ''}
+                                    </div>
+                                    <div style="font-size:0.82rem; color:#6D5E78; font-weight:600; margin-top:2px;">
+                                        ${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'}
+                                    </div>
                                 </div>
                             </div>
-                            <div class="pay-val" style="font-weight:900; font-size:1.05rem; color:#2B113F;">${this.fmt(subtotal)}</div>
+
+                            <div style="text-align:right; flex-shrink:0;">
+                                <div style="font-weight:900; font-size:1.14rem; color:#2B113F; line-height:1.1;">${this.fmt(subtotal)}</div>
+                                <span style="display:inline-block; margin-top:4px; font-size:0.75rem; font-weight:800; color:#2B113F; background:#F4B41A; padding:2px 8px; border-radius:99px;">
+                                    ${porcentaje}% del total
+                                </span>
+                            </div>
                         </div>
-                        <div style="width:100%; height:5px; background:#EAE0C8; border-radius:99px; margin-top:8px; overflow:hidden;">
-                            <div style="width:${porcentaje}%; height:100%; background:#F4B41A; border-radius:99px; transition:width 0.3s ease;"></div>
+
+                        <div style="width:100%; height:7px; background:#EAE0C8; border-radius:99px; overflow:hidden;">
+                            <div style="width:${porcentaje}%; height:100%; background:linear-gradient(90deg, #F4B41A 0%, #E09900 100%); border-radius:99px; transition:width 0.35s ease;"></div>
                         </div>
                     </div>
                 `;
@@ -348,17 +355,29 @@ export const ui = {
 
         const topContainer = document.getElementById('topList');
         if (topContainer) {
+            const maxCant = topItems.length > 0 ? Math.max(...topItems.map((x) => Number(x[1]) || 1)) : 1;
+            const medallas = ['#F4B41A', '#C9C0D3', '#DFA878'];
+
             topContainer.innerHTML = topItems.length === 0
-                ? '<p class="empty-msg" style="color:#776B80; font-style:italic;">Sin ventas registradas aún</p>'
-                : topItems.map(([nombre, cant], idx) => `
-                    <div class="top-row" style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #EFE8D5;">
-                        <span style="display:flex; align-items:center; gap:8px; font-weight:600; color:#2B113F;">
-                            <span style="background:${idx === 0 ? '#F4B41A' : '#EAE0C8'}; color:#2B113F; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">${idx + 1}</span>
-                            ${this.esc(nombre)}
-                        </span>
-                        <strong style="color:#2B113F; font-weight:800;">${Number(cant)} uds.</strong>
-                    </div>
-                `).join('');
+                ? '<p class="empty-msg" style="color:#776B80; font-style:italic; text-align:center; padding:12px;">Sin ventas registradas aún</p>'
+                : topItems.map(([nombre, cant], idx) => {
+                    const pct = Math.round((Number(cant) / maxCant) * 100);
+                    const bgBadge = medallas[idx] || '#EAE0C8';
+                    return `
+                        <div class="top-row" style="display:flex; flex-direction:column; gap:5px; padding:9px 0; border-bottom:1px solid #EFE8D5;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="display:flex; align-items:center; gap:8px; font-weight:700; color:#2B113F; font-size:0.95rem;">
+                                    <span style="background:${bgBadge}; color:#2B113F; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.76rem; font-weight:900;">${idx + 1}</span>
+                                    ${this.esc(nombre)}
+                                </span>
+                                <strong style="color:#2B113F; font-weight:900; font-size:0.95rem;">${Number(cant)} uds.</strong>
+                            </div>
+                            <div style="width:100%; height:4px; background:#EAE0C8; border-radius:99px; overflow:hidden;">
+                                <div style="width:${pct}%; height:100%; background:#2B113F; border-radius:99px;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
         }
     },
 

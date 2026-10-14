@@ -3,7 +3,6 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 let supabaseInstance = null;
 
-// Carga resiliente con versión fija (#1): si inicia sin internet y sin caché del CDN, no rompe el POS
 export async function getSupabase() {
     if (supabaseInstance) return supabaseInstance;
     try {
@@ -17,7 +16,7 @@ export async function getSupabase() {
 }
 
 export function normalizarNombreCliente(nombre) {
-    return nombre
+    return String(nombre || '')
         .trim()
         .toLowerCase()
         .replace(/\b\w/g, (l) => l.toUpperCase());
@@ -28,6 +27,12 @@ export const api = {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión a internet' } };
         return await sb.auth.signInWithPassword({ email, password });
+    },
+
+    async logoutAdmin() {
+        const sb = await getSupabase();
+        if (!sb) return;
+        await sb.auth.signOut();
     },
 
     async getSession() {
@@ -59,7 +64,7 @@ export const api = {
             console.error('Error leyendo clientes:', error);
             return null;
         }
-        return data.map(c => c.nombre);
+        return (data || []).map((c) => c.nombre);
     },
 
     async pushPedido(pedidoLocal) {
@@ -73,7 +78,6 @@ export const api = {
         try {
             const nombreNormalizado = normalizarNombreCliente(pedidoLocal.cliente);
 
-            // Intento 1: Usar el RPC transaccional atómico (#3 y #10)
             const { data: rpcOk, error: rpcError } = await sb.rpc('registrar_pedido_atomico', {
                 p_pedido_id: pedidoLocal.id,
                 p_cliente_nombre: nombreNormalizado,
@@ -88,7 +92,6 @@ export const api = {
                 return { ok: true, permanent: false };
             }
 
-            // Respaldo con Upsert idempotente si el RPC aún no ha sido creado en Supabase
             const { data: clienteData, error: clienteError } = await sb
                 .from('clientes')
                 .upsert([{ nombre: nombreNormalizado }], { onConflict: 'nombre' })
@@ -110,7 +113,7 @@ export const api = {
 
             if (pedidoError) throw pedidoError;
 
-            const detalles = pedidoLocal.items.map(item => ({
+            const detalles = pedidoLocal.items.map((item) => ({
                 pedido_id: pedidoLocal.id,
                 producto_id: item.id,
                 cantidad: item.cantidad,
@@ -126,7 +129,6 @@ export const api = {
             return { ok: true, permanent: false };
         } catch (error) {
             console.error('Fallo al sincronizar con Supabase:', error);
-            // Códigos 23503 (FK inexistente) o 22P02 (sintaxis inválida) son errores permanentes (#5)
             const esPermanente = error?.code === '23503' || error?.code === '22P02';
             return { ok: false, permanent: esPermanente, reason: error?.message || 'Error de red' };
         }
@@ -143,7 +145,6 @@ export const api = {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión' } };
 
-        // Usar .select() para confirmar que la fila realmente existe y fue modificada (#4)
         const { data, error } = await sb
             .from('productos')
             .update({ precio_actual: nuevoPrecio })
