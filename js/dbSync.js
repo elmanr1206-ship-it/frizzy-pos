@@ -1,17 +1,22 @@
 export const dbSync = {
     db: null,
-    
-    init() {
-        return new Promise((resolve, reject) => {
-            // El número 1 es la versión de la base de datos. 
-            // Si en el futuro necesitas más tablas, lo cambias a 2.
-            const request = indexedDB.open('FrizzyDB', 2);
 
-            // Este evento es el único lugar donde IndexedDB permite crear o modificar "tablas"
+    async init() {
+        if (navigator.storage && navigator.storage.persist) {
+            try { await navigator.storage.persist(); } catch (_) {}
+        }
+
+        return new Promise((resolve, reject) => {
+            // Versión 3: incluye cola_pedidos y cola_eliminados
+            const request = indexedDB.open('FrizzyDB', 3);
+
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains('cola_pedidos')) {
                     db.createObjectStore('cola_pedidos', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('cola_eliminados')) {
+                    db.createObjectStore('cola_eliminados', { keyPath: 'id' });
                 }
             };
 
@@ -30,20 +35,20 @@ export const dbSync = {
     async saveToQueue(pedido) {
         if (!this.db) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['cola_pedidos'], 'readwrite');
-            const store = transaction.objectStore('cola_pedidos');
-            // Usamos 'put' en lugar de 'add' para evitar errores si el ID ya existe
-            const request = store.put(pedido); 
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
+            const tx = this.db.transaction(['cola_pedidos'], 'readwrite');
+            const store = tx.objectStore('cola_pedidos');
+            store.put(pedido);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
         });
     },
 
     async getQueue() {
         if (!this.db) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['cola_pedidos'], 'readonly');
-            const store = transaction.objectStore('cola_pedidos');
+            const tx = this.db.transaction(['cola_pedidos'], 'readonly');
+            const store = tx.objectStore('cola_pedidos');
             const request = store.getAll();
             request.onsuccess = () => resolve(request.result || []);
             request.onerror = () => reject(request.error);
@@ -53,11 +58,41 @@ export const dbSync = {
     async removeFromQueue(id) {
         if (!this.db) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['cola_pedidos'], 'readwrite');
-            const store = transaction.objectStore('cola_pedidos');
-            const request = store.delete(id);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
+            const tx = this.db.transaction(['cola_pedidos'], 'readwrite');
+            const store = tx.objectStore('cola_pedidos');
+            store.delete(id);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    },
+
+    async saveDeleteToQueue(id) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['cola_eliminados'], 'readwrite');
+            tx.objectStore('cola_eliminados').put({ id, deletedAt: new Date().toISOString() });
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    },
+
+    async getDeleteQueue() {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['cola_eliminados'], 'readonly');
+            const req = tx.objectStore('cola_eliminados').getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    },
+
+    async removeDeleteFromQueue(id) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['cola_eliminados'], 'readwrite');
+            tx.objectStore('cola_eliminados').delete(id);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
         });
     }
 };
