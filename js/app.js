@@ -9,7 +9,6 @@ const BEBIDAS = [{id:'vasito', nombre:'Vasito', precio:1500}];
 const PAGOS = [{id:'efectivo', nombre:'Efectivo'}, {id:'llave', nombre:'Llave'}, {id:'nequi', nombre:'Nequi'}];
 const TODO_EL_MENU = [...BOWLS, ...ACOMPANANTES, ...TOPPINGS, ...BEBIDAS];
 
-// Lectura segura de localStorage con try/catch (#Almacenamiento)
 function leerStorageSeguro(clave, defecto = []) {
     try {
         const raw = localStorage.getItem(clave);
@@ -20,59 +19,6 @@ function leerStorageSeguro(clave, defecto = []) {
     }
 }
 
-// 1. Mantener directorio local + nube de clientes para autocompletar al instante
-let clientesConocidos = leerStorageSeguro('fz_clientes_cache', []);
-
-function registrarClienteEnCache(nombre) {
-    const limpio = normalizarNombreCliente(nombre);
-    if (!limpio) return;
-    if (!clientesConocidos.some(c => c.toLowerCase() === limpio.toLowerCase())) {
-        clientesConocidos.push(limpio);
-        clientesConocidos.sort((a, b) => a.localeCompare(b, 'es'));
-        localStorage.setItem('fz_clientes_cache', JSON.stringify(clientesConocidos));
-    }
-}
-
-async function sincronizarClientesConocidos() {
-    // Unir clientes de pedidos locales actuales
-    pedidos.forEach(p => registrarClienteEnCache(p.nombre));
-    apartados.forEach(p => registrarClienteEnCache(p.nombre));
-
-    if (navigator.onLine) {
-        const remotos = await api.obtenerClientes();
-        if (Array.isArray(remotos)) {
-            remotos.forEach(nombre => registrarClienteEnCache(nombre));
-        }
-    }
-}
-
-// Quitar tildes y pasar a minúsculas para buscar sin importar mayúsculas/minúsculas
-function limpiarParaBusqueda(texto) {
-    return String(texto || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-}
-
-function obtenerTop3Clientes(textoDigitado) {
-    const query = limpiarParaBusqueda(textoDigitado);
-    if (!query) return [];
-
-    // Priorizar nombres que empiezan por lo digitado, luego los que lo contienen
-    const empiezan = [];
-    const contienen = [];
-
-    for (const nombre of clientesConocidos) {
-        const norm = limpiarParaBusqueda(nombre);
-        if (norm === query) continue; // Si ya está escrito idéntico, no estorbar
-        if (norm.startsWith(query)) empiezan.push(nombre);
-        else if (norm.includes(query)) contienen.push(nombre);
-    }
-    return [...empiezan, ...contienen].slice(0, 3);
-}
-
-// Generador UUID con fallback para entornos HTTP en red local (#UUID)
 function generarUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -87,18 +33,87 @@ function generarUUID() {
 let estado = { bowl: null, acomp: {}, toppings: {}, bebidas: {}, pago: null, total: 0, premioFidelidad: false };
 let pedidos = leerStorageSeguro('fz_pedidos', []);
 let apartados = leerStorageSeguro('fz_apartados', []);
-let sincronizando = false; // Candado de concurrencia (#3)
-let guardandoEnCurso = false; // Evita doble toque en Guardar (#DobleToque)
+let clientesConocidos = leerStorageSeguro('fz_clientes_cache', []);
+let filtroPago = null;
+let sincronizando = false;
+let guardandoEnCurso = false;
 
 function saveState() {
     localStorage.setItem('fz_pedidos', JSON.stringify(pedidos));
     localStorage.setItem('fz_apartados', JSON.stringify(apartados));
 }
 
-// Cargar precios guardados en caché local y luego desde Supabase (#4)
+function registrarClienteEnCache(nombre) {
+    const limpio = normalizarNombreCliente(nombre || '');
+    if (!limpio) return;
+    if (!clientesConocidos.some((c) => c.toLowerCase() === limpio.toLowerCase())) {
+        clientesConocidos.push(limpio);
+        clientesConocidos.sort((a, b) => a.localeCompare(b, 'es'));
+        localStorage.setItem('fz_clientes_cache', JSON.stringify(clientesConocidos));
+    }
+}
+
+async function sincronizarClientesConocidos() {
+    pedidos.forEach((p) => registrarClienteEnCache(p.nombre));
+    apartados.forEach((p) => registrarClienteEnCache(p.nombre));
+
+    if (navigator.onLine && typeof api.obtenerClientes === 'function') {
+        const remotos = await api.obtenerClientes();
+        if (Array.isArray(remotos)) {
+            remotos.forEach((nombre) => registrarClienteEnCache(nombre));
+        }
+    }
+}
+
+function limpiarParaBusqueda(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function obtenerTop3Clientes(textoDigitado) {
+    const query = limpiarParaBusqueda(textoDigitado);
+    if (!query) return [];
+
+    const empiezan = [];
+    const contienen = [];
+
+    for (const nombre of clientesConocidos) {
+        const norm = limpiarParaBusqueda(nombre);
+        if (norm === query) continue;
+        if (norm.startsWith(query)) empiezan.push(nombre);
+        else if (norm.includes(query)) contienen.push(nombre);
+    }
+    return [...empiezan, ...contienen].slice(0, 3);
+}
+
+async function verificarFidelidadCliente(nombreNorm) {
+    const inputNombre = document.getElementById('nombreCliente');
+    if (!nombreNorm || !inputNombre) return;
+
+    const pendientesLocales = pedidos.filter(
+        (p) => !p.sincronizado && normalizarNombreCliente(p.nombre) === nombreNorm
+    ).length;
+    const remotas = navigator.onLine ? await api.obtenerComprasCliente(nombreNorm) : 0;
+    const totalCompras = remotas + pendientesLocales;
+
+    if (totalCompras > 0 && totalCompras % 5 === 0) {
+        estado.premioFidelidad = true;
+        ui.mostrarToast(`🌟 ¡${nombreNorm} lleva ${totalCompras} compras! Topping gratis incluido en nota.`);
+        inputNombre.style.borderColor = 'var(--dorado)';
+        inputNombre.style.boxShadow = '0 0 8px rgba(255, 215, 0, 0.5)';
+    } else {
+        estado.premioFidelidad = false;
+        inputNombre.style.borderColor = '';
+        inputNombre.style.boxShadow = '';
+    }
+}
+
 async function cargarPreciosActualizados() {
     const cachePrecios = leerStorageSeguro('fz_precios', {});
-    TODO_EL_MENU.forEach(item => {
+    TODO_EL_MENU.forEach((item) => {
         if (Number.isFinite(cachePrecios[item.id]) && cachePrecios[item.id] > 0) {
             item.precio = cachePrecios[item.id];
         }
@@ -109,8 +124,8 @@ async function cargarPreciosActualizados() {
         const remotos = await api.obtenerProductos();
         if (Array.isArray(remotos) && remotos.length > 0) {
             const mapa = {};
-            remotos.forEach(r => {
-                const prod = TODO_EL_MENU.find(p => p.id === r.id);
+            remotos.forEach((r) => {
+                const prod = TODO_EL_MENU.find((p) => p.id === r.id);
                 const precioNum = Number(r.precio_actual);
                 if (prod && Number.isFinite(precioNum) && precioNum > 0) {
                     prod.precio = precioNum;
@@ -125,40 +140,56 @@ async function cargarPreciosActualizados() {
 
 function calcularTotal() {
     let t = 0;
-    const bowl = BOWLS.find(b => b.id === estado.bowl);
+    const bowl = BOWLS.find((b) => b.id === estado.bowl);
     if (bowl) t += bowl.precio;
+
     Object.entries(estado.acomp).forEach(([id, c]) => {
-        const item = ACOMPANANTES.find(x => x.id === id);
+        const item = ACOMPANANTES.find((x) => x.id === id);
         if (item) t += item.precio * c;
     });
     Object.entries(estado.toppings).forEach(([id, c]) => {
-        const item = TOPPINGS.find(x => x.id === id);
+        const item = TOPPINGS.find((x) => x.id === id);
         if (item) t += item.precio * c;
     });
     Object.entries(estado.bebidas).forEach(([id, c]) => {
-        const item = BEBIDAS.find(x => x.id === id);
+        const item = BEBIDAS.find((x) => x.id === id);
         if (item) t += item.precio * c;
     });
 
     estado.total = t;
-    document.getElementById('totalPedido').textContent = ui.fmt(t);
+    const elTotal = document.getElementById('totalPedido');
+    if (elTotal) elTotal.textContent = ui.fmt(t);
 
-    const nombreOk = document.getElementById('nombreCliente').value.trim().length > 0;
+    const inputNombre = document.getElementById('nombreCliente');
+    const nombreOk = inputNombre && inputNombre.value.trim().length > 0;
     const pagoOk = estado.pago !== null;
-    const tieneItems = estado.bowl !== null || Object.keys(estado.acomp).length > 0 || Object.keys(estado.toppings).length > 0 || Object.keys(estado.bebidas).length > 0;
+    const tieneItems =
+        estado.bowl !== null ||
+        Object.keys(estado.acomp).length > 0 ||
+        Object.keys(estado.toppings).length > 0 ||
+        Object.keys(estado.bebidas).length > 0;
 
-    const habilitado = nombreOk && pagoOk && tieneItems && !guardandoEnCurso;
-    document.getElementById('btnGuardar').disabled = !habilitado;
-    document.getElementById('btnApartar').disabled = !habilitado;
+    const habilitado = Boolean(nombreOk && pagoOk && tieneItems && !guardandoEnCurso);
+    const btnGuardar = document.getElementById('btnGuardar');
+    const btnApartar = document.getElementById('btnApartar');
+    if (btnGuardar) btnGuardar.disabled = !habilitado;
+    if (btnApartar) btnApartar.disabled = !habilitado;
 }
 
 function construirPedido() {
-    const mapDetalle = (store, cat) => Object.entries(store).map(([id, cant]) => {
-        const item = cat.find(x => x.id === id);
-        return { id: item.id, nombre: item.nombre, cantidad: cant, precio: item.precio, subtotal: item.precio * cant };
-    });
+    const mapDetalle = (store, cat) =>
+        Object.entries(store).map(([id, cant]) => {
+            const item = cat.find((x) => x.id === id);
+            return {
+                id: item.id,
+                nombre: item.nombre,
+                cantidad: cant,
+                precio: item.precio,
+                subtotal: item.precio * cant
+            };
+        });
 
-    const bowlObj = BOWLS.find(b => b.id === estado.bowl);
+    const bowlObj = BOWLS.find((b) => b.id === estado.bowl);
     const ahora = new Date();
     let notasTexto = document.getElementById('notas').value.trim() || '';
     if (estado.premioFidelidad && !notasTexto.includes('[Premio Fidelidad')) {
@@ -167,8 +198,8 @@ function construirPedido() {
 
     return {
         id: generarUUID(),
-        fechaISO: ahora.toISOString(), // Hora exacta de venta para Horas Pico (#10)
-        fechaLocal: ahora.toLocaleDateString('es-CO'), // Fecha para reportes (#9)
+        fechaISO: ahora.toISOString(),
+        fechaLocal: ahora.toLocaleDateString('es-CO'),
         hora: ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
         nombre: normalizarNombreCliente(document.getElementById('nombreCliente').value),
         notas: notasTexto,
@@ -177,9 +208,9 @@ function construirPedido() {
         acompDetalle: mapDetalle(estado.acomp, ACOMPANANTES),
         toppingDetalle: mapDetalle(estado.toppings, TOPPINGS),
         bebidaDetalle: mapDetalle(estado.bebidas, BEBIDAS),
-        pago: PAGOS.find(p => p.id === estado.pago)?.nombre || 'Efectivo',
+        pago: PAGOS.find((p) => p.id === estado.pago)?.nombre || 'Efectivo',
         total: estado.total,
-        abierto: false,
+        abierto: true,
         sincronizado: false,
         syncError: false
     };
@@ -188,19 +219,18 @@ function construirPedido() {
 function resetForm() {
     estado = { bowl: null, acomp: {}, toppings: {}, bebidas: {}, pago: null, total: 0, premioFidelidad: false };
     document.getElementById('orderForm').reset();
-    // Limpiar el brillo dorado de fidelización al resetear (#DetallesUI)
     const inputNombre = document.getElementById('nombreCliente');
     if (inputNombre) {
         inputNombre.style.borderColor = '';
         inputNombre.style.boxShadow = '';
     }
+    ui.renderSugerenciasClientes([], () => {});
     renderAll();
 }
 
 function renderAll() {
-    // Pasar valor directo de selección estado.bowl y estado.pago (#7)
     ui.renderChoiceGrid('bowlGrid', BOWLS, estado.bowl, (id) => {
-        estado.bowl = (estado.bowl === id ? null : id);
+        estado.bowl = estado.bowl === id ? null : id;
         renderAll();
     });
     ui.renderChoiceGrid('payGrid', PAGOS, estado.pago, (id) => {
@@ -208,26 +238,33 @@ function renderAll() {
         renderAll();
     });
     ui.renderQtyGrid('acompGrid', ACOMPANANTES, estado.acomp, (id, v) => {
-        v === 0 ? delete estado.acomp[id] : estado.acomp[id] = v;
+        v === 0 ? delete estado.acomp[id] : (estado.acomp[id] = v);
         renderAll();
     });
     ui.renderQtyGrid('toppingGrid', TOPPINGS, estado.toppings, (id, v) => {
-        v === 0 ? delete estado.toppings[id] : estado.toppings[id] = v;
+        v === 0 ? delete estado.toppings[id] : (estado.toppings[id] = v);
         renderAll();
     });
     ui.renderQtyGrid('bebidaGrid', BEBIDAS, estado.bebidas, (id, v) => {
-        v === 0 ? delete estado.bebidas[id] : estado.bebidas[id] = v;
+        v === 0 ? delete estado.bebidas[id] : (estado.bebidas[id] = v);
         renderAll();
     });
 
-    ui.renderOrders(pedidos, 'ordersList', false, {
+    const pedidosVisibles = filtroPago
+        ? pedidos.filter((p) => (p.pago || '').toLowerCase() === filtroPago.toLowerCase())
+        : pedidos;
+
+    ui.renderOrders(pedidosVisibles, 'ordersList', false, {
         onToggle: (id) => {
-            const p = pedidos.find(x => x.id === id);
-            if (p) { p.abierto = !p.abierto; renderAll(); }
+            const p = pedidos.find((x) => x.id === id);
+            if (p) {
+                p.abierto = !p.abierto;
+                saveState();
+                renderAll();
+            }
         },
         onDelete: async (id) => {
-            // Propagar eliminación a localStorage, IndexedDB y Supabase (#2)
-            pedidos = pedidos.filter(x => x.id !== id);
+            pedidos = pedidos.filter((x) => x.id !== id);
             saveState();
             renderAll();
             try {
@@ -247,37 +284,52 @@ function renderAll() {
 
     ui.renderOrders(apartados, 'apartadosList', true, {
         onToggle: (id) => {
-            const p = apartados.find(x => x.id === id);
-            if (p) { p.abierto = !p.abierto; renderAll(); }
+            const p = apartados.find((x) => x.id === id);
+            if (p) {
+                p.abierto = !p.abierto;
+                saveState();
+                renderAll();
+            }
         },
         onDelete: (id) => {
-            apartados = apartados.filter(x => x.id !== id);
+            apartados = apartados.filter((x) => x.id !== id);
             saveState();
             ui.mostrarToast('Apartado cancelado');
             renderAll();
         },
         onConfirm: async (p) => {
-            apartados = apartados.filter(x => x.id !== p.id);
+            apartados = apartados.filter((x) => x.id !== p.id);
             const ahora = new Date();
-            p.abierto = false;
+            p.abierto = true;
             p.fechaISO = ahora.toISOString();
             p.fechaLocal = ahora.toLocaleDateString('es-CO');
             p.hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-            // No borrar el formulario que el cajero está llenando (#8)
             await procesarGuardado(p, { limpiarFormulario: false });
         }
     });
 
     const conteo = {};
-    pedidos.forEach(p => {
+    pedidos.forEach((p) => {
         if (p.bowlId && p.bowlId !== 'ninguno') {
             conteo[p.bowl] = (conteo[p.bowl] || 0) + 1;
         }
-        [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].forEach(i => {
+        [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])].forEach((i) => {
             conteo[i.nombre] = (conteo[i.nombre] || 0) + i.cantidad;
         });
     });
-    ui.renderSummary(pedidos, PAGOS, Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 6));
+
+    ui.renderSummary(
+        pedidos,
+        PAGOS,
+        Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 6),
+        filtroPago,
+        (medioSeleccionado) => {
+            filtroPago = filtroPago === medioSeleccionado ? null : medioSeleccionado;
+            ui.mostrarToast(filtroPago ? `Filtrando pedidos por: ${filtroPago}` : 'Mostrando todos los pedidos');
+            renderAll();
+        }
+    );
+
     calcularTotal();
 }
 
@@ -289,7 +341,7 @@ async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
     try {
         const itemsArray = [];
         if (pedido.bowlId && pedido.bowlId !== 'ninguno') {
-            const bowlObj = BOWLS.find(b => b.id === pedido.bowlId);
+            const bowlObj = BOWLS.find((b) => b.id === pedido.bowlId);
             if (bowlObj) itemsArray.push({ id: bowlObj.id, precio: bowlObj.precio, cantidad: 1 });
         }
 
@@ -303,10 +355,14 @@ async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
             items: [...itemsArray, ...pedido.acompDetalle, ...pedido.toppingDetalle, ...pedido.bebidaDetalle]
         };
 
-        // Primero asegurar en IndexedDB antes de confirmar (#5)
         await dbSync.saveToQueue(pedidoAdaptadoAPI);
 
+        // Cerrar el detalle de los pedidos anteriores y dejar abierto el recién creado
+        pedidos.forEach((p) => { p.abierto = false; });
+        pedido.abierto = true;
+
         pedidos.unshift(pedido);
+        registrarClienteEnCache(pedido.nombre);
         saveState();
         ui.mostrarToast(`Pedido guardado — ${ui.fmt(pedido.total)}`);
 
@@ -324,15 +380,14 @@ async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
 }
 
 async function sincronizarCola() {
-    if (sincronizando || !navigator.onLine) return; // Candado activo (#3)
+    if (sincronizando || !navigator.onLine) return;
     sincronizando = true;
 
     try {
-        // 1. Sincronizar pedidos pendientes
         const cola = await dbSync.getQueue();
         for (const pedidoCola of cola) {
             const resultado = await api.pushPedido(pedidoCola);
-            const localRef = pedidos.find(p => p.id === pedidoCola.id);
+            const localRef = pedidos.find((p) => p.id === pedidoCola.id);
 
             if (resultado.ok) {
                 await dbSync.removeFromQueue(pedidoCola.id);
@@ -341,13 +396,11 @@ async function sincronizarCola() {
                     localRef.syncError = false;
                 }
             } else if (resultado.permanent) {
-                // Marcar error permanente en UI sin ciclar infinitamente (#5)
                 if (localRef) localRef.syncError = true;
                 ui.mostrarToast(`⚠️ Pedido de ${pedidoCola.cliente} requiere revisión`);
             }
         }
 
-        // 2. Sincronizar eliminaciones pendientes (#2)
         const eliminados = await dbSync.getDeleteQueue();
         for (const item of eliminados) {
             if (await api.deletePedido(item.id)) {
@@ -363,13 +416,13 @@ async function sincronizarCola() {
 }
 
 async function init() {
-    // 1. Registrar Service Worker (#1)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW error:', err));
+        navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('SW error:', err));
     }
 
     await dbSync.init();
     await cargarPreciosActualizados();
+    await sincronizarClientesConocidos();
     sincronizarCola();
 
     document.getElementById('orderForm').addEventListener('submit', (e) => {
@@ -378,37 +431,38 @@ async function init() {
     });
 
     document.getElementById('btnApartar').addEventListener('click', () => {
-        apartados.unshift(construirPedido());
+        const nuevoApartado = construirPedido();
+        apartados.forEach((a) => { a.abierto = false; });
+        nuevoApartado.abierto = true;
+        apartados.unshift(nuevoApartado);
+        registrarClienteEnCache(nuevoApartado.nombre);
         saveState();
         ui.mostrarToast('Pedido apartado');
         resetForm();
     });
 
-    await sincronizarClientesConocidos();
-
     const inputNombre = document.getElementById('nombreCliente');
-
-    inputNombre.addEventListener('input', (e) => {
-        calcularTotal();
-        const top3 = obtenerTop3Clientes(e.target.value);
-        ui.renderSugerenciasClientes(top3, (nombreElegido) => {
-            inputNombre.value = nombreElegido;
+    if (inputNombre) {
+        inputNombre.addEventListener('input', (e) => {
             calcularTotal();
-            verificarFidelidadCliente(nombreElegido);
+            const top3 = obtenerTop3Clientes(e.target.value);
+            ui.renderSugerenciasClientes(top3, (nombreElegido) => {
+                inputNombre.value = nombreElegido;
+                calcularTotal();
+                verificarFidelidadCliente(nombreElegido);
+            });
         });
-    });
 
-    // Fidelización normalizando nombre y contando cola local + nube (#12)
-inputNombre.addEventListener('blur', async (e) => {
-        setTimeout(() => ui.renderSugerenciasClientes([], () => {}), 150);
-        const raw = e.target.value.trim();
-        if (!raw) return;
-        const nombreNorm = normalizarNombreCliente(raw);
-        e.target.value = nombreNorm;
-        await verificarFidelidadCliente(nombreNorm);
-    });
+        inputNombre.addEventListener('blur', async (e) => {
+            setTimeout(() => ui.renderSugerenciasClientes([], () => {}), 150);
+            const raw = e.target.value.trim();
+            if (!raw) return;
+            const nombreNorm = normalizarNombreCliente(raw);
+            e.target.value = nombreNorm;
+            await verificarFidelidadCliente(nombreNorm);
+        });
+    }
 
-    // Modal Administrador protegido con Login (#6) y validación estricta (#4)
     const modal = document.getElementById('adminModal');
     const listaDiv = document.getElementById('adminListaProductos');
 
@@ -426,7 +480,7 @@ inputNombre.addEventListener('blur', async (e) => {
         }
 
         listaDiv.innerHTML = '';
-        TODO_EL_MENU.forEach(prod => {
+        TODO_EL_MENU.forEach((prod) => {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e0e0e0; padding:10px 0;';
             row.innerHTML = `
@@ -452,7 +506,6 @@ inputNombre.addEventListener('blur', async (e) => {
         btn.disabled = true;
         let fallos = 0;
 
-        // Primero validar todos los campos (#4)
         for (const inpt of inputs) {
             const val = Number(inpt.value);
             if (!Number.isFinite(val) || val <= 0) {
@@ -465,7 +518,7 @@ inputNombre.addEventListener('blur', async (e) => {
         for (const inpt of inputs) {
             const id = inpt.getAttribute('data-id');
             const nuevo = Number(inpt.value);
-            const ref = TODO_EL_MENU.find(x => x.id === id);
+            const ref = TODO_EL_MENU.find((x) => x.id === id);
 
             if (ref && ref.precio !== nuevo) {
                 const { error } = await api.actualizarPrecioProducto(id, nuevo);
@@ -483,21 +536,20 @@ inputNombre.addEventListener('blur', async (e) => {
         localStorage.setItem('fz_precios', JSON.stringify(cachePrecios));
         modal.style.display = 'none';
         btn.disabled = false;
-        renderAll(); // Re-renderizar tarjetas con el precio nuevo (#4)
+        renderAll();
         ui.mostrarToast(fallos === 0 ? '✅ Precios actualizados y persistidos' : `⚠️ Actualizados con ${fallos} errores`);
     });
 
-    // Exportar Excel incluyendo fecha de cada pedido (#9)
     document.getElementById('btnExcel')?.addEventListener('click', () => {
         if (pedidos.length === 0) return ui.mostrarToast('No hay pedidos');
         const f = new Date().toLocaleDateString('es-CO');
 
-        const peds = XLSX.utils.json_to_sheet(pedidos.map(p => ({
+        const peds = XLSX.utils.json_to_sheet(pedidos.map((p) => ({
             'Fecha': p.fechaLocal || f,
             'Hora': p.hora,
             'Cliente': p.nombre,
             'Bowl': p.bowl,
-            'Extras': [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].map(i => `${i.nombre} x${i.cantidad}`).join(', '),
+            'Extras': [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])].map((i) => `${i.nombre} x${i.cantidad}`).join(', '),
             'Notas': p.notas,
             'Pago': p.pago,
             'Total': p.total
@@ -511,8 +563,8 @@ inputNombre.addEventListener('blur', async (e) => {
             { Concepto: 'Total ventas', Valor: totalDia },
             { Concepto: '', Valor: '' }
         ];
-        PAGOS.forEach(pg => {
-            const d = pedidos.filter(p => p.pago === pg.nombre);
+        PAGOS.forEach((pg) => {
+            const d = pedidos.filter((p) => p.pago === pg.nombre);
             resArr.push(
                 { Concepto: `${pg.nombre} pedidos`, Valor: d.length },
                 { Concepto: `${pg.nombre} total`, Valor: d.reduce((s, p) => s + p.total, 0) }
@@ -520,9 +572,11 @@ inputNombre.addEventListener('blur', async (e) => {
         });
 
         const conteo = {};
-        pedidos.forEach(p => {
+        pedidos.forEach((p) => {
             if (p.bowlId && p.bowlId !== 'ninguno') conteo[p.bowl] = (conteo[p.bowl] || 0) + 1;
-            [...p.acompDetalle, ...p.toppingDetalle, ...p.bebidaDetalle].forEach(i => conteo[i.nombre] = (conteo[i.nombre] || 0) + i.cantidad);
+            [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])].forEach((i) => {
+                conteo[i.nombre] = (conteo[i.nombre] || 0) + i.cantidad;
+            });
         });
         const rnk = XLSX.utils.json_to_sheet(Object.entries(conteo).sort((a, b) => b[1] - a[1]).map(([n, c]) => ({ Producto: n, Vendidos: c })));
 
@@ -534,7 +588,7 @@ inputNombre.addEventListener('blur', async (e) => {
     });
 
     document.getElementById('btnImagen')?.addEventListener('click', () => {
-        html2canvas(document.getElementById('summaryCapture'), { backgroundColor: '#F7EFDD', scale: 2 }).then(c => {
+        html2canvas(document.getElementById('summaryCapture'), { backgroundColor: '#F7EFDD', scale: 2 }).then((c) => {
             const link = document.createElement('a');
             link.download = `Frizzy_${new Date().toLocaleDateString('es-CO').replaceAll('/', '-')}.png`;
             link.href = c.toDataURL();
@@ -542,7 +596,6 @@ inputNombre.addEventListener('blur', async (e) => {
         });
     });
 
-    // Cerrar día conserva los apartados vigentes (#9)
     document.getElementById('btnCerrar')?.addEventListener('click', () => {
         if (pedidos.length === 0) return ui.mostrarToast('No hay ventas registradas para cerrar');
         ui.confirmarAccion('¿Cerrar el día y limpiar el listado local de ventas? (Los pedidos apartados se conservarán)', () => {
@@ -556,6 +609,7 @@ inputNombre.addEventListener('blur', async (e) => {
 
 window.addEventListener('online', () => {
     cargarPreciosActualizados();
+    sincronizarClientesConocidos();
     sincronizarCola();
 });
 document.addEventListener('DOMContentLoaded', init);
