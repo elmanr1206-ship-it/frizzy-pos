@@ -35,10 +35,23 @@
     <form id="orderForm" class="panel">
       <span class="banner">Nuevo pedido</span>
       
-      <div class="field">
-        <label for="nombreCliente">Nombre del cliente</label>
-        <input type="text" id="nombreCliente" placeholder="Ej. Camila" required>
-      </div>
+<div class="field" style="position: relative;">
+  <label for="nombreCliente">Nombre del cliente</label>
+  <input
+    type="text"
+    id="nombreCliente"
+    placeholder="Ej. Camila"
+    autocomplete="off"
+    required
+  />
+  <!-- Menú desplegable con las 3 primeras coincidencias -->
+  <div
+    id="sugerenciasClientes"
+    role="listbox"
+    aria-label="Sugerencias de clientes"
+    style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #FFFFFF; border: 2px solid #2B113F; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.18); z-index: 200; margin-top: 4px; overflow: hidden;"
+  ></div>
+</div>
 
       <div class="field"><label>Bowl base</label><div class="choice-grid" id="bowlGrid"></div></div>
       <div class="field"><label>Acompañantes</label><div class="choice-grid" id="acompGrid"></div></div>

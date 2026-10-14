@@ -48,6 +48,20 @@ export const api = {
         return data;
     },
 
+    async obtenerClientes() {
+        const sb = await getSupabase();
+        if (!sb) return null;
+        const { data, error } = await sb
+            .from('clientes')
+            .select('nombre')
+            .order('nombre', { ascending: true });
+        if (error) {
+            console.error('Error leyendo clientes:', error);
+            return null;
+        }
+        return data.map(c => c.nombre);
+    },
+
     async pushPedido(pedidoLocal) {
         const sb = await getSupabase();
         if (!sb) return { ok: false, permanent: false };

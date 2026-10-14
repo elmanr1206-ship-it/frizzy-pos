@@ -20,6 +20,58 @@ function leerStorageSeguro(clave, defecto = []) {
     }
 }
 
+// 1. Mantener directorio local + nube de clientes para autocompletar al instante
+let clientesConocidos = leerStorageSeguro('fz_clientes_cache', []);
+
+function registrarClienteEnCache(nombre) {
+    const limpio = normalizarNombreCliente(nombre);
+    if (!limpio) return;
+    if (!clientesConocidos.some(c => c.toLowerCase() === limpio.toLowerCase())) {
+        clientesConocidos.push(limpio);
+        clientesConocidos.sort((a, b) => a.localeCompare(b, 'es'));
+        localStorage.setItem('fz_clientes_cache', JSON.stringify(clientesConocidos));
+    }
+}
+
+async function sincronizarClientesConocidos() {
+    // Unir clientes de pedidos locales actuales
+    pedidos.forEach(p => registrarClienteEnCache(p.nombre));
+    apartados.forEach(p => registrarClienteEnCache(p.nombre));
+
+    if (navigator.onLine) {
+        const remotos = await api.obtenerClientes();
+        if (Array.isArray(remotos)) {
+            remotos.forEach(nombre => registrarClienteEnCache(nombre));
+        }
+    }
+}
+
+// Quitar tildes y pasar a minúsculas para buscar sin importar mayúsculas/minúsculas
+function limpiarParaBusqueda(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function obtenerTop3Clientes(textoDigitado) {
+    const query = limpiarParaBusqueda(textoDigitado);
+    if (!query) return [];
+
+    // Priorizar nombres que empiezan por lo digitado, luego los que lo contienen
+    const empiezan = [];
+    const contienen = [];
+
+    for (const nombre of clientesConocidos) {
+        const norm = limpiarParaBusqueda(nombre);
+        if (norm === query) continue; // Si ya está escrito idéntico, no estorbar
+        if (norm.startsWith(query)) empiezan.push(nombre);
+        else if (norm.includes(query)) contienen.push(nombre);
+    }
+    return [...empiezan, ...contienen].slice(0, 3);
+}
+
 // Generador UUID con fallback para entornos HTTP en red local (#UUID)
 function generarUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -332,30 +384,28 @@ async function init() {
         resetForm();
     });
 
+    await sincronizarClientesConocidos();
+
     const inputNombre = document.getElementById('nombreCliente');
-    inputNombre.addEventListener('input', calcularTotal);
+
+    inputNombre.addEventListener('input', (e) => {
+        calcularTotal();
+        const top3 = obtenerTop3Clientes(e.target.value);
+        ui.renderSugerenciasClientes(top3, (nombreElegido) => {
+            inputNombre.value = nombreElegido;
+            calcularTotal();
+            verificarFidelidadCliente(nombreElegido);
+        });
+    });
 
     // Fidelización normalizando nombre y contando cola local + nube (#12)
-    inputNombre.addEventListener('blur', async (e) => {
+inputNombre.addEventListener('blur', async (e) => {
+        setTimeout(() => ui.renderSugerenciasClientes([], () => {}), 150);
         const raw = e.target.value.trim();
         if (!raw) return;
         const nombreNorm = normalizarNombreCliente(raw);
         e.target.value = nombreNorm;
-
-        const pendientesLocales = pedidos.filter(p => !p.sincronizado && normalizarNombreCliente(p.nombre) === nombreNorm).length;
-        const remotas = navigator.onLine ? await api.obtenerComprasCliente(nombreNorm) : 0;
-        const totalCompras = remotas + pendientesLocales;
-
-        if (totalCompras > 0 && totalCompras % 5 === 0) {
-            estado.premioFidelidad = true;
-            ui.mostrarToast(`🌟 ¡${nombreNorm} lleva ${totalCompras} compras! Topping gratis incluido en nota.`);
-            e.target.style.borderColor = 'var(--dorado)';
-            e.target.style.boxShadow = '0 0 8px rgba(255, 215, 0, 0.5)';
-        } else {
-            estado.premioFidelidad = false;
-            e.target.style.borderColor = '';
-            e.target.style.boxShadow = '';
-        }
+        await verificarFidelidadCliente(nombreNorm);
     });
 
     // Modal Administrador protegido con Login (#6) y validación estricta (#4)
