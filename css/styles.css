@@ -1554,3 +1554,233 @@ hr.divider {
     transparent 18px
   );
 }
+
+/* ---------- Rediseño Minimalista Apple (Cero Saturación Visual) ---------- */
+.apple-status-pill {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 250, 239, 0.9);
+}
+
+.apple-status-pill .pill-sep {
+  opacity: 0.35;
+}
+
+.apple-status-pill .pill-action {
+  background: none;
+  border: none;
+  color: var(--dorado-claro);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 99px;
+}
+
+.apple-status-pill .pill-logout {
+  color: #FF8A8A;
+}
+
+/* Botón secundario sutil estilo iOS */
+.btn-apple-subtle {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #DFD2B5;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--morado-900);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.18s var(--apple-spring);
+}
+
+.btn-apple-subtle:hover {
+  background: #FFFFFF;
+}
+
+.btn-apple-subtle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Cajón plegable de Apartados */
+.apple-apartado-drawer {
+  margin-top: 10px;
+  border: 1px solid #E5D8B8;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.apple-apartado-drawer summary {
+  list-style: none;
+  padding: 11px 15px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--morado-800);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.apple-apartado-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.apple-apartado-drawer .drawer-badge {
+  font-size: 0.72rem;
+  background: #EFE6D5;
+  color: var(--morado-900);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.apple-apartado-drawer .drawer-content {
+  padding: 12px 15px 15px;
+  border-top: 1px solid #EFE6D5;
+}
+
+/* Cabecera de Panel con Buscador Integrado a la Derecha */
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.panel-header-row .apple-search-bar {
+  flex: 1 1 210px;
+  max-width: 280px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 640px) {
+  .panel-header-row .apple-search-bar {
+    max-width: 100%;
+  }
+}
+
+/* Calculadora de cambio compacta */
+.apple-cash-box {
+  background: rgba(255, 248, 231, 0.9);
+  border: 1px solid var(--dorado);
+  border-radius: 15px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+}
+
+/* Tarjeta de pedido minimalista */
+.apple-chevron {
+  font-size: 1.1rem;
+  color: var(--morado-700);
+  font-weight: 900;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #F4EFE4;
+}
+
+.apple-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px dashed #EFE6D5;
+  font-size: 0.86rem;
+  color: var(--morado-900);
+}
+
+.apple-qty-tag {
+  color: var(--morado-700);
+  font-size: 0.78rem;
+  margin-left: 4px;
+}
+
+.apple-note-box {
+  background: #FAF6EE;
+  padding: 7px 10px;
+  border-radius: 10px;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--morado-800);
+}
+
+.apple-order-toolbar {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #F2ECE1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.apple-tool-pill {
+  min-height: 34px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid #E2D6C1;
+  background: #FAF6EE;
+  color: var(--morado-900);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s var(--apple-spring), background 0.15s ease;
+}
+
+.apple-tool-pill:hover {
+  background: #EFE6D5;
+}
+
+.apple-tool-pill:active {
+  transform: scale(0.95);
+}
+
+.apple-tool-pill.primary {
+  background: #FFF3D2;
+  border-color: var(--dorado);
+  color: var(--morado-950);
+}
+
+.apple-tool-pill.success {
+  background: #E6F4EA;
+  border-color: #B7DFC2;
+  color: #1E7E34;
+}
+
+.apple-tool-pill.danger {
+  background: #FDECEA;
+  border-color: #F5C2C7;
+  color: var(--rojo);
+  padding: 5px 9px;
+}

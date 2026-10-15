@@ -23,11 +23,10 @@ export const ui = {
         const horaObjetivo = formatearHoraBogota(entregaISO);
 
         if (diffMs <= 0) {
-            const minVencidos = Math.floor(Math.abs(diffMs) / 60000);
             return {
                 vencido: true,
                 urgente: true,
-                texto: `🔔 ¡ENTREGAR YA! (${horaObjetivo}${minVencidos > 0 ? ` · hace ${minVencidos}m` : ''})`
+                texto: `🔔 Entregar (${horaObjetivo})`
             };
         }
 
@@ -42,8 +41,8 @@ export const ui = {
 
         return {
             vencido: false,
-            urgente: diffMs <= 5 * 60 * 1000, // Menos de 5 minutos
-            texto: `⏰ Falta ${tiempoStr} (Entrega ${horaObjetivo})`
+            urgente: diffMs <= 5 * 60 * 1000,
+            texto: `⏰ ${tiempoStr} · ${horaObjetivo}`
         };
     },
 
@@ -72,7 +71,7 @@ export const ui = {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'note-chip' + (activo ? ' active' : '');
-            btn.textContent = (activo ? '✓ ' : '+ ') + tag;
+            btn.textContent = tag;
             btn.addEventListener('click', () => onToggleTag(tag));
             c.appendChild(btn);
         });
@@ -91,8 +90,6 @@ export const ui = {
             div.className = 'choice-card' + (isSelected ? ' selected active' : '') + (agotado ? ' agotado' : '');
             div.setAttribute('role', 'button');
             div.setAttribute('tabindex', agotado ? '-1' : '0');
-            div.setAttribute('aria-disabled', agotado ? 'true' : 'false');
-            div.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px;">
@@ -103,25 +100,16 @@ export const ui = {
                     ${agotado
                         ? '<span class="badge-agotado">Agotado</span>'
                         : isSelected
-                            ? '<span style="background:#2A0E4F; color:#FBBB1E; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:900; flex-shrink:0;">✓</span>'
-                            : '<span style="border:2px solid #D3C4A3; width:22px; height:22px; border-radius:50%; display:inline-block; flex-shrink:0;"></span>'}
+                            ? '<span style="background:#2A0E4F; color:#FBBB1E; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:900;">✓</span>'
+                            : ''}
                 </div>
             `;
 
             const activar = () => {
-                if (agotado) {
-                    this.mostrarToast(`🚫 ${it.nombre} está marcado como AGOTADO`);
-                    return;
-                }
+                if (agotado) return this.mostrarToast(`🚫 ${it.nombre} está agotado`);
                 onSelect(it.id);
             };
             div.addEventListener('click', activar);
-            div.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    activar();
-                }
-            });
             c.appendChild(div);
         });
     },
@@ -138,7 +126,7 @@ export const ui = {
             div.className = 'qty-card' + (cant > 0 ? ' active selected' : '') + (agotado ? ' agotado' : '');
 
             div.innerHTML = `
-                <div class="info" title="${agotado ? 'Producto agotado' : 'Toca para sumar 1'}">
+                <div class="info">
                     <div class="name" style="display:flex; align-items:center; gap:6px;">
                         <span>${this.esc(it.nombre)}</span>
                         ${agotado ? '<span class="badge-agotado">Agotado</span>' : ''}
@@ -146,18 +134,14 @@ export const ui = {
                     <div class="price">${this.fmt(it.precio)}</div>
                 </div>
                 <div class="qty-controls">
-                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''} aria-label="Disminuir ${this.esc(it.nombre)}">−</button>
+                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''}>−</button>
                     <span class="qty-num">${cant}</span>
-                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''} aria-label="Aumentar ${this.esc(it.nombre)}">+</button>
+                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''}>+</button>
                 </div>
             `;
 
             div.querySelector('.info').addEventListener('click', () => {
-                if (agotado) {
-                    this.mostrarToast(`🚫 ${it.nombre} está marcado como AGOTADO`);
-                    return;
-                }
-                onChange(it.id, cant + 1);
+                if (!agotado) onChange(it.id, cant + 1);
             });
 
             const botones = div.querySelectorAll('.qty-btn');
@@ -174,32 +158,34 @@ export const ui = {
         });
     },
 
-renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
+    renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
+        // Ocultar automáticamente todo el panel de Apartados cuando está vacío para dar limpieza visual
+        if (esApartado) {
+            const panelAp = document.getElementById('panelApartados');
+            if (panelAp) {
+                panelAp.style.display = (!lista || lista.length === 0) ? 'none' : 'block';
+            }
+        }
+
         const c = document.getElementById(containerId);
         if (!c) return;
         if (!lista || lista.length === 0) {
-            c.innerHTML = `<p class="empty-msg">${esApartado ? 'No hay pedidos apartados que coincidan' : 'No hay pedidos registrados que coincidan'}</p>`;
+            c.innerHTML = `<p class="empty-msg">Sin pedidos registrados</p>`;
             return;
         }
         c.innerHTML = '';
-
-        const conteoPorCliente = {};
-        lista.forEach((item) => {
-            const k = String(item.nombre || '').toLowerCase().trim();
-            if (k) conteoPorCliente[k] = (conteoPorCliente[k] || 0) + 1;
-        });
 
         lista.forEach((p) => {
             const infoTimer = esApartado ? this.formatearCuentaRegresiva(p.entregaProgramadaISO) : null;
             const card = document.createElement('div');
             card.className = 'order-item' + (p.abierto ? ' open' : '') + (infoTimer?.vencido ? ' alarm-due' : '');
 
-            const acomp = p.acompDetalle || [];
-            const top = p.toppingDetalle || [];
-            const beb = p.bebidaDetalle || [];
-            const todosLosExtras = [...acomp, ...top, ...beb];
+            const todosLosExtras = [
+                ...(p.acompDetalle || []),
+                ...(p.toppingDetalle || []),
+                ...(p.bebidaDetalle || [])
+            ];
             const cantExtras = todosLosExtras.reduce((acc, i) => acc + Number(i.cantidad || 0), 0);
-
             const resumenCorto = cantExtras > 0
                 ? `${this.esc(p.bowl)} + ${cantExtras} ${cantExtras === 1 ? 'adición' : 'adiciones'}`
                 : this.esc(p.bowl);
@@ -208,112 +194,83 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
             const precioBowl = Math.max(0, Number(p.total || 0) - sumaExtras);
 
             const filasDetalleHTML = todosLosExtras.map((i) => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #E2D5B5; font-size:0.88rem; color:#2A0E4F;">
-                    <span>• ${this.esc(i.nombre)} <strong style="background:#F5A623; color:#1B0836; padding:1px 8px; border-radius:99px; font-size:0.75rem; margin-left:4px;">x${Number(i.cantidad)}</strong></span>
-                    <strong style="font-weight:800;">${this.fmt((i.precio || 0) * i.cantidad)}</strong>
+                <div class="apple-receipt-row">
+                    <span>${this.esc(i.nombre)} <strong class="apple-qty-tag">×${Number(i.cantidad)}</strong></span>
+                    <strong>${this.fmt((i.precio || 0) * i.cantidad)}</strong>
                 </div>
             `).join('');
 
-            const pedidosDeEsteCliente = conteoPorCliente[String(p.nombre || '').toLowerCase().trim()] || 1;
-            const badgeMulti = pedidosDeEsteCliente > 1
-                ? `<span style="font-size:0.68rem; padding:2px 7px; border-radius:99px; font-weight:800; background:#EDE7F6; color:#4E2286;">🥣 ${pedidosDeEsteCliente} pedidos hoy</span>`
-                : '';
-
             const badgeTimerHTML = infoTimer
-                ? `<span class="timer-live-badge" data-entrega="${this.esc(p.entregaProgramadaISO)}" style="font-size:0.72rem; padding:3px 9px; border-radius:99px; font-weight:900; background:${infoTimer.vencido ? '#D1272B' : infoTimer.urgente ? '#F5A623' : '#2A0E4F'}; color:${infoTimer.vencido ? '#FFF' : infoTimer.urgente ? '#1B0836' : '#FBBB1E'};">
+                ? `<span class="timer-live-badge" data-entrega="${this.esc(p.entregaProgramadaISO)}" style="font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${infoTimer.vencido ? '#D1272B' : '#2A0E4F'}; color:${infoTimer.vencido ? '#FFF' : '#FBBB1E'};">
                     ${this.esc(infoTimer.texto)}
                    </span>`
                 : '';
 
-            const badgeSync = `<span style="font-size:0.68rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${p.syncError ? '#FDECEA' : p.sincronizado ? '#E6F4EA' : '#FFF4D6'}; color:${p.syncError ? '#B71C1C' : p.sincronizado ? '#1E7E34' : '#9A6700'};">
-                ${p.syncError ? '⚠️ Error' : p.sincronizado ? '☁️ Sincronizado' : '⏳ En cola'}
-               </span>`;
+            // Punto minimalista de estado en lugar de texto largo
+            const dotColor = p.syncError ? '#D1272B' : p.sincronizado ? '#3E9B5C' : '#F5A623';
+            const dotTitle = p.syncError ? 'Error de red' : p.sincronizado ? 'Sincronizado' : 'En cola local';
 
             card.innerHTML = `
                 <div class="order-head" role="button" tabindex="0" aria-expanded="${p.abierto ? 'true' : 'false'}">
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span style="width:7px; height:7px; border-radius:50%; background:${dotColor}; display:inline-block;" title="${dotTitle}"></span>
                             <span class="who">${this.esc(p.nombre)}</span>
-                            <span class="meta">· ${this.esc(p.hora)}</span>
+                            <span class="meta">${this.esc(p.hora)}</span>
                             <span class="chip">${this.esc(p.pago)}</span>
-                            ${badgeMulti}
                             ${badgeTimerHTML}
-                            ${badgeSync}
                         </div>
-                        <div style="font-size:0.84rem; color:#4E2286; margin-top:4px; font-weight:700;">
-                            🥣 ${resumenCorto}
+                        <div style="font-size:0.81rem; color:#653BA0; margin-top:3px; font-weight:600;">
+                            ${resumenCorto}
                         </div>
                     </div>
                     <div class="right">
                         <div class="amt">${this.fmt(p.total)}</div>
-                        <span style="font-size:0.75rem; color:#1B0836; font-weight:800; padding:6px 10px; background:#F5A623; border-radius:8px; user-select:none;">
-                            ${p.abierto ? '▲ Cerrar' : '▼ Ver'}
-                        </span>
+                        <span class="apple-chevron">${p.abierto ? '⌃' : '⌄'}</span>
                     </div>
                 </div>
 
                 ${p.abierto ? `
-                <div class="order-body open" style="display:block; padding:12px 15px 15px; border-top:1px solid #E9DEC0; background:#FFFFFF;">
-                    <!-- BARRA RÁPIDA DE EDICIÓN (PUNTO B + IDEA 4 + IDEA 5) -->
-                    <div class="order-quick-edit-bar">
-                        ${esAdmin && callbacks.onEditClientName ? `
-                        <button type="button" class="btn-quick-edit btn-edit-name" title="Corregir nombre mal escrito">
-                            ✏️ Corregir Nombre
-                        </button>` : ''}
-                        ${esAdmin && callbacks.onCyclePayment ? `
-                        <button type="button" class="btn-quick-edit btn-cycle-pay" title="Cambiar medio de pago con 1 toque">
-                            🔄 Pago: <strong>${this.esc(p.pago)}</strong> (Cambiar)
-                        </button>` : ''}
-                        ${callbacks.onShowWalletPass ? `
-                        <button type="button" class="btn-quick-edit btn-wallet-pass" style="margin-left:auto; background:#2A0E4F; color:#FBBB1E; border-color:#2A0E4F;">
-                            🎟️ Pase Wallet
-                        </button>` : ''}
-                    </div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #EFE8D5; font-size:0.9rem; color:#2A0E4F;">
+                <div class="order-body open" style="display:block; padding:10px 15px 14px; border-top:1px solid #EFE6D5; background:#FFFFFF;">
+                    <div class="apple-receipt-row" style="border-bottom:1px solid #F2ECE1;">
                         <span><strong>Base:</strong> ${this.esc(p.bowl)}</span>
                         <strong>${precioBowl > 0 ? this.fmt(precioBowl) : '—'}</strong>
                     </div>
 
-                    ${filasDetalleHTML || '<div style="padding:6px 0; font-size:0.84rem; color:#888;">Sin adiciones extras</div>'}
+                    ${filasDetalleHTML || '<div style="padding:6px 0; font-size:0.82rem; color:#999;">Sin adiciones</div>'}
 
-                    ${p.notas ? `
-                    <div style="background:#FFF8E1; border-left:4px solid #F5A623; padding:8px 10px; border-radius:6px; margin-top:8px; font-size:0.86rem; color:#2A0E4F;">
-                        <strong>📝 Nota:</strong> ${this.esc(p.notas)}
-                    </div>` : ''}
+                    ${p.notas ? `<div class="apple-note-box">📝 ${this.esc(p.notas)}</div>` : ''}
 
-                    <div style="margin-top:12px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px;">
-                        ${!esApartado && esAdmin && callbacks.onNewForClient ? `
-                        <button type="button" class="btn-add-another" style="min-height:42px; padding:0 14px; background:#FFF3D2; color:#2A0E4F; border:2px solid #F5A623; border-radius:10px; font-weight:800; cursor:pointer;">
-                            ➕ Otro bowl para ${this.esc(p.nombre)}
-                        </button>` : ''}
-                        ${esApartado && esAdmin ? `
-                        <button type="button" class="btn-confirm" style="min-height:42px; padding:0 16px; background:#3E9B5C; color:#FFFFFF; border:none; border-radius:10px; font-weight:800; cursor:pointer;">
-                            ✅ Entregar y Cobrar
-                        </button>` : ''}
-                        ${esAdmin ? `
-                        <button type="button" class="btn-delete" style="min-height:42px; padding:0 14px; background:#FDECEA; color:#D1272B; border:1px solid #F5C2C7; border-radius:10px; font-weight:800; cursor:pointer;">
-                            🗑️ Eliminar
-                        </button>` : ''}
+                    <!-- BARRA ÚNICA MINIMALISTA DE ACCIONES -->
+                    <div class="apple-order-toolbar">
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${esAdmin && callbacks.onEditClientName ? `
+                            <button type="button" class="apple-tool-pill btn-edit-name">✎ Nombre</button>` : ''}
+                            ${esAdmin && callbacks.onCyclePayment ? `
+                            <button type="button" class="apple-tool-pill btn-cycle-pay">💳 ${this.esc(p.pago)} ↻</button>` : ''}
+                            ${callbacks.onShowWalletPass ? `
+                            <button type="button" class="apple-tool-pill btn-wallet-pass">🎟️ Pase</button>` : ''}
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+                            ${!esApartado && esAdmin && callbacks.onNewForClient ? `
+                            <button type="button" class="apple-tool-pill primary btn-add-another">+ Otro bowl</button>` : ''}
+                            ${esApartado && esAdmin ? `
+                            <button type="button" class="apple-tool-pill success btn-confirm">✓ Cobrar</button>` : ''}
+                            ${esAdmin ? `
+                            <button type="button" class="apple-tool-pill danger btn-delete" title="Eliminar pedido">🗑️</button>` : ''}
+                        </div>
                     </div>
                 </div>` : ''}
             `;
 
-            const head = card.querySelector('.order-head');
-            head.addEventListener('click', () => callbacks.onToggle(p.id));
-            head.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    callbacks.onToggle(p.id);
-                }
-            });
+            card.querySelector('.order-head').addEventListener('click', () => callbacks.onToggle(p.id));
 
             if (p.abierto) {
                 card.querySelector('.btn-wallet-pass')?.addEventListener('click', (e) => {
                     e.stopPropagation();
                     callbacks.onShowWalletPass(p);
                 });
-
                 if (esAdmin) {
                     card.querySelector('.btn-edit-name')?.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -353,8 +310,8 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
 
         box.innerHTML = coincidencias.map((nombre) => `
             <button type="button" class="sugerencia-item" data-nombre="${this.esc(nombre)}">
-                <span>👤 ${this.esc(nombre)}</span>
-                <span style="font-size:0.74rem; background:#F5A623; color:#1B0836; padding:3px 9px; border-radius:99px; font-weight:800;">Elegir</span>
+                <span>${this.esc(nombre)}</span>
+                <span style="font-size:0.72rem; color:#653BA0; font-weight:700;">Cliente frecuente</span>
             </button>
         `).join('');
         box.style.display = 'block';
@@ -372,11 +329,8 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
 
     renderSummary(pedidos, pagos, topItems, filtroPagoActivo = null, onFiltrarPago = null) {
         const totalDia = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
-
         const clientesUnicos = new Set(
-            pedidos
-                .map((p) => String(p.nombre || '').toLowerCase().trim())
-                .filter(Boolean)
+            pedidos.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)
         ).size;
 
         const elCount = document.getElementById('sumCount');
@@ -389,22 +343,19 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
 
         const payContainer = document.getElementById('payBreakdown');
         if (payContainer) {
-            const iconosPago = { Efectivo: '💵', Llave: '🔑', Nequi: '📱' };
-
             payContainer.innerHTML = pagos.map((pg) => {
                 const filtrados = pedidos.filter((p) => (p.pago || '').toLowerCase() === pg.nombre.toLowerCase());
                 const subtotal = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
                 const porcentaje = totalDia > 0 ? Math.round((subtotal / totalDia) * 100) : 0;
                 const esActivo = filtroPagoActivo === pg.nombre;
-                const icono = iconosPago[pg.nombre] || '💳';
 
                 return `
                     <div class="pay-row" data-pago="${this.esc(pg.nombre)}"
-                        style="cursor:${onFiltrarPago ? 'pointer' : 'default'}; border-color:${esActivo ? '#2A0E4F' : '#E9DEC0'}; background:${esActivo ? '#FFF3D2' : 'var(--crema-2)'};">
+                        style="cursor:${onFiltrarPago ? 'pointer' : 'default'}; border-color:${esActivo ? '#2A0E4F' : '#E6DAC0'}; background:${esActivo ? '#FFF6D9' : 'rgba(255,252,245,0.92)'};">
                         <div class="pay-row-top">
                             <div>
-                                <div class="pn">${icono} ${this.esc(pg.nombre)} ${esActivo ? '<span class="chip" style="margin-left:6px;">Activo</span>' : ''}</div>
-                                <div class="pc">${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'} · ${porcentaje}% del día</div>
+                                <div class="pn">${this.esc(pg.nombre)} ${esActivo ? '<span class="chip" style="margin-left:4px;">Filtro</span>' : ''}</div>
+                                <div class="pc">${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'} · ${porcentaje}%</div>
                             </div>
                             <div class="pv">${this.fmt(subtotal)}</div>
                         </div>
@@ -417,9 +368,7 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
 
             if (onFiltrarPago) {
                 payContainer.querySelectorAll('.pay-row').forEach((row) => {
-                    row.addEventListener('click', () => {
-                        onFiltrarPago(row.getAttribute('data-pago'));
-                    });
+                    row.addEventListener('click', () => onFiltrarPago(row.getAttribute('data-pago')));
                 });
             }
         }
@@ -427,14 +376,14 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
         const topContainer = document.getElementById('topList');
         if (topContainer) {
             topContainer.innerHTML = topItems.length === 0
-                ? '<p class="empty-msg">Sin ventas registradas aún</p>'
+                ? '<p class="empty-msg" style="padding:12px;">Sin ventas hoy</p>'
                 : topItems.map(([nombre, cant], idx) => `
                     <div class="top-row">
                         <span style="display:flex; align-items:center; gap:8px; font-weight:700;">
-                            <span style="background:${idx === 0 ? '#F5A623' : '#E9DEC0'}; color:#1B0836; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.74rem; font-weight:900;">${idx + 1}</span>
+                            <span style="color:#653BA0; font-size:0.78rem; font-weight:900; width:16px;">${idx + 1}.</span>
                             ${this.esc(nombre)}
                         </span>
-                        <span>${Number(cant)} uds.</span>
+                        <span>${Number(cant)}</span>
                     </div>
                 `).join('');
         }
@@ -446,7 +395,7 @@ renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
         t.textContent = msg;
         t.classList.add('show');
         clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
     },
 
     confirmarAccion(mensaje, onAccept) {
