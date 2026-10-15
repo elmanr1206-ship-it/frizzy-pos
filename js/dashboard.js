@@ -1,8 +1,9 @@
-import { getSupabase, api } from './api.js';
+import { getSupabase, api, formatearFechaBogota } from './api.js';
 
 let pedidosCache = [];
 let catalogoProductos = {};
-let rangoActivo = 'todo';
+// INICIA EN "HOY" POR DEFECTO
+let rangoActivo = 'hoy';
 let incluirBowlsEnTop = true;
 
 let chartHorasInstance = null;
@@ -38,6 +39,19 @@ function esc(str) {
         .replace(/'/g, '&#39;');
 }
 
+function obtenerHoraBogotaNum(isoStr) {
+    if (!isoStr) return new Date().getHours();
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return new Date().getHours();
+    const strHora = d.toLocaleTimeString('en-US', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        hour12: false
+    });
+    const parsed = parseInt(strHora, 10);
+    return Number.isNaN(parsed) ? d.getHours() : (parsed === 24 ? 0 : parsed);
+}
+
 async function obtenerTodosLosPedidos(sb) {
     const LOTE = 1000;
     let desde = 0;
@@ -46,14 +60,15 @@ async function obtenerTodosLosPedidos(sb) {
     while (true) {
         const respuesta = await sb
             .from('pedidos')
-            .select('id, cliente_id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
+            .select('id, cliente_id, created_at, estado, medio_pago, total, notas, pedido_detalles (producto_id, producto_nombre_historico, cantidad, precio_unitario_historico)')
             .order('created_at', { ascending: false })
             .range(desde, desde + LOTE - 1);
 
         if (respuesta.error) {
             const respaldo = await sb
                 .from('pedidos')
-                .select('id, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
+                .select('id, cliente_id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
+                .order('created_at', { ascending: false })
                 .range(desde, desde + LOTE - 1);
 
             if (respaldo.error) {
@@ -63,46 +78,32 @@ async function obtenerTodosLosPedidos(sb) {
         }
 
         const filas = respuesta.data || [];
-        if (filas.length === 0) {
-            break;
-        }
+        if (filas.length === 0) break;
 
         acumulado = acumulado.concat(filas);
-        if (filas.length < LOTE) {
-            break;
-        }
+        if (filas.length < LOTE) break;
         desde += LOTE;
     }
 
-    return acumulado;
+    return acumulado.filter((p) => p.estado !== 'apartado');
 }
 
 function filtrarPedidosPorRango(lista, rango) {
-    if (rango === 'todo') {
-        return lista;
-    }
+    if (rango === 'todo') return lista;
 
     const ahora = new Date();
-    const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+    const hoyBogotaStr = formatearFechaBogota(ahora);
 
     return lista.filter((p) => {
-        if (!p.created_at) {
-            return true;
+        if (!p.created_at) return rango === 'hoy';
+        if (rango === 'hoy') {
+            return formatearFechaBogota(p.created_at) === hoyBogotaStr;
         }
         const timestamp = new Date(p.created_at).getTime();
-        if (Number.isNaN(timestamp)) {
-            return true;
-        }
+        if (Number.isNaN(timestamp)) return false;
 
-        if (rango === 'hoy') {
-            return timestamp >= inicioHoy;
-        }
-        if (rango === '7d') {
-            return timestamp >= ahora.getTime() - 7 * 86400000;
-        }
-        if (rango === '30d') {
-            return timestamp >= ahora.getTime() - 30 * 86400000;
-        }
+        if (rango === '7d') return timestamp >= ahora.getTime() - 7 * 86400000;
+        if (rango === '30d') return timestamp >= ahora.getTime() - 30 * 86400000;
         return true;
     });
 }
@@ -110,35 +111,31 @@ function filtrarPedidosPorRango(lista, rango) {
 function renderizarDashboard() {
     const ChartLib = window.Chart;
     const pedidos = filtrarPedidosPorRango(pedidosCache, rangoActivo);
-    const clientesUnicosSet = new Set();
-    pedidos.forEach((p, index) => {
-        if (p.cliente_id) {
-            clientesUnicosSet.add(p.cliente_id);
-        } else {
-            clientesUnicosSet.add('anon_' + (p.id || index));
-        }
-    });
 
-    const elClientes = document.getElementById('kpiClientes');
-    if (elClientes) elClientes.textContent = String(clientesUnicosSet.size);
+    const etiquetasPeriodo = {
+        hoy: `Reporte de Hoy (${formatearFechaBogota(new Date())})`,
+        '7d': 'Últimos 7 Días',
+        '30d': 'Últimos 30 Días',
+        todo: 'Acumulado Histórico'
+    };
+    const tagEl = document.getElementById('dashPeriodTag');
+    if (tagEl) tagEl.textContent = etiquetasPeriodo[rangoActivo] || 'Reporte Ejecutivo';
 
     let ingresosTotales = 0;
     let totalUnidades = 0;
     const conteoHoras = {};
     const metricasProductos = {};
     const ingresosPorPago = { Efectivo: 0, Nequi: 0, Llave: 0 };
+    const clientesUnicosSet = new Set();
 
     let minHora = 10;
     let maxHora = 22;
 
     pedidos.forEach((pedido) => {
         if (pedido.created_at) {
-            const f = new Date(pedido.created_at);
-            const h = f.getHours();
-            if (!Number.isNaN(h)) {
-                if (h < minHora) minHora = h;
-                if (h > maxHora) maxHora = h;
-            }
+            const h = obtenerHoraBogotaNum(pedido.created_at);
+            if (h < minHora) minHora = h;
+            if (h > maxHora) maxHora = h;
         }
     });
 
@@ -146,22 +143,27 @@ function renderizarDashboard() {
         conteoHoras[h] = 0;
     }
 
-    pedidos.forEach((pedido) => {
+    pedidos.forEach((pedido, index) => {
         const montoPedido = Number(pedido.total || 0);
         ingresosTotales += montoPedido;
+
+        if (pedido.cliente_id) {
+            clientesUnicosSet.add(pedido.cliente_id);
+        } else {
+            clientesUnicosSet.add('anon_' + (pedido.id || index));
+        }
 
         const medio = pedido.medio_pago || 'Efectivo';
         ingresosPorPago[medio] = (ingresosPorPago[medio] || 0) + montoPedido;
 
-        const fechaObj = pedido.created_at ? new Date(pedido.created_at) : new Date();
-        const hora = Number.isNaN(fechaObj.getHours()) ? new Date().getHours() : fechaObj.getHours();
+        const hora = obtenerHoraBogotaNum(pedido.created_at);
         conteoHoras[hora] = (conteoHoras[hora] || 0) + 1;
 
         const detalles = pedido.pedido_detalles || [];
         detalles.forEach((det) => {
             const rawId = String(det.producto_id || '').toLowerCase().trim();
             const infoProd = catalogoProductos[rawId] || CATALOGO_BASE[rawId] || {
-                nombre: det.producto_id || 'Otro',
+                nombre: det.producto_nombre_historico || det.producto_id || 'Otro',
                 categoria: 'extra'
             };
 
@@ -174,7 +176,7 @@ function renderizarDashboard() {
             if (!metricasProductos[rawId]) {
                 metricasProductos[rawId] = {
                     id: rawId,
-                    nombre: infoProd.nombre,
+                    nombre: det.producto_nombre_historico || infoProd.nombre,
                     categoria: infoProd.categoria,
                     unidades: 0,
                     ingresos: 0
@@ -188,26 +190,23 @@ function renderizarDashboard() {
     const ticketPromedio = pedidos.length > 0 ? ingresosTotales / pedidos.length : 0;
 
     const elIngresos = document.getElementById('kpiIngresos');
+    const elClientes = document.getElementById('kpiClientes');
     const elPedidos = document.getElementById('kpiPedidos');
     const elTicket = document.getElementById('kpiTicket');
     const elUnidades = document.getElementById('kpiUnidades');
 
     if (elIngresos) elIngresos.textContent = fmtMoneda(ingresosTotales);
+    if (elClientes) elClientes.textContent = String(clientesUnicosSet.size);
     if (elPedidos) elPedidos.textContent = String(pedidos.length);
     if (elTicket) elTicket.textContent = fmtMoneda(ticketPromedio);
     if (elUnidades) elUnidades.textContent = String(totalUnidades);
 
-    if (!ChartLib) {
-        console.error('Chart.js no está cargado en la página.');
-        return;
-    }
+    if (!ChartLib) return;
 
     // 1. Gráfica de Horas Pico
     const canvasHoras = document.getElementById('chartHoras');
     if (canvasHoras) {
-        if (chartHorasInstance) {
-            chartHorasInstance.destroy();
-        }
+        if (chartHorasInstance) chartHorasInstance.destroy();
 
         const horasOrdenadas = Object.keys(conteoHoras)
             .map((h) => Number(h))
@@ -235,9 +234,7 @@ function renderizarDashboard() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -252,9 +249,7 @@ function renderizarDashboard() {
     // 2. Gráfica de Productos Más Vendidos
     const canvasProductos = document.getElementById('chartProductos');
     if (canvasProductos) {
-        if (chartProductosInstance) {
-            chartProductosInstance.destroy();
-        }
+        if (chartProductosInstance) chartProductosInstance.destroy();
 
         const listaProd = Object.values(metricasProductos)
             .filter((p) => incluirBowlsEnTop || p.categoria !== 'bowl')
@@ -264,7 +259,7 @@ function renderizarDashboard() {
         chartProductosInstance = new ChartLib(canvasProductos, {
             type: 'bar',
             data: {
-                labels: listaProd.length > 0 ? listaProd.map((item) => item.nombre) : ['Sin ventas'],
+                labels: listaProd.length > 0 ? listaProd.map((item) => item.nombre) : ['Sin ventas hoy'],
                 datasets: [{
                     label: 'Unidades Vendidas',
                     data: listaProd.length > 0 ? listaProd.map((item) => item.unidades) : [0],
@@ -275,9 +270,7 @@ function renderizarDashboard() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -291,9 +284,7 @@ function renderizarDashboard() {
     // 3. Gráfica de Medios de Pago
     const canvasPagos = document.getElementById('chartPagos');
     if (canvasPagos) {
-        if (chartPagosInstance) {
-            chartPagosInstance.destroy();
-        }
+        if (chartPagosInstance) chartPagosInstance.destroy();
 
         const etiquetasPago = Object.keys(ingresosPorPago);
         const valoresPago = etiquetasPago.map((k) => ingresosPorPago[k]);
@@ -313,9 +304,7 @@ function renderizarDashboard() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
+                    legend: { position: 'bottom' }
                 }
             }
         });
@@ -328,7 +317,7 @@ function renderizarDashboard() {
         const sumaIngresosDetalle = rankingRentabilidad.reduce((acc, item) => acc + item.ingresos, 0);
 
         if (rankingRentabilidad.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:18px; color:#6D5E78;">Sin detalles registrados en este periodo.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:18px; color:#6D5E78;">Sin ventas registradas en este periodo.</td></tr>';
         } else {
             tbody.innerHTML = rankingRentabilidad.map((item, idx) => {
                 const pct = sumaIngresosDetalle > 0 ? Math.round((item.ingresos / sumaIngresosDetalle) * 100) : 0;
@@ -384,7 +373,7 @@ function configurarControlesUI(sb) {
         btn.addEventListener('click', () => {
             botonesRango.forEach((b) => b.classList.remove('active'));
             btn.classList.add('active');
-            rangoActivo = btn.getAttribute('data-range') || 'todo';
+            rangoActivo = btn.getAttribute('data-range') || 'hoy';
             renderizarDashboard();
         });
     });
@@ -402,10 +391,10 @@ function configurarControlesUI(sb) {
     if (btnRefresh) {
         btnRefresh.addEventListener('click', async () => {
             btnRefresh.disabled = true;
-            btnRefresh.textContent = 'Actualizando...';
+            btnRefresh.textContent = '⏳ Actualizando...';
             await cargarDatosYRenderizar(sb);
             btnRefresh.disabled = false;
-            btnRefresh.textContent = 'Actualizar';
+            btnRefresh.textContent = '🔄 Actualizar';
         });
     }
 
@@ -415,7 +404,7 @@ function configurarControlesUI(sb) {
             if (typeof api.logoutAdmin === 'function') {
                 await api.logoutAdmin();
             }
-            window.location.reload();
+            window.location.href = 'index.html';
         });
     }
 }
@@ -433,9 +422,7 @@ async function iniciarDashboard() {
     const modal = document.getElementById('dashAuthModal');
 
     if (!session) {
-        if (modal) {
-            modal.style.display = 'flex';
-        }
+        if (modal) modal.style.display = 'flex';
         const btnLogin = document.getElementById('btnDashLogin');
         if (btnLogin) {
             btnLogin.addEventListener('click', async () => {
@@ -462,24 +449,20 @@ async function iniciarDashboard() {
                     btnLogin.disabled = false;
                     btnLogin.textContent = 'Entrar al Dashboard';
                     if (errBox) {
-                        errBox.textContent = 'Credenciales inválidas. Verifica tu usuario en Supabase Auth.';
+                        errBox.textContent = 'Credenciales inválidas.';
                         errBox.style.display = 'block';
                     }
                     return;
                 }
 
-                if (modal) {
-                    modal.style.display = 'none';
-                }
+                if (modal) modal.style.display = 'none';
                 await cargarDatosYRenderizar(sb);
             });
         }
         return;
     }
 
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
     await cargarDatosYRenderizar(sb);
 }
 

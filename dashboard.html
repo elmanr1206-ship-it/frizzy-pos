@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232A0E4F'/%3E%3Ctext x='32' y='45' font-family='sans-serif' font-size='38' font-weight='bold' fill='%23F5A623' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frizzy | Dashboard Ejecutivo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232A0E4F'/%3E%3Ctext x='32' y='45' font-family='sans-serif' font-size='38' font-weight='bold' fill='%23F5A623' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E" />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
         :root {
@@ -16,23 +16,26 @@
             --crema-card: #FFF9EC;
             --borde: #E2D5B5;
             --texto: #2B113F;
+            --apple-spring: cubic-bezier(0.32, 0.72, 0, 1);
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
             background: radial-gradient(circle at top, #3B1854 0%, #1E0B2E 100%);
             min-height: 100vh;
             margin: 0;
-            padding: 24px 16px;
+            padding: 20px 12px;
             color: var(--texto);
         }
         .dashboard-shell {
-            max-width: 1220px;
+            max-width: 1240px;
             margin: 0 auto;
-            background: var(--crema);
-            border-radius: 24px;
-            padding: 24px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+            background: rgba(247, 239, 221, 0.96);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border-radius: 26px;
+            padding: 22px;
+            box-shadow: 0 24px 54px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.8);
         }
         .header {
             display: flex;
@@ -47,13 +50,14 @@
         .brand-title {
             display: flex;
             align-items: center;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .badge-tag {
             background: var(--dorado);
             color: var(--morado-oscuro);
             font-weight: 900;
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             padding: 5px 12px;
             border-radius: 99px;
             text-transform: uppercase;
@@ -61,8 +65,9 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 1.65rem;
-            font-weight: 900;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.55rem;
+            font-weight: 700;
             color: var(--morado-oscuro);
         }
         .toolbar {
@@ -75,45 +80,50 @@
             background: var(--crema-card);
             border: 1.5px solid var(--borde);
             color: var(--morado-oscuro);
+            min-height: 44px;
             padding: 8px 14px;
             border-radius: 99px;
             font-family: inherit;
             font-weight: 800;
-            font-size: 0.85rem;
+            font-size: 0.84rem;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.18s var(--apple-spring);
         }
         .filter-btn.active {
             background: var(--morado-oscuro);
             color: var(--dorado);
             border-color: var(--morado-oscuro);
+            box-shadow: 0 4px 12px rgba(43,17,63,0.22);
         }
         .btn-pos {
             text-decoration: none;
             background: var(--dorado);
             color: var(--morado-oscuro);
             font-weight: 900;
-            padding: 9px 16px;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            padding: 0 16px;
+            border-radius: 14px;
+            font-size: 0.88rem;
             box-shadow: 0 3px 0 #C88F0A;
         }
         .grid-kpi {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+            gap: 12px;
             margin-bottom: 22px;
         }
         .kpi-card {
             background: var(--crema-card);
             border: 1.5px solid var(--borde);
-            padding: 18px 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 10px rgba(43,17,63,0.04);
+            padding: 16px 18px;
+            border-radius: 18px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 10px rgba(43,17,63,0.04);
         }
         .kpi-card span {
             display: block;
-            font-size: 0.78rem;
+            font-size: 0.74rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.06em;
@@ -122,55 +132,87 @@
         }
         .kpi-card h2 {
             margin: 0;
-            font-size: 1.9rem;
-            font-weight: 900;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 700;
             color: var(--morado-oscuro);
         }
         .grid-charts {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 18px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 22px;
         }
         .chart-card {
             background: var(--crema-card);
             border: 1.5px solid var(--borde);
-            padding: 20px;
-            border-radius: 18px;
+            padding: 18px;
+            border-radius: 20px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
         }
         .chart-card h3 {
             margin: 0 0 14px 0;
-            font-size: 1rem;
+            font-size: 0.98rem;
             font-weight: 900;
             color: var(--morado-oscuro);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .canvas-wrap {
             position: relative;
-            height: 270px;
+            height: 260px;
             width: 100%;
         }
-        /* Modal Login del Dashboard */
+        .table-card {
+            background: var(--crema-card);
+            border: 1.5px solid var(--borde);
+            border-radius: 20px;
+            padding: 18px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;
+        }
+        th {
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6D5E78;
+            padding: 10px 12px;
+            border-bottom: 2px solid var(--borde);
+        }
         #dashAuthModal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(20, 7, 32, 0.8);
+            background: rgba(20, 7, 32, 0.82);
             z-index: 9999;
             justify-content: center;
             align-items: center;
             padding: 16px;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
         }
         .auth-box {
             background: var(--crema);
             border: 2px solid var(--dorado);
-            border-radius: 20px;
+            border-radius: 24px;
             padding: 26px;
             width: 100%;
-            max-width: 390px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.45);
+        }
+        @media (max-width: 640px) {
+            .dashboard-shell { padding: 16px 12px; border-radius: 20px; }
+            .grid-kpi { grid-template-columns: repeat(2, 1fr); }
+            .kpi-card h2 { font-size: 1.4rem; }
+            .toolbar { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -179,14 +221,17 @@
     <div class="dashboard-shell">
         <div class="header">
             <div class="brand-title">
-                <span class="badge-tag">Reporte Ejecutivo</span>
+                <span class="badge-tag" id="dashPeriodTag">Reporte de Hoy</span>
                 <h1>📊 Frizzy Inteligencia de Ventas</h1>
             </div>
             <div class="toolbar">
-                <button type="button" class="filter-btn" data-range="hoy">Hoy</button>
+                <!-- "HOY" ACTIVO POR DEFECTO -->
+                <button type="button" class="filter-btn active" data-range="hoy">Hoy</button>
                 <button type="button" class="filter-btn" data-range="7d">7 Días</button>
                 <button type="button" class="filter-btn" data-range="30d">30 Días</button>
-                <button type="button" class="filter-btn active" data-range="todo">Histórico</button>
+                <button type="button" class="filter-btn" data-range="todo">Histórico</button>
+                <button type="button" class="filter-btn" id="btnRefreshDash">🔄 Actualizar</button>
+                <button type="button" class="filter-btn" id="btnLogoutDash" title="Cerrar sesión">🔒 Salir</button>
                 <a href="index.html" class="btn-pos">← Volver al POS</a>
             </div>
         </div>
@@ -218,7 +263,7 @@
             <div class="chart-card">
                 <h3>
                     <span>⏰ Horas Pico de Ventas</span>
-                    <span class="badge-tag" style="font-size:0.68rem;">Demanda por Hora</span>
+                    <span class="badge-tag" style="font-size:0.68rem;">Demanda Horaria</span>
                 </h3>
                 <div class="canvas-wrap">
                     <canvas id="chartHoras"></canvas>
@@ -228,7 +273,9 @@
             <div class="chart-card">
                 <h3>
                     <span>🏆 Productos Más Vendidos</span>
-                    <span class="badge-tag" style="font-size:0.68rem;">Unidades</span>
+                    <button type="button" id="btnToggleBowls" style="background:#2B113F; color:#F4B41A; border:none; border-radius:99px; padding:5px 11px; font-size:0.72rem; font-weight:800; cursor:pointer;">
+                        Mostrando: Todo el Menú
+                    </button>
                 </h3>
                 <div class="canvas-wrap">
                     <canvas id="chartProductos"></canvas>
@@ -238,16 +285,38 @@
             <div class="chart-card">
                 <h3>
                     <span>💳 Ingresos por Medio de Pago</span>
-                    <span class="badge-tag" style="font-size:0.68rem;">Distribución $</span>
+                    <span class="badge-tag" style="font-size:0.68rem;">Participación $</span>
                 </h3>
                 <div class="canvas-wrap">
                     <canvas id="chartPagos"></canvas>
                 </div>
             </div>
         </div>
+
+        <div class="table-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:900; color:#2B113F;">
+                    📑 Desglose de Rentabilidad por Producto
+                </h3>
+                <span style="font-size:0.8rem; color:#6D5E78; font-weight:700;">
+                    Calculado con <code>precio_unitario_historico</code> al momento de cada venta
+                </span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th style="text-align:center;">Unidades Vendidas</th>
+                        <th style="text-align:right;">Precio Prom. Histórico</th>
+                        <th style="text-align:right;">Ingresos Generados</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaRentabilidadBody"></tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Modal de Autenticación para el Dashboard -->
     <div id="dashAuthModal">
         <div class="auth-box">
             <h2 style="margin:0 0 8px 0; color:#2B113F;">🔒 Acceso Gerencial</h2>
@@ -255,17 +324,17 @@
                 Inicia sesión con tu cuenta de Administrador para consultar las métricas financieras.
             </p>
             <div style="margin-bottom:12px;">
-                <label style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CORREO</label>
-                <input type="email" id="dashEmail" placeholder="elmanr248@gmail.com" style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #C9B896; font-size:16px;">
+                <label for="dashEmail" style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CORREO</label>
+                <input type="email" id="dashEmail" placeholder="admin@frizzy.com" style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #C9B896; font-size:16px;">
             </div>
             <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CONTRASEÑA</label>
+                <label for="dashPass" style="display:block; font-size:0.76rem; font-weight:800; margin-bottom:4px;">CONTRASEÑA</label>
                 <input type="password" id="dashPass" placeholder="••••••••" style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #C9B896; font-size:16px;">
             </div>
             <p id="dashAuthError" style="display:none; color:#B71C1C; font-size:0.85rem; font-weight:700; margin:0 0 10px 0;"></p>
             <div style="display:flex; gap:10px;">
                 <a href="index.html" style="flex:1; text-align:center; padding:12px; border-radius:10px; border:1.5px solid #C9B896; text-decoration:none; color:#2B113F; font-weight:800;">Volver</a>
-                <button type="button" id="btnDashLogin" style="flex:2; padding:12px; border-radius:10px; border:none; background:#2B113F; color:#F4B41A; font-weight:900; cursor:pointer;">Entrar</button>
+                <button type="button" id="btnDashLogin" style="flex:2; padding:12px; border-radius:10px; border:none; background:#2B113F; color:#F4B41A; font-weight:900; cursor:pointer;">Entrar al Dashboard</button>
             </div>
         </div>
     </div>

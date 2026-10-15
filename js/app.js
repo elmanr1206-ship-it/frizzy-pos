@@ -95,10 +95,250 @@ const getToppings = () => catalogoMenu.filter((p) => normalizarCategoria(p.categ
 const getBebidas = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bebida');
 
 function saveState() {
+    // Limitar memoria histórica de IDs a máximo 300 para nunca saturar localStorage
+    const idsArray = Array.from(idsPedidosConocidos).slice(-300);
+    idsPedidosConocidos = new Set(idsArray);
+
     localStorage.setItem('fz_pedidos', JSON.stringify(pedidos));
     localStorage.setItem('fz_apartados', JSON.stringify(apartados));
     localStorage.setItem('fz_catalogo_menu', JSON.stringify(catalogoMenu));
     localStorage.setItem('fz_fecha_jornada', fechaJornadaActiva);
+    localStorage.setItem('fz_ids_pedidos_conocidos', JSON.stringify(idsArray));
+    localStorage.setItem('fz_cola_cartas_verdes', JSON.stringify(colaCartasVerdes));
+}
+
+function renderizarPilaNotificacionesVerdes() {
+    const stackContainer = document.getElementById('incomingOrderStack');
+    if (!stackContainer) return;
+
+    // Las notificaciones solo aparecen para el Administrador y solo se quitan si el Admin las cierra
+    if (!usuarioActual || usuarioActual.rol !== 'admin' || colaCartasVerdes.length === 0) {
+        stackContainer.innerHTML = '';
+        return;
+    }
+
+    const totalCartas = colaCartasVerdes.length;
+
+    stackContainer.innerHTML = colaCartasVerdes.map((carta, index) => {
+        const posAttr = index === 0 ? '0' : index === 1 ? '1' : index === 2 ? '2' : 'hidden';
+        const etiquetaTipo = carta.esApartado
+            ? `📌 NUEVO APARTADO${carta.horaEntrega ? ` · ${carta.horaEntrega}` : ''}`
+            : '🍏 NUEVO PEDIDO DE CLIENTE';
+
+        return `
+            <div class="green-order-card" data-stack-pos="${posAttr}" data-card-id="${ui.esc(carta.id)}">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <span class="green-card-badge">${ui.esc(etiquetaTipo)}</span>
+                    <span style="font-size:0.74rem; font-weight:900; background:rgba(0,0,0,0.28); color:#A8F0C0; padding:3px 9px; border-radius:999px;">
+                        ${index + 1} de ${totalCartas}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px;">
+                    <div style="font-size:1.1rem; font-weight:900; color:#FFFFFF;">
+                        👤 ${ui.esc(carta.cliente)}
+                    </div>
+                    <div style="font-family:'Fredoka',sans-serif; font-size:1.2rem; font-weight:700; color:#FBBB1E;">
+                        ${ui.fmt(carta.total)}
+                    </div>
+                </div>
+                <div style="font-size:0.85rem; color:#E8F8F5; font-weight:700; line-height:1.38;">
+                    <div>🥣 <strong>Base:</strong> ${ui.esc(carta.bowl)} · <span style="color:#A8F0C0;">${ui.esc(carta.pago)}</span></div>
+                    <div>✨ <strong>Extras:</strong> ${ui.esc(carta.extras)}</div>
+                    ${carta.notas ? `<div style="margin-top:5px; background:rgba(0,0,0,0.24); padding:5px 9px; border-radius:8px;">📝 ${ui.esc(carta.notas)}</div>` : ''}
+                </div>
+                <button type="button" class="green-card-close-btn" data-close-card="${ui.esc(carta.id)}">
+                    ✓ Quitar Notificación ${totalCartas > 1 ? `(Siguiente: #2 de ${totalCartas})` : ''}
+                </button>
+            </div>
+        `;
+    }).join('');
+
+    const btnCerrarPrimero = stackContainer.querySelector('.green-order-card[data-stack-pos="0"] .green-card-close-btn');
+    if (btnCerrarPrimero) {
+        btnCerrarPrimero.addEventListener('click', () => {
+            const idCerrar = btnCerrarPrimero.getAttribute('data-close-card');
+            colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== idCerrar);
+            saveState();
+            renderizarPilaNotificacionesVerdes();
+        });
+    }
+}
+
+async function exportarImagenDashboardEjecutivo() {
+    const fechaHoy = obtenerFechaHoyStr();
+    // Filtrar estrictamente los pedidos del día de HOY
+    const pedidosDeHoy = pedidos.filter((p) => !p.fechaLocal || p.fechaLocal === fechaHoy);
+
+    if (pedidosDeHoy.length === 0) {
+        return ui.mostrarToast('No hay pedidos registrados hoy para generar el Dashboard');
+    }
+
+    const lienzo = document.getElementById('dashboardReportCapture');
+    if (!lienzo) return;
+
+    ui.mostrarToast('📊 Generando imagen del Dashboard de Hoy...');
+
+    const ingresosTotales = pedidosDeHoy.reduce((s, p) => s + Number(p.total || 0), 0);
+    const personasUnicas = new Set(
+        pedidosDeHoy.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)
+    ).size;
+    const ticketPromedio = pedidosDeHoy.length > 0 ? Math.round(ingresosTotales / pedidosDeHoy.length) : 0;
+
+    let totalUnidades = 0;
+    const conteoProductos = {};
+    const ingresosProductos = {};
+    const conteoHoras = {};
+
+    for (let h = 10; h <= 22; h++) conteoHoras[h] = 0;
+
+    pedidosDeHoy.forEach((p) => {
+        const d = p.fechaISO ? new Date(p.fechaISO) : new Date();
+        const strH = d.toLocaleTimeString('en-US', { timeZone: 'America/Bogota', hour: '2-digit', hour12: false });
+        const h = Number.isNaN(parseInt(strH, 10)) ? d.getHours() : (parseInt(strH, 10) === 24 ? 0 : parseInt(strH, 10));
+        conteoHoras[h] = (conteoHoras[h] || 0) + 1;
+
+        if (p.bowlId && p.bowlId !== 'ninguno') {
+            const bRef = getBowls().find((b) => b.id === p.bowlId);
+            const sumaEx = [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])]
+                .reduce((acc, i) => acc + (Number(i.precio || 0) * Number(i.cantidad || 1)), 0);
+            const precioB = bRef ? bRef.precio : Math.max(0, Number(p.total || 0) - sumaEx);
+
+            conteoProductos[p.bowl] = (conteoProductos[p.bowl] || 0) + 1;
+            ingresosProductos[p.bowl] = (ingresosProductos[p.bowl] || 0) + precioB;
+            totalUnidades += 1;
+        }
+
+        [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])].forEach((i) => {
+            const cant = Number(i.cantidad || 1);
+            totalUnidades += cant;
+            conteoProductos[i.nombre] = (conteoProductos[i.nombre] || 0) + cant;
+            ingresosProductos[i.nombre] = (ingresosProductos[i.nombre] || 0) + (Number(i.precio || 0) * cant);
+        });
+    });
+
+    const topProd = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1]).slice(0, 7);
+    const maxProd = topProd.length > 0 ? Math.max(...topProd.map((x) => x[1])) : 1;
+
+    const horasActivas = Object.entries(conteoHoras).sort((a, b) => Number(a[0]) - Number(b[0]));
+    const maxHoraPedidos = Math.max(1, ...horasActivas.map((x) => x[1]));
+
+    const barrasProductosHTML = topProd.map(([nom, cant]) => {
+        const pct = Math.round((cant / maxProd) * 100);
+        const ing = ingresosProductos[nom] || 0;
+        return `
+            <div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.88rem; font-weight:800; margin-bottom:4px;">
+                    <span>${ui.esc(nom)}</span>
+                    <span>${cant} uds. · ${ui.fmt(ing)}</span>
+                </div>
+                <div style="width:100%; height:10px; background:#E9DEC0; border-radius:99px; overflow:hidden;">
+                    <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #2A0E4F, #653BA0); border-radius:99px;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const barrasHorasHTML = horasActivas.map(([h, cant]) => {
+        const alturaPct = Math.round((cant / maxHoraPedidos) * 100);
+        return `
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:150px;">
+                <span style="font-size:0.74rem; font-weight:900; color:#2A0E4F; margin-bottom:4px;">${cant > 0 ? cant : ''}</span>
+                <div style="width:24px; height:${Math.max(6, alturaPct)}%; background:${cant > 0 ? 'linear-gradient(180deg, #F5A623, #2A0E4F)' : '#E9DEC0'}; border-radius:7px 7px 0 0;"></div>
+                <span style="font-size:0.7rem; font-weight:800; color:#4E2286; margin-top:6px;">${String(h).padStart(2, '0')}h</span>
+            </div>
+        `;
+    }).join('');
+
+    const tarjetasPagosHTML = PAGOS.map((pg) => {
+        const filtrados = pedidosDeHoy.filter((p) => (p.pago || '').toLowerCase() === pg.nombre.toLowerCase());
+        const sub = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
+        const pct = ingresosTotales > 0 ? Math.round((sub / ingresosTotales) * 100) : 0;
+        return `
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:14px; padding:12px 16px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="font-size:1rem; color:#2A0E4F;">${ui.esc(pg.nombre)}</strong>
+                        <div style="font-size:0.8rem; color:#4E2286; font-weight:700;">${filtrados.length} pedidos · ${pct}%</div>
+                    </div>
+                    <strong style="font-size:1.15rem; font-family:'Fredoka',sans-serif; color:#1B0836;">${ui.fmt(sub)}</strong>
+                </div>
+                <div style="width:100%; height:7px; background:#E9DEC0; border-radius:99px; margin-top:8px; overflow:hidden;">
+                    <div style="width:${pct}%; height:100%; background:#F5A623; border-radius:99px;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    lienzo.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #E9DEC0; padding-bottom:18px; margin-bottom:22px;">
+            <div>
+                <span style="background:#F5A623; color:#1B0836; font-weight:900; font-size:0.8rem; padding:5px 14px; border-radius:99px; text-transform:uppercase;">DASHBOARD DEL DÍA (HOY)</span>
+                <h1 style="margin:8px 0 0 0; font-family:'Fredoka',sans-serif; font-size:2rem; color:#2A0E4F;">📊 FRIZZY REPORTE DE HOY — ${ui.esc(fechaHoy)}</h1>
+            </div>
+            <div style="text-align:right; font-weight:800; color:#4E2286; font-size:0.9rem;">
+                Corte generado: ${ui.esc(formatearHoraBogota(new Date()))}<br/>Bogotá, Colombia (UTC-5)
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin-bottom:24px;">
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:16px; padding:16px;">
+                <span style="font-size:0.75rem; font-weight:900; color:#4E2286;">💰 VENTAS DE HOY</span>
+                <div style="font-family:'Fredoka',sans-serif; font-size:1.7rem; font-weight:700; color:#2A0E4F; margin-top:4px;">${ui.fmt(ingresosTotales)}</div>
+            </div>
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:16px; padding:16px;">
+                <span style="font-size:0.75rem; font-weight:900; color:#4E2286;">👥 PERSONAS HOY</span>
+                <div style="font-family:'Fredoka',sans-serif; font-size:1.7rem; font-weight:700; color:#2A0E4F; margin-top:4px;">${personasUnicas}</div>
+            </div>
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:16px; padding:16px;">
+                <span style="font-size:0.75rem; font-weight:900; color:#4E2286;">🧾 PEDIDOS HOY</span>
+                <div style="font-family:'Fredoka',sans-serif; font-size:1.7rem; font-weight:700; color:#2A0E4F; margin-top:4px;">${pedidosDeHoy.length}</div>
+            </div>
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:16px; padding:16px;">
+                <span style="font-size:0.75rem; font-weight:900; color:#4E2286;">📈 TICKET PROM. HOY</span>
+                <div style="font-family:'Fredoka',sans-serif; font-size:1.7rem; font-weight:700; color:#2A0E4F; margin-top:4px;">${ui.fmt(ticketPromedio)}</div>
+            </div>
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:16px; padding:16px;">
+                <span style="font-size:0.75rem; font-weight:900; color:#4E2286;">🥣 UNIDADES HOY</span>
+                <div style="font-family:'Fredoka',sans-serif; font-size:1.7rem; font-weight:700; color:#2A0E4F; margin-top:4px;">${totalUnidades}</div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.15fr 1fr; gap:20px;">
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:18px; padding:20px;">
+                <h3 style="margin:0 0 14px 0; font-family:'Fredoka',sans-serif; color:#2A0E4F;">🏆 Productos Más Vendidos Hoy</h3>
+                ${barrasProductosHTML || '<p>Sin datos hoy</p>'}
+            </div>
+            <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:18px; padding:20px;">
+                <h3 style="margin:0 0 14px 0; font-family:'Fredoka',sans-serif; color:#2A0E4F;">💳 Medios de Pago de Hoy</h3>
+                ${tarjetasPagosHTML}
+            </div>
+        </div>
+
+        <div style="background:#FFFAEF; border:2px solid #E9DEC0; border-radius:18px; padding:20px; margin-top:20px;">
+            <h3 style="margin:0 0 14px 0; font-family:'Fredoka',sans-serif; color:#2A0E4F;">⏰ Horas Pico de Hoy</h3>
+            <div style="display:flex; align-items:flex-end; gap:8px; padding-top:10px; border-bottom:2px solid #E9DEC0;">
+                ${barrasHorasHTML}
+            </div>
+        </div>
+    `;
+
+    try {
+        const canvas = await html2canvas(lienzo, {
+            backgroundColor: '#F7EFDD',
+            scale: 2,
+            windowWidth: 1120,
+            scrollX: 0,
+            scrollY: 0
+        });
+        const link = document.createElement('a');
+        link.download = `Frizzy_Dashboard_Hoy_${fechaHoy.replaceAll('/', '-')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        ui.mostrarToast('✅ Imagen del Dashboard de Hoy descargada');
+    } catch (err) {
+        console.error('Error generando imagen del Dashboard:', err);
+        ui.mostrarToast('⚠️ No se pudo generar la imagen');
+    }
 }
 
 // ---------------- SONIDO DE ALARMA WEB AUDIO API ----------------
