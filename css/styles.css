@@ -1029,3 +1029,96 @@ hr.divider {
   border-radius: 999px;
   letter-spacing: 0.04em;
 }
+
+/* ---------- Pantalla de Login Inicial por Roles (Admin / Cliente) ---------- */
+.auth-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top, #3B1766 0%, #1B0836 100%);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.auth-gate-card {
+  background: linear-gradient(180deg, var(--crema-2), var(--crema));
+  color: var(--morado-900);
+  border: 2px solid var(--dorado);
+  border-radius: 24px;
+  padding: 26px 22px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--sombra);
+  text-align: center;
+}
+
+.role-tabs {
+  display: flex;
+  gap: 8px;
+  background: #E9DEC0;
+  padding: 5px;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+
+.role-tab {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--morado-900);
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.role-tab.active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  box-shadow: var(--sombra-suave);
+}
+
+/* ---------- Programador de Alarma de Apartados ---------- */
+.apartado-scheduler {
+  margin-top: 16px;
+  padding: 14px;
+  background: linear-gradient(160deg, #F6F0FF, #EDE2FF);
+  border: 2px dashed var(--morado-700);
+  border-radius: 16px;
+}
+
+.timer-chip {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--morado-700);
+  background: #FFFFFF;
+  color: var(--morado-900);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.timer-chip.active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  border-color: var(--morado-900);
+}
+
+@keyframes pulseAlarm {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(209, 39, 43, 0.7); border-color: #D1272B; }
+  50% { box-shadow: 0 0 0 8px rgba(209, 39, 43, 0); border-color: #F5A623; }
+}
+
+.order-item.alarm-due {
+  animation: pulseAlarm 1.2s infinite;
+  background: #FFF0F0 !important;
+}

@@ -16,7 +16,6 @@ export async function getSupabase() {
                     persistSession: true,
                     autoRefreshToken: true,
                     detectSessionInUrl: false,
-                    // Evita el error: Acquiring an exclusive Navigator LockManager lock immediately failed
                     lock: async (_name, _acquireTimeout, fn) => await fn()
                 }
             });
@@ -36,6 +35,41 @@ export function normalizarNombreCliente(nombre) {
         .trim()
         .toLowerCase()
         .replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+// Genera timestamp ISO con el offset exacto de Colombia (-05:00) para evitar el desfase de 5 horas (4:00 UTC)
+export function obtenerFechaBogotaISO(dateObj = new Date()) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    const parts = {};
+    fmt.formatToParts(dateObj).forEach((p) => { parts[p.type] = p.value; });
+    const hora = parts.hour === '24' ? '00' : parts.hour;
+    return `${parts.year}-${parts.month}-${parts.day}T${hora}:${parts.minute}:${parts.second}-05:00`;
+}
+
+export function formatearHoraBogota(isoOrDate) {
+    if (!isoOrDate) return '';
+    const d = new Date(isoOrDate);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('es-CO', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+export function formatearFechaBogota(isoOrDate = new Date()) {
+    const d = new Date(isoOrDate);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
 }
 
 export const api = {
@@ -61,12 +95,109 @@ export const api = {
     async obtenerProductos() {
         const sb = await getSupabase();
         if (!sb) return null;
-        const { data, error } = await sb.from('productos').select('*');
+        const { data, error } = await sb
+            .from('productos')
+            .select('*')
+            .order('nombre', { ascending: true });
         if (error) {
             console.error('Error leyendo productos:', error);
             return null;
         }
-        return data;
+        // Filtrar los productos que no hayan sido desactivados/eliminados
+        return (data || []).filter((p) => p.activo !== false);
+    },
+
+    async crearProductoAdmin(nuevoProd) {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión a internet' } };
+
+        const payload = {
+            id: nuevoProd.id,
+            nombre: nuevoProd.nombre,
+            categoria: nuevoProd.categoria,
+            precio_actual: Number(nuevoProd.precio),
+            disponible: true,
+            activo: true
+        };
+
+        let { data, error } = await sb
+            .from('productos')
+            .upsert([payload], { onConflict: 'id' })
+            .select('*');
+
+        if (error) {
+            // Fallback por si la tabla aún no tiene las columnas disponible/activo
+            const fallback = await sb
+                .from('productos')
+                .upsert([{
+                    id: nuevoProd.id,
+                    nombre: nuevoProd.nombre,
+                    categoria: nuevoProd.categoria,
+                    precio_actual: Number(nuevoProd.precio)
+                }], { onConflict: 'id' })
+                .select('*');
+            data = fallback.data;
+            error = fallback.error;
+        }
+
+        return { data: data?.[0] || null, error };
+    },
+
+    async eliminarProductoAdmin(productoId) {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión a internet' } };
+
+        // 1. Intentar borrado físico si nunca ha tenido ventas históricas
+        const { error: delError } = await sb
+            .from('productos')
+            .delete()
+            .eq('id', productoId);
+
+        if (!delError) return { error: null };
+
+        // 2. Si tiene ventas en pedido_detalles (FK 23503), desactivar con activo = false para conservar contabilidad histórica
+        const { error: softErr } = await sb
+            .from('productos')
+            .update({ activo: false, disponible: false })
+            .eq('id', productoId);
+
+        return { error: softErr };
+    },
+
+    async actualizarProductoAdmin(productoId, cambios) {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión' } };
+
+        const payload = { precio_actual: cambios.precio_actual };
+        if (typeof cambios.disponible === 'boolean') {
+            payload.disponible = cambios.disponible;
+        }
+
+        let { data, error } = await sb
+            .from('productos')
+            .update(payload)
+            .eq('id', productoId)
+            .select('id, precio_actual');
+
+        if (error && payload.disponible !== undefined) {
+            const retry = await sb
+                .from('productos')
+                .update({ precio_actual: cambios.precio_actual })
+                .eq('id', productoId)
+                .select('id, precio_actual');
+            data = retry.data;
+            error = retry.error;
+        }
+
+        if (error) return { error };
+        if (!data || data.length === 0) {
+            return { error: { message: `No se pudo actualizar "${productoId}"` } };
+        }
+        return { error: null, data: data[0] };
+    },
+
+    async actualizarPrecioProducto(productoId, nuevoPrecio) {
+        return await this.actualizarProductoAdmin(productoId, { precio_actual: nuevoPrecio });
     },
 
     async obtenerClientes() {
@@ -76,10 +207,7 @@ export const api = {
             .from('clientes')
             .select('nombre')
             .order('nombre', { ascending: true });
-        if (error) {
-            console.error('Error leyendo clientes:', error);
-            return null;
-        }
+        if (error) return null;
         return (data || []).map((c) => c.nombre);
     },
 
@@ -93,6 +221,9 @@ export const api = {
 
         try {
             const nombreNormalizado = normalizarNombreCliente(pedidoLocal.cliente);
+            const fechaVentaBogota = pedidoLocal.fechaISO || obtenerFechaBogotaISO();
+            const estadoPedido = pedidoLocal.estado || 'completado';
+            const entregaProgramada = pedidoLocal.entregaProgramadaISO || null;
 
             const { data: rpcOk, error: rpcError } = await sb.rpc('registrar_pedido_atomico', {
                 p_pedido_id: pedidoLocal.id,
@@ -100,14 +231,17 @@ export const api = {
                 p_medio_pago: pedidoLocal.pago,
                 p_total: pedidoLocal.total,
                 p_notas: pedidoLocal.notas || '',
-                p_created_at: pedidoLocal.fechaISO || new Date().toISOString(),
-                p_items: pedidoLocal.items
+                p_created_at: fechaVentaBogota,
+                p_items: pedidoLocal.items,
+                p_estado: estadoPedido,
+                p_entrega_programada_at: entregaProgramada
             });
 
             if (!rpcError && rpcOk) {
                 return { ok: true, permanent: false };
             }
 
+            // Respaldo con Upsert directo si el RPC aún no tiene los nuevos parámetros
             const { data: clienteData, error: clienteError } = await sb
                 .from('clientes')
                 .upsert([{ nombre: nombreNormalizado }], { onConflict: 'nombre' })
@@ -124,7 +258,9 @@ export const api = {
                     medio_pago: pedidoLocal.pago,
                     total: pedidoLocal.total,
                     notas: pedidoLocal.notas || '',
-                    created_at: pedidoLocal.fechaISO || new Date().toISOString()
+                    created_at: fechaVentaBogota,
+                    estado: estadoPedido,
+                    entrega_programada_at: entregaProgramada
                 }], { onConflict: 'id' });
 
             if (pedidoError) throw pedidoError;
@@ -150,48 +286,42 @@ export const api = {
         }
     },
 
+    // Descarga todos los pedidos y apartados del día en Colombia para sincronizar todos los dispositivos
+    async obtenerPedidosJornadaHoy() {
+        const sb = await getSupabase();
+        if (!sb) return null;
+
+        // Calcular las 00:00:00 de hoy en hora de Colombia (-05:00)
+        const inicioHoyBogota = obtenerFechaBogotaISO().slice(0, 10) + 'T00:00:00-05:00';
+
+        const { data, error } = await sb
+            .from('pedidos')
+            .select(`
+                id,
+                medio_pago,
+                total,
+                notas,
+                created_at,
+                estado,
+                entrega_programada_at,
+                clientes ( nombre ),
+                pedido_detalles ( producto_id, cantidad, precio_unitario_historico )
+            `)
+            .or(`created_at.gte.${inicioHoyBogota},estado.eq.apartado`)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn('Error descargando pedidos del día:', error);
+            return null;
+        }
+        return data || [];
+    },
+
     async deletePedido(pedidoId) {
         const sb = await getSupabase();
         if (!sb) return false;
         const { error } = await sb.from('pedidos').delete().eq('id', pedidoId);
         return !error;
-    },
-
-    async actualizarPrecioProducto(productoId, nuevoPrecio) {
-        return await this.actualizarProductoAdmin(productoId, { precio_actual: nuevoPrecio });
-    },
-
-    async actualizarProductoAdmin(productoId, cambios) {
-        const sb = await getSupabase();
-        if (!sb) return { error: { message: 'Sin conexión' } };
-
-        const payload = { precio_actual: cambios.precio_actual };
-        if (typeof cambios.disponible === 'boolean') {
-            payload.disponible = cambios.disponible;
-        }
-
-        let { data, error } = await sb
-            .from('productos')
-            .update(payload)
-            .eq('id', productoId)
-            .select('id, precio_actual');
-
-        // Respaldo si aún no se ha corrido el ALTER TABLE ADD COLUMN disponible en Supabase
-        if (error && payload.disponible !== undefined) {
-            const retry = await sb
-                .from('productos')
-                .update({ precio_actual: cambios.precio_actual })
-                .eq('id', productoId)
-                .select('id, precio_actual');
-            data = retry.data;
-            error = retry.error;
-        }
-
-        if (error) return { error };
-        if (!data || data.length === 0) {
-            return { error: { message: `No se pudo actualizar "${productoId}"` } };
-        }
-        return { error: null, data: data[0] };
     },
 
     async obtenerComprasCliente(nombreCliente) {
@@ -215,8 +345,17 @@ export const api = {
             if (errPed) return 0;
             return count || 0;
         } catch (error) {
-            console.error('Error consultando fidelización:', error);
             return 0;
         }
+    },
+
+    async suscribirCambiosRealtime(onChangeCallback) {
+        const sb = await getSupabase();
+        if (!sb) return null;
+        return sb
+            .channel('frizzy-multidevice-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () => onChangeCallback('pedidos'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, () => onChangeCallback('productos'))
+            .subscribe();
     }
 };

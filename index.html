@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232A0E4F'/%3E%3Ctext x='32' y='45' font-family='sans-serif' font-size='38' font-weight='bold' fill='%23F5A623' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1B0836" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Frizzy POS — Caja &amp; Pedidos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232A0E4F'/%3E%3Ctext x='32' y='45' font-family='sans-serif' font-size='38' font-weight='bold' fill='%23F5A623' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E" />
   <link rel="manifest" href="manifest.json" />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&amp;family=Nunito:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
@@ -15,6 +15,68 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
+  <!-- BANNER FLOTANTE DE ALARMA SONORA DE APARTADOS -->
+  <div id="alarmBanner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:2500; background:linear-gradient(135deg, #D1272B, #9E1417); color:#FFF; padding:14px 20px; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,0.5); border:2px solid #FBBB1E; width:92%; max-width:520px; align-items:center; justify-content:space-between; gap:12px;">
+    <div>
+      <div style="font-weight:900; font-size:1rem; color:#FBBB1E;">🔔 ¡ALARMA DE PEDIDO APARTADO!</div>
+      <div id="alarmBannerText" style="font-size:0.88rem; font-weight:700; margin-top:2px;">Es hora de preparar/entregar el pedido.</div>
+    </div>
+    <button type="button" id="btnStopAlarm" style="min-height:44px; padding:8px 14px; border-radius:10px; border:none; background:#FBBB1E; color:#1B0836; font-weight:900; cursor:pointer; flex-shrink:0;">
+      🔇 Silenciar
+    </button>
+  </div>
+
+  <!-- PANTALLA DE INICIO DE SESIÓN OBLIGATORIA (ADMIN / CLIENTE) -->
+  <div id="authGateModal" class="auth-gate-backdrop">
+    <div class="auth-gate-card">
+      <div class="logo-plate" style="margin-bottom:8px;">
+        <svg width="180" height="50" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="4" width="204" height="50" rx="16" fill="#2A0E4F" stroke="#F5A623" stroke-width="3.5" />
+          <text x="105" y="39" text-anchor="middle" fill="#FBBB1E" font-family="Fredoka, sans-serif" font-size="32" font-weight="700" letter-spacing="3">FRIZZY</text>
+        </svg>
+      </div>
+      <p style="margin:0 0 14px 0; font-size:0.86rem; color:#4E2286; font-weight:800;">
+        Selecciona tu perfil para ingresar al sistema
+      </p>
+
+      <div class="role-tabs">
+        <button type="button" class="role-tab active" id="tabRoleCliente">👤 Soy Cliente</button>
+        <button type="button" class="role-tab" id="tabRoleAdmin">🔐 Administrador</button>
+      </div>
+
+      <!-- FORMULARIO CLIENTE PERSONALIZADO -->
+      <form id="formLoginCliente" style="text-align:left;">
+        <div class="field" style="margin-bottom:12px;">
+          <label for="loginClienteNombre">Tu Nombre</label>
+          <input type="text" id="loginClienteNombre" placeholder="Ej. Camila" required autocomplete="name" />
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label for="loginClienteCodigo">Código de acceso del local (PIN)</label>
+          <input type="password" id="loginClienteCodigo" placeholder="PIN del local (Ej. 1234)" required />
+          <small style="display:block; font-size:0.72rem; color:#653BA0; font-weight:700; margin-top:4px;">
+            Pide el PIN en caja para armar y apartar tu pedido desde tu dispositivo.
+          </small>
+        </div>
+        <button type="submit" class="btn-guardar">🥣 Entrar a Pedir / Apartar</button>
+      </form>
+
+      <!-- FORMULARIO ADMINISTRADOR -->
+      <form id="formLoginAdminGate" style="display:none; text-align:left;">
+        <div class="field" style="margin-bottom:12px;">
+          <label for="gateAdminEmail">Correo Administrador</label>
+          <input type="email" id="gateAdminEmail" placeholder="admin@frizzy.com" autocomplete="username" required />
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label for="gateAdminPass">Contraseña</label>
+          <input type="password" id="gateAdminPass" placeholder="••••••••" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn-guardar" id="btnSubmitGateAdmin">🔓 Iniciar Sesión Admin</button>
+      </form>
+
+      <p id="authGateError" style="display:none; color:#D1272B; font-size:0.84rem; font-weight:800; margin:10px 0 0 0;"></p>
+    </div>
+  </div>
+
   <header>
     <div class="logo-wrap">
       <div class="logo-plate">
@@ -23,26 +85,45 @@
           <text x="105" y="39" text-anchor="middle" fill="#FBBB1E" font-family="Fredoka, sans-serif" font-size="32" font-weight="700" letter-spacing="3">FRIZZY</text>
         </svg>
       </div>
-      <div class="tagline">PUNTO DE VENTA · CAJA &amp; PEDIDOS</div>
-      <div id="syncStatusBadge" style="margin-top:6px; font-size:0.75rem; font-weight:800; background:rgba(255,255,255,0.12); padding:4px 12px; border-radius:999px; color:#FBBB1E;">
-        🟢 En línea · Cola sincronizada
+      <div class="tagline" id="roleHeaderTagline">PUNTO DE VENTA · CAJA &amp; PEDIDOS</div>
+
+      <!-- BARRA DE SESIÓN ACTIVA Y SINCRONIZACIÓN MULTI-DISPOSITIVO -->
+      <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-top:6px;">
+        <div id="userSessionBadge" style="font-size:0.78rem; font-weight:900; background:#2A0E4F; border:1.5px solid #F5A623; padding:5px 12px; border-radius:999px; color:#FFFAEF;">
+          👤 Sin sesión
+        </div>
+        <div id="syncStatusBadge" style="font-size:0.75rem; font-weight:800; background:rgba(255,255,255,0.12); padding:5px 12px; border-radius:999px; color:#FBBB1E;">
+          🟢 En línea · Sincronizado
+        </div>
+        <button type="button" id="btnRefreshCloud" style="min-height:34px; padding:4px 12px; border-radius:999px; border:1px solid #FBBB1E; background:rgba(42,14,79,0.8); color:#FBBB1E; font-weight:800; font-size:0.74rem; cursor:pointer;">
+          🔄 Sincronizar Dispositivos
+        </button>
+        <button type="button" id="btnLogoutApp" style="min-height:34px; padding:4px 12px; border-radius:999px; border:none; background:#D1272B; color:#FFF; font-weight:800; font-size:0.74rem; cursor:pointer;">
+          Salir
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="app">
-    <!-- COLUMNA IZQUIERDA: FORMULARIO, APARTADOS Y PEDIDOS DE HOY -->
+  <main class="app" id="mainAppGrid">
+    <!-- COLUMNA IZQUIERDA: FORMULARIO, APARTADOS Y PEDIDOS -->
     <section>
       <div class="panel">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <div class="banner">Nuevo Pedido</div>
+          <div class="banner" id="formMainBanner">Nuevo Pedido</div>
           <span id="multiOrderBadge" style="display:none; background:#2A0E4F; color:#FBBB1E; font-size:0.78rem; font-weight:800; padding:6px 12px; border-radius:999px;">
             🥣 Agregando otro bowl para el mismo cliente
           </span>
         </div>
 
+        <!-- TARJETA PERSONALIZADA DE FIDELIDAD (SOLO VISIBLE PARA CLIENTES) -->
+        <div id="clienteLoyaltyBanner" style="display:none; background:linear-gradient(135deg, #2A0E4F, #4E2286); color:#FFFAEF; padding:14px 16px; border-radius:16px; margin-bottom:16px; border:2px solid #F5A623;">
+          <div id="clienteLoyaltyTitle" style="font-weight:900; font-size:1rem; color:#FBBB1E;">¡Hola!</div>
+          <div id="clienteLoyaltySub" style="font-size:0.84rem; margin-top:4px; font-weight:700;">Arma tu Frizzy favorito y apártalo con la hora a la que pasas por él.</div>
+        </div>
+
         <form id="orderForm" novalidate>
-          <div class="field">
+          <div class="field" id="fieldNombreCliente">
             <label for="nombreCliente">Nombre del cliente</label>
             <input
               type="text"
@@ -54,7 +135,6 @@
             <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
           </div>
 
-          <!-- IDEA 2: BARRA DE COMBOS RÁPIDOS DE 1 TOQUE -->
           <p class="subhead">⚡ Combos Rápidos (1 Toque)</p>
           <div id="comboGrid" class="combo-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
 
@@ -73,7 +153,7 @@
           <p class="subhead">Medio de Pago</p>
           <div id="payGrid" class="pay-grid" style="margin-bottom: 16px;"></div>
 
-          <!-- IDEA 1: CALCULADORA RÁPIDA DE DEVUELTA (SOLO EFECTIVO) -->
+          <!-- CALCULADORA RÁPIDA DE DEVUELTA (SOLO ADMIN + EFECTIVO) -->
           <div id="cashCalcPanel" style="display:none; background:linear-gradient(160deg, #FFF9EB, #F7E9C6); border:2px solid var(--dorado); border-radius:16px; padding:14px; margin-bottom:16px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
               <span style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-900);">💵 Calculadora de Devuelta (Efectivo)</span>
@@ -94,7 +174,7 @@
             </div>
           </div>
 
-          <!-- IDEA 4: NOTAS + CHIPS TÁCTILES RÁPIDOS -->
+          <!-- NOTAS + CHIPS TÁCTILES RÁPIDOS -->
           <div class="field">
             <label for="notas">Notas de preparación</label>
             <div id="quickNotesGrid" style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px;"></div>
@@ -106,39 +186,69 @@
             <span id="totalPedido" class="amount">$0</span>
           </div>
 
-          <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
-            ✅ Guardar Pedido
-          </button>
+          <!-- BOTONES EXCLUSIVOS DE CAJA / ADMIN -->
+          <div id="adminOrderButtons">
+            <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
+              ✅ Guardar Pedido (Entrega Inmediata)
+            </button>
 
-          <button
-            type="button"
-            class="btn-secundario"
-            id="btnGuardarYOtro"
-            style="margin-top: 10px; border-color: var(--morado-800); color: var(--morado-900); background: linear-gradient(160deg, #FFF3D2, #FFE3A0);"
-            disabled
-          >
-            ➕ Guardar y Agregar Otro Bowl (Mismo Cliente)
-          </button>
+            <button
+              type="button"
+              class="btn-secundario"
+              id="btnGuardarYOtro"
+              style="margin-top: 10px; border-color: var(--morado-800); color: var(--morado-900); background: linear-gradient(160deg, #FFF3D2, #FFE3A0);"
+              disabled
+            >
+              ➕ Guardar y Agregar Otro Bowl (Mismo Cliente)
+            </button>
+          </div>
 
-          <button type="button" class="btn-secundario" id="btnApartar" style="margin-top: 10px;" disabled>
-            📌 Apartar para Después
-          </button>
+          <!-- PROGRAMADOR DE ALARMA Y TEMPORIZADOR PARA PEDIDOS APARTADOS -->
+          <div class="apartado-scheduler">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              <span style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-900);">
+                ⏰ Programar Alarma para Apartado ("¿Para cuándo lo quieres?")
+              </span>
+              <span id="schedulePreviewBadge" style="font-size:0.76rem; font-weight:800; background:#2A0E4F; color:#FBBB1E; padding:3px 10px; border-radius:99px;">
+                Sin hora (Solo apartar)
+              </span>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+              <button type="button" class="timer-chip" data-mins="15">⏱️ En 15 min</button>
+              <button type="button" class="timer-chip" data-mins="30">⏱️ En 30 min</button>
+              <button type="button" class="timer-chip" data-mins="60">🕐 En 1 hora</button>
+              <button type="button" class="timer-chip" data-mins="120">🕑 En 2 horas</button>
+              <button type="button" class="timer-chip active" data-mins="0">Sin alarma</button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label for="apartadoTimeInput" style="font-size:0.76rem; font-weight:800; color:var(--morado-800); margin:0;">
+                O elige una hora específica:
+              </label>
+              <input type="time" id="apartadoTimeInput" style="padding:6px 12px; border-radius:10px; border:1.5px solid #D3C4A3; background:#FFF; color:var(--morado-950); font-weight:800; font-size:16px;" />
+            </div>
+
+            <button type="button" class="btn-guardar" id="btnApartar" style="margin-top: 12px; background:linear-gradient(180deg, #4E2286, #2A0E4F); color:#FBBB1E; box-shadow:0 4px 0 #1B0836;" disabled>
+              📌 Apartar Pedido con Alarma
+            </button>
+          </div>
         </form>
       </div>
 
-      <div class="panel">
-        <div class="banner small">Apartados (Pedidos para después)</div>
+      <div class="panel" id="panelApartados">
+        <div class="banner small" id="bannerApartadosTitle">Apartados (Con Temporizador)</div>
         <div id="apartadosList"></div>
       </div>
 
-      <div class="panel">
-        <div class="banner small">Pedidos de Hoy</div>
+      <div class="panel" id="panelPedidosHoy">
+        <div class="banner small" id="bannerPedidosTitle">Pedidos de Hoy</div>
         <div id="ordersList"></div>
       </div>
     </section>
 
-    <!-- COLUMNA DERECHA: CIERRE DE CAJA Y REPORTES -->
-    <aside>
+    <!-- COLUMNA DERECHA: CIERRE DE CAJA Y REPORTES (SOLO ADMIN) -->
+    <aside id="adminAsideColumn">
       <div class="panel">
         <div id="summaryCapture">
           <div class="banner">Cierre de Caja</div>
@@ -175,7 +285,7 @@
         </div>
 
         <button type="button" class="btn-secundario btn-admin" id="btnAdmin">
-          ⚙️ Modo Administrador (Precios y Stock)
+          ⚙️ Administrar Menú, Precios y Stock
         </button>
 
         <a href="dashboard.html" class="btn-secundario btn-dashboard">
@@ -189,13 +299,34 @@
     </aside>
   </main>
 
-  <!-- MODAL ADMINISTRADOR (PRECIOS + SEMÁFORO DE AGOTADOS) -->
+  <!-- MODAL ADMINISTRADOR (CREAR/QUITAR PRODUCTOS + PRECIOS + STOCK) -->
   <div id="adminModal" style="display: none;">
-    <div class="admin-modal-box">
+    <div class="admin-modal-box" style="max-width: 540px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px dashed #E9DEC0;">
-        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.2rem;">⚙️ Precios y Disponibilidad</h3>
+        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.2rem;">⚙️ Menú, Precios y Stock</h3>
         <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background: #E9DEC0; border: none; width: 38px; height: 38px; border-radius: 50%; font-size: 1.4rem; color: var(--morado-950); font-weight: 900; cursor: pointer;">&times;</button>
       </div>
+
+      <!-- SECCIÓN PARA AGREGAR NUEVO PRODUCTO DESDE EL FRONT -->
+      <div id="adminAddProductSection" style="background:#FFF3D2; border:2px solid var(--dorado); border-radius:14px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-950); margin-bottom:8px;">
+          ➕ Agregar Nuevo Producto al Menú
+        </div>
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr 0.9fr; gap:8px; margin-bottom:8px;">
+          <input type="text" id="newProdNombre" placeholder="Nombre (Ej. Maicitos)" style="padding:8px 10px; border-radius:8px; border:1px solid #C9B896;" />
+          <select id="newProdCat" style="padding:8px; border-radius:8px; border:1px solid #C9B896; font-weight:800; color:var(--morado-950); background:#FFF; font-size:15px;">
+            <option value="bowl">Bowl Base</option>
+            <option value="acompanante">Acompañante</option>
+            <option value="topping" selected>Topping</option>
+            <option value="bebida">Bebida</option>
+          </select>
+          <input type="number" id="newProdPrecio" placeholder="Precio $" min="100" step="100" style="padding:8px 10px; border-radius:8px; border:1px solid #C9B896;" />
+        </div>
+        <button type="button" id="btnCrearProducto" style="width:100%; min-height:42px; background:var(--morado-900); color:var(--dorado-claro); border:none; border-radius:10px; font-weight:900; cursor:pointer;">
+          ➕ Crear y Sincronizar Producto
+        </button>
+      </div>
+
       <div id="adminListaProductos" style="display: flex; flex-direction: column; gap: 8px;"></div>
       <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="margin-top: 16px;">
         Guardar Cambios en Nube
@@ -222,7 +353,7 @@
       <p id="autoCloseText" style="font-size: 0.9rem; color: var(--morado-800); font-weight: 700; margin-bottom: 14px; white-space: pre-line; text-align: left; background: #FFF3D2; padding: 12px; border-radius: 12px; border: 1px solid #E9DEC0;"></p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button type="button" id="btnEnviarWhatsAppAuto" class="btn-guardar" style="background: linear-gradient(180deg, #38E54D, #25D366); color: #1B0836; box-shadow: 0 4px 0 #1DA851; margin-top: 0;">
-          📲 Enviar Reporte a WhatsApp
+          Enviar Reporte a WhatsApp
         </button>
         <button type="button" id="btnCerrarAutoModal" class="btn-secundario" style="border-color: var(--morado-800); color: var(--morado-900);">
           Entendido, iniciar nuevo día

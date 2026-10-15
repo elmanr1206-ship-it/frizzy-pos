@@ -1,3 +1,5 @@
+import { formatearHoraBogota } from './api.js';
+
 export const ui = {
     fmt(n) {
         return '$' + Number(n || 0).toLocaleString('es-CO');
@@ -10,6 +12,39 @@ export const ui = {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    },
+
+    formatearCuentaRegresiva(entregaISO) {
+        if (!entregaISO) return null;
+        const target = new Date(entregaISO).getTime();
+        if (Number.isNaN(target)) return null;
+
+        const diffMs = target - Date.now();
+        const horaObjetivo = formatearHoraBogota(entregaISO);
+
+        if (diffMs <= 0) {
+            const minVencidos = Math.floor(Math.abs(diffMs) / 60000);
+            return {
+                vencido: true,
+                urgente: true,
+                texto: `🔔 ¡ENTREGAR YA! (${horaObjetivo}${minVencidos > 0 ? ` · hace ${minVencidos}m` : ''})`
+            };
+        }
+
+        const totalSec = Math.floor(diffMs / 1000);
+        const horas = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+
+        const tiempoStr = horas > 0
+            ? `${horas}h ${String(mins).padStart(2, '0')}m`
+            : `${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+
+        return {
+            vencido: false,
+            urgente: diffMs <= 5 * 60 * 1000, // Menos de 5 minutos
+            texto: `⏰ Falta ${tiempoStr} (Entrega ${horaObjetivo})`
+        };
     },
 
     renderCombos(containerId, combos, onSelectCombo) {
@@ -139,7 +174,7 @@ export const ui = {
         });
     },
 
-    renderOrders(lista, containerId, esApartado, callbacks) {
+    renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
         const c = document.getElementById(containerId);
         if (!c) return;
         if (!lista || lista.length === 0) {
@@ -155,8 +190,9 @@ export const ui = {
         });
 
         lista.forEach((p) => {
+            const infoTimer = esApartado ? this.formatearCuentaRegresiva(p.entregaProgramadaISO) : null;
             const card = document.createElement('div');
-            card.className = 'order-item' + (p.abierto ? ' open' : '');
+            card.className = 'order-item' + (p.abierto ? ' open' : '') + (infoTimer?.vencido ? ' alarm-due' : '');
 
             const acomp = p.acompDetalle || [];
             const top = p.toppingDetalle || [];
@@ -183,11 +219,15 @@ export const ui = {
                 ? `<span style="font-size:0.68rem; padding:2px 7px; border-radius:99px; font-weight:800; background:#EDE7F6; color:#4E2286;">🥣 ${pedidosDeEsteCliente} pedidos hoy</span>`
                 : '';
 
-            const badgeSync = !esApartado
-                ? `<span style="font-size:0.68rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${p.syncError ? '#FDECEA' : p.sincronizado ? '#E6F4EA' : '#FFF4D6'}; color:${p.syncError ? '#B71C1C' : p.sincronizado ? '#1E7E34' : '#9A6700'};">
-                    ${p.syncError ? '⚠️ Error' : p.sincronizado ? '☁️ Sincronizado' : '⏳ En cola'}
+            const badgeTimerHTML = infoTimer
+                ? `<span class="timer-live-badge" data-entrega="${this.esc(p.entregaProgramadaISO)}" style="font-size:0.72rem; padding:3px 9px; border-radius:99px; font-weight:900; background:${infoTimer.vencido ? '#D1272B' : infoTimer.urgente ? '#F5A623' : '#2A0E4F'}; color:${infoTimer.vencido ? '#FFF' : infoTimer.urgente ? '#1B0836' : '#FBBB1E'};">
+                    ${this.esc(infoTimer.texto)}
                    </span>`
-                : '<span style="font-size:0.68rem; padding:2px 8px; border-radius:99px; font-weight:800; background:#EDE7F6; color:#4A148C;">📌 Apartado</span>';
+                : '';
+
+            const badgeSync = `<span style="font-size:0.68rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${p.syncError ? '#FDECEA' : p.sincronizado ? '#E6F4EA' : '#FFF4D6'}; color:${p.syncError ? '#B71C1C' : p.sincronizado ? '#1E7E34' : '#9A6700'};">
+                ${p.syncError ? '⚠️ Error' : p.sincronizado ? '☁️ Sincronizado' : '⏳ En cola'}
+               </span>`;
 
             card.innerHTML = `
                 <div class="order-head" role="button" tabindex="0" aria-expanded="${p.abierto ? 'true' : 'false'}">
@@ -197,6 +237,7 @@ export const ui = {
                             <span class="meta">· ${this.esc(p.hora)}</span>
                             <span class="chip">${this.esc(p.pago)}</span>
                             ${badgeMulti}
+                            ${badgeTimerHTML}
                             ${badgeSync}
                         </div>
                         <div style="font-size:0.84rem; color:#4E2286; margin-top:4px; font-weight:700;">
@@ -226,17 +267,18 @@ export const ui = {
                     </div>` : ''}
 
                     <div style="margin-top:12px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px;">
-                        ${!esApartado && callbacks.onNewForClient ? `
+                        ${!esApartado && esAdmin && callbacks.onNewForClient ? `
                         <button type="button" class="btn-add-another" style="min-height:42px; padding:0 14px; background:#FFF3D2; color:#2A0E4F; border:2px solid #F5A623; border-radius:10px; font-weight:800; cursor:pointer;">
                             ➕ Otro bowl para ${this.esc(p.nombre)}
                         </button>` : ''}
-                        ${esApartado ? `
+                        ${esApartado && esAdmin ? `
                         <button type="button" class="btn-confirm" style="min-height:42px; padding:0 16px; background:#3E9B5C; color:#FFFFFF; border:none; border-radius:10px; font-weight:800; cursor:pointer;">
-                            ✅ Confirmar y Cobrar
+                            ✅ Entregar y Cobrar
                         </button>` : ''}
+                        ${esAdmin ? `
                         <button type="button" class="btn-delete" style="min-height:42px; padding:0 14px; background:#FDECEA; color:#D1272B; border:1px solid #F5C2C7; border-radius:10px; font-weight:800; cursor:pointer;">
                             🗑️ Eliminar
-                        </button>
+                        </button>` : ''}
                     </div>
                 </div>` : ''}
             `;
@@ -250,7 +292,7 @@ export const ui = {
                 }
             });
 
-            if (p.abierto) {
+            if (p.abierto && esAdmin) {
                 card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
                     e.stopPropagation();
                     callbacks.onDelete(p.id);
