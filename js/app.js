@@ -8,7 +8,6 @@ import {
     formatearFechaBogota
 } from './api.js';
 
-// Catálogo base inicial (se actualiza y amplía dinámicamente desde Supabase)
 const MENU_INICIAL = [
     { id: 'papas', nombre: 'Papas', precio: 10000, categoria: 'bowl', disponible: true },
     { id: 'yuca', nombre: 'Yuca', precio: 8000, categoria: 'bowl', disponible: true },
@@ -24,7 +23,11 @@ const MENU_INICIAL = [
     { id: 'vasito', nombre: 'Vasito', precio: 1500, categoria: 'bebida', disponible: true }
 ];
 
-const PAGOS = [{ id: 'efectivo', nombre: 'Efectivo' }, { id: 'llave', nombre: 'Llave' }, { id: 'nequi', nombre: 'Nequi' }];
+const PAGOS = [
+    { id: 'efectivo', nombre: 'Efectivo' },
+    { id: 'llave', nombre: 'Llave' },
+    { id: 'nequi', nombre: 'Nequi' }
+];
 
 const COMBOS_RAPIDOS = [
     { id: 'combo_papas_full', icono: '🔥', nombre: 'Papas Full', bowl: 'papas', acomp: { salchicha: 1 }, toppings: { queso: 1, papachongo: 1 }, bebidas: {} },
@@ -36,7 +39,6 @@ const COMBOS_RAPIDOS = [
 const NOTAS_RAPIDAS = ['Sin cebolla', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Extra servilletas'];
 
 const WHATSAPP_ADMIN_PHONE = '573503129384';
-// PIN para que tus clientes autorizados puedan entrar a armar y apartar su pedido sin que extraños con el link entren
 const CLIENT_ACCESS_PIN = '1234';
 
 function leerStorageSeguro(clave, defecto = []) {
@@ -46,6 +48,18 @@ function leerStorageSeguro(clave, defecto = []) {
     } catch (e) {
         return defecto;
     }
+}
+
+function normalizarCategoria(cat) {
+    const limpia = String(cat || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    if (limpia.startsWith('acomp')) return 'acompanante';
+    if (limpia.startsWith('bowl')) return 'bowl';
+    if (limpia.startsWith('bebida')) return 'bebida';
+    return 'topping';
 }
 
 function obtenerFechaHoyStr() {
@@ -63,6 +77,7 @@ function generarUUID() {
     });
 }
 
+// ---------------- VARIABLES DE ESTADO GLOBALES ----------------
 let catalogoMenu = leerStorageSeguro('fz_catalogo_menu', MENU_INICIAL);
 let estado = {
     bowl: null,
@@ -77,7 +92,7 @@ let estado = {
     apartadoHoraExacta: ''
 };
 
-let usuarioActual = leerStorageSeguro('fz_usuario_actual', null); // { rol: 'admin'|'cliente', nombre: '...' }
+let usuarioActual = leerStorageSeguro('fz_usuario_actual', null);
 let pedidos = leerStorageSeguro('fz_pedidos', []);
 let apartados = leerStorageSeguro('fz_apartados', []);
 let clientesConocidos = leerStorageSeguro('fz_clientes_cache', []);
@@ -88,30 +103,83 @@ let guardandoEnCurso = false;
 let alarmasSilenciadas = new Set();
 let audioCtx = null;
 
-// Helpers dinámicos por categoría para soportar agregar/quitar productos en vivo
+// Variables del Mazo de Notificaciones estilo Apple iOS
+let idsPedidosConocidos = new Set(leerStorageSeguro('fz_ids_pedidos_conocidos', []));
+let colaCartasVerdes = leerStorageSeguro('fz_cola_cartas_verdes', []);
+let cargaInicialCompletada = false;
+
 const getBowls = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bowl');
 const getAcomp = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'acompanante');
 const getToppings = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'topping');
 const getBebidas = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bebida');
 
 function saveState() {
-    // Limitar memoria histórica de IDs a máximo 300 para nunca saturar localStorage
-    const idsArray = Array.from(idsPedidosConocidos).slice(-300);
-    idsPedidosConocidos = new Set(idsArray);
+    try {
+        const idsArray = Array.from(idsPedidosConocidos || []).slice(-300);
+        idsPedidosConocidos = new Set(idsArray);
 
-    localStorage.setItem('fz_pedidos', JSON.stringify(pedidos));
-    localStorage.setItem('fz_apartados', JSON.stringify(apartados));
-    localStorage.setItem('fz_catalogo_menu', JSON.stringify(catalogoMenu));
-    localStorage.setItem('fz_fecha_jornada', fechaJornadaActiva);
-    localStorage.setItem('fz_ids_pedidos_conocidos', JSON.stringify(idsArray));
-    localStorage.setItem('fz_cola_cartas_verdes', JSON.stringify(colaCartasVerdes));
+        localStorage.setItem('fz_pedidos', JSON.stringify(pedidos));
+        localStorage.setItem('fz_apartados', JSON.stringify(apartados));
+        localStorage.setItem('fz_catalogo_menu', JSON.stringify(catalogoMenu));
+        localStorage.setItem('fz_fecha_jornada', fechaJornadaActiva);
+        localStorage.setItem('fz_ids_pedidos_conocidos', JSON.stringify(idsArray));
+        localStorage.setItem('fz_cola_cartas_verdes', JSON.stringify(colaCartasVerdes || []));
+    } catch (e) {
+        console.warn('Error guardando estado local:', e);
+    }
+}
+
+// ---------------- MAZO DE NOTIFICACIONES VERDES TIPO APPLE (SOLO ADMIN) ----------------
+function obtenerContenedorStack() {
+    let stack = document.getElementById('incomingOrderStack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'incomingOrderStack';
+        stack.setAttribute('aria-live', 'polite');
+        document.body.prepend(stack);
+    }
+    return stack;
+}
+
+function encolarNotificacionVerdeNuevoPedido(pedidoObj) {
+    if (!pedidoObj || !pedidoObj.id) return;
+    if (idsPedidosConocidos.has(pedidoObj.id)) return;
+
+    idsPedidosConocidos.add(pedidoObj.id);
+
+    if (!cargaInicialCompletada) {
+        saveState();
+        return;
+    }
+
+    if (!colaCartasVerdes.some((c) => c.id === pedidoObj.id)) {
+        const extrasList = [
+            ...(pedidoObj.acompDetalle || []),
+            ...(pedidoObj.toppingDetalle || []),
+            ...(pedidoObj.bebidaDetalle || [])
+        ].map((i) => `${i.nombre} x${i.cantidad}`).join(', ');
+
+        colaCartasVerdes.push({
+            id: pedidoObj.id,
+            cliente: pedidoObj.nombre,
+            hora: pedidoObj.hora,
+            bowl: pedidoObj.bowl,
+            extras: extrasList || 'Sin adiciones extras',
+            notas: pedidoObj.notas || '',
+            pago: pedidoObj.pago,
+            total: pedidoObj.total,
+            esApartado: pedidoObj.estado === 'apartado',
+            horaEntrega: pedidoObj.entregaProgramadaISO ? formatearHoraBogota(pedidoObj.entregaProgramadaISO) : null
+        });
+        saveState();
+        renderizarPilaNotificacionesVerdes();
+    }
 }
 
 function renderizarPilaNotificacionesVerdes() {
-    const stackContainer = document.getElementById('incomingOrderStack');
+    const stackContainer = obtenerContenedorStack();
     if (!stackContainer) return;
 
-    // Las notificaciones solo aparecen para el Administrador y solo se quitan si el Admin las cierra
     if (!usuarioActual || usuarioActual.rol !== 'admin' || colaCartasVerdes.length === 0) {
         stackContainer.innerHTML = '';
         return;
@@ -164,18 +232,284 @@ function renderizarPilaNotificacionesVerdes() {
     }
 }
 
+// ---------------- ALARMA SONORA EXCLUSIVA PARA APARTADOS (SOLO ADMIN) ----------------
+function reproducirBeepAlarma() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioCtx) audioCtx = new AudioContextClass();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const ahora = audioCtx.currentTime;
+        [0, 0.25, 0.5].forEach((offset) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ahora + offset);
+            gain.gain.setValueAtTime(0.25, ahora + offset);
+            gain.gain.exponentialRampToValueAtTime(0.001, ahora + offset + 0.18);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(ahora + offset);
+            osc.stop(ahora + offset + 0.2);
+        });
+    } catch (_) {}
+}
+
+function actualizarTemporizadoresYAlarmas() {
+    document.querySelectorAll('.timer-live-badge').forEach((badge) => {
+        const iso = badge.getAttribute('data-entrega');
+        const info = ui.formatearCuentaRegresiva(iso);
+        if (info) {
+            badge.textContent = info.texto;
+            badge.style.background = info.vencido ? '#D1272B' : info.urgente ? '#F5A623' : '#2A0E4F';
+            badge.style.color = info.vencido ? '#FFFFFF' : info.urgente ? '#1B0836' : '#FBBB1E';
+        }
+    });
+
+    const banner = document.getElementById('alarmBanner');
+
+    if (!usuarioActual || usuarioActual.rol !== 'admin') {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+
+    const vencidosNoSilenciados = apartados.filter((ap) => {
+        if (!ap.entregaProgramadaISO || alarmasSilenciadas.has(ap.id)) return false;
+        const t = new Date(ap.entregaProgramadaISO).getTime();
+        return !Number.isNaN(t) && Date.now() >= t;
+    });
+
+    const bannerTxt = document.getElementById('alarmBannerText');
+
+    if (vencidosNoSilenciados.length > 0) {
+        const primero = vencidosNoSilenciados[0];
+        if (banner && bannerTxt) {
+            bannerTxt.textContent = `Pedido de ${primero.nombre} (${primero.bowl}) programado para las ${formatearHoraBogota(primero.entregaProgramadaISO)}`;
+            banner.style.display = 'flex';
+        }
+        if (Math.floor(Date.now() / 1000) % 5 === 0) {
+            reproducirBeepAlarma();
+        }
+    } else if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
+function calcularEntregaProgramadaISO() {
+    const ahora = new Date();
+    if (estado.apartadoHoraExacta) {
+        const [hh, mm] = estado.apartadoHoraExacta.split(':').map(Number);
+        if (Number.isFinite(hh) && Number.isFinite(mm)) {
+            const fechaHoyBogota = obtenerFechaBogotaISO(ahora).slice(0, 10);
+            const isoCandidato = `${fechaHoyBogota}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00-05:00`;
+            const dCandidato = new Date(isoCandidato);
+            if (dCandidato.getTime() < ahora.getTime() - 60000) {
+                return obtenerFechaBogotaISO(new Date(dCandidato.getTime() + 86400000));
+            }
+            return isoCandidato;
+        }
+    }
+    if (estado.apartadoMinutos > 0) {
+        return obtenerFechaBogotaISO(new Date(ahora.getTime() + estado.apartadoMinutos * 60000));
+    }
+    return null;
+}
+
+function actualizarPreviewProgramador() {
+    const badge = document.getElementById('schedulePreviewBadge');
+    if (!badge) return;
+    const iso = calcularEntregaProgramadaISO();
+    badge.textContent = iso ? `🔔 Alarma a las ${formatearHoraBogota(iso)}` : 'Sin alarma (Solo apartar)';
+}
+
+// ---------------- GESTIÓN DE ROLES (ADMIN vs CLIENTE) ----------------
+async function aplicarVistaPorRol() {
+    const gate = document.getElementById('authGateModal');
+    const adminAside = document.getElementById('adminAsideColumn');
+    const adminButtons = document.getElementById('adminOrderButtons');
+    const mainGrid = document.getElementById('mainAppGrid');
+    const sessionBadge = document.getElementById('userSessionBadge');
+    const loyaltyBanner = document.getElementById('clienteLoyaltyBanner');
+    const loyaltyTitle = document.getElementById('clienteLoyaltyTitle');
+    const loyaltySub = document.getElementById('clienteLoyaltySub');
+    const inputNombre = document.getElementById('nombreCliente');
+    const bannerPedidos = document.getElementById('bannerPedidosTitle');
+    const bannerApartados = document.getElementById('bannerApartadosTitle');
+
+    if (!usuarioActual) {
+        const sbSession = await api.getSession();
+        if (sbSession) {
+            usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
+            localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+        }
+    }
+
+    if (!usuarioActual) {
+        if (gate) gate.style.display = 'flex';
+        return;
+    }
+
+    if (gate) gate.style.display = 'none';
+
+    if (usuarioActual.rol === 'admin') {
+        if (adminAside) adminAside.style.display = 'block';
+        if (adminButtons) adminButtons.style.display = 'block';
+        if (mainGrid) mainGrid.style.gridTemplateColumns = '';
+        if (loyaltyBanner) loyaltyBanner.style.display = 'none';
+        if (sessionBadge) sessionBadge.textContent = `🔐 Admin: ${usuarioActual.nombre}`;
+        if (bannerPedidos) bannerPedidos.textContent = 'Pedidos de Hoy (Todos los Dispositivos)';
+        if (bannerApartados) bannerApartados.textContent = 'Apartados Activos (Con Temporizador)';
+        if (inputNombre && !estado.clienteBloqueado) {
+            inputNombre.readOnly = false;
+            inputNombre.style.backgroundColor = '';
+        }
+    } else {
+        const nombreCli = normalizarNombreCliente(usuarioActual.nombre);
+        if (adminAside) adminAside.style.display = 'none';
+        if (adminButtons) adminButtons.style.display = 'none';
+        if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
+        if (sessionBadge) sessionBadge.textContent = `👤 Cliente: ${nombreCli}`;
+        if (bannerPedidos) bannerPedidos.textContent = `Mis Pedidos de Hoy (${nombreCli})`;
+        if (bannerApartados) bannerApartados.textContent = `Mis Pedidos Apartados (${nombreCli})`;
+
+        if (inputNombre) {
+            inputNombre.value = nombreCli;
+            inputNombre.readOnly = true;
+            inputNombre.style.backgroundColor = '#EFE4C8';
+        }
+
+        if (loyaltyBanner && loyaltyTitle && loyaltySub) {
+            loyaltyBanner.style.display = 'block';
+            const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli) : 0;
+            const faltan = 5 - (compras % 5);
+            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} ${compras === 1 ? 'compra registrada' : 'compras registradas'}`;
+            loyaltySub.textContent = compras > 0 && compras % 5 === 0
+                ? '🎉 ¡Felicidades! En este pedido tienes un TOPPING GRATIS incluido.'
+                : `Te faltan ${faltan} ${faltan === 1 ? 'compra' : 'compras'} para tu próximo topping gratis. ¡Arma tu bowl y apártalo con temporizador!`;
+        }
+    }
+
+    renderAll();
+    renderizarPilaNotificacionesVerdes();
+}
+
+// ---------------- SINCRONIZACIÓN MULTI-DISPOSITIVO ----------------
+function reconstruirPedidoDesdeNube(row) {
+    const detalles = row.pedido_detalles || [];
+    const bowlDetalle = detalles.find((d) => getBowls().some((b) => b.id === d.producto_id));
+    const bowlObj = bowlDetalle ? getBowls().find((b) => b.id === bowlDetalle.producto_id) : null;
+
+    const mapCat = (listaCat) =>
+        detalles
+            .filter((d) => listaCat.some((x) => x.id === d.producto_id))
+            .map((d) => {
+                const ref = listaCat.find((x) => x.id === d.producto_id);
+                const precio = Number(d.precio_unitario_historico || ref?.precio || 0);
+                const cantidad = Number(d.cantidad || 1);
+                return {
+                    id: d.producto_id,
+                    nombre: d.producto_nombre_historico || (ref ? ref.nombre : d.producto_id),
+                    cantidad,
+                    precio,
+                    subtotal: precio * cantidad
+                };
+            });
+
+    return {
+        id: row.id,
+        fechaISO: row.created_at,
+        fechaLocal: formatearFechaBogota(row.created_at),
+        hora: formatearHoraBogota(row.created_at),
+        nombre: normalizarNombreCliente(row.clientes?.nombre || 'Cliente'),
+        notas: row.notas || '',
+        bowl: bowlObj ? bowlObj.nombre : 'Individual',
+        bowlId: bowlObj ? bowlObj.id : 'ninguno',
+        acompDetalle: mapCat(getAcomp()),
+        toppingDetalle: mapCat(getToppings()),
+        bebidaDetalle: mapCat(getBebidas()),
+        pago: row.medio_pago || 'Efectivo',
+        total: Number(row.total || 0),
+        estado: row.estado || 'completado',
+        entregaProgramadaISO: row.entrega_programada_at || null,
+        abierto: false,
+        sincronizado: true,
+        syncError: false
+    };
+}
+
+async function sincronizarDesdeNubeMultiDispositivo() {
+    if (!navigator.onLine) return;
+    try {
+        await sincronizarCola();
+
+        const remotos = await api.obtenerPedidosJornadaHoy();
+        if (!Array.isArray(remotos)) return;
+
+        const colaPendiente = await dbSync.getQueue();
+        const idsEnCola = new Set(colaPendiente.map((x) => x.id));
+
+        const hoyStr = obtenerFechaHoyStr();
+        const nuevosPedidos = [];
+        const nuevosApartados = [];
+
+        remotos.forEach((row) => {
+            const reconstruido = reconstruirPedidoDesdeNube(row);
+            encolarNotificacionVerdeNuevoPedido(reconstruido);
+
+            if (reconstruido.estado === 'apartado') {
+                const prev = apartados.find((a) => a.id === reconstruido.id);
+                if (prev) reconstruido.abierto = prev.abierto;
+                nuevosApartados.push(reconstruido);
+            } else if (reconstruido.fechaLocal === hoyStr) {
+                const prev = pedidos.find((p) => p.id === reconstruido.id);
+                if (prev) reconstruido.abierto = prev.abierto;
+                nuevosPedidos.push(reconstruido);
+            }
+        });
+
+        pedidos.forEach((localPed) => {
+            if (idsEnCola.has(localPed.id) && !nuevosPedidos.some((x) => x.id === localPed.id)) {
+                nuevosPedidos.unshift(localPed);
+            }
+        });
+        apartados.forEach((localAp) => {
+            if (idsEnCola.has(localAp.id) && !nuevosApartados.some((x) => x.id === localAp.id)) {
+                nuevosApartados.unshift(localAp);
+            }
+        });
+
+        pedidos = nuevosPedidos;
+        apartados = nuevosApartados;
+        cargaInicialCompletada = true;
+        saveState();
+        renderAll();
+    } catch (err) {
+        console.warn('Error sincronizando dispositivos:', err);
+    }
+}
+
+// ---------------- EXPORTAR IMAGEN DEL DASHBOARD DE HOY ----------------
+function obtenerLienzoDashboardReporte() {
+    let lienzo = document.getElementById('dashboardReportCapture');
+    if (!lienzo) {
+        lienzo = document.createElement('div');
+        lienzo.id = 'dashboardReportCapture';
+        lienzo.style.cssText = 'position:fixed; left:-9999px; top:0; width:1080px; background:#F7EFDD; color:#2A0E4F; padding:32px; font-family:Nunito,sans-serif; border-radius:24px;';
+        document.body.appendChild(lienzo);
+    }
+    return lienzo;
+}
+
 async function exportarImagenDashboardEjecutivo() {
     const fechaHoy = obtenerFechaHoyStr();
-    // Filtrar estrictamente los pedidos del día de HOY
     const pedidosDeHoy = pedidos.filter((p) => !p.fechaLocal || p.fechaLocal === fechaHoy);
 
     if (pedidosDeHoy.length === 0) {
         return ui.mostrarToast('No hay pedidos registrados hoy para generar el Dashboard');
     }
 
-    const lienzo = document.getElementById('dashboardReportCapture');
-    if (!lienzo) return;
-
+    const lienzo = obtenerLienzoDashboardReporte();
     ui.mostrarToast('📊 Generando imagen del Dashboard de Hoy...');
 
     const ingresosTotales = pedidosDeHoy.reduce((s, p) => s + Number(p.total || 0), 0);
@@ -341,285 +675,6 @@ async function exportarImagenDashboardEjecutivo() {
     }
 }
 
-// ---------------- SONIDO DE ALARMA WEB AUDIO API ----------------
-function reproducirBeepAlarma() {
-    try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
-        if (!audioCtx) audioCtx = new AudioContextClass();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const ahora = audioCtx.currentTime;
-        [0, 0.25, 0.5].forEach((offset) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, ahora + offset);
-            gain.gain.setValueAtTime(0.25, ahora + offset);
-            gain.gain.exponentialRampToValueAtTime(0.001, ahora + offset + 0.18);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(ahora + offset);
-            osc.stop(ahora + offset + 0.2);
-        });
-    } catch (_) {}
-}
-
-// Revisa cada segundo los temporizadores de los pedidos apartados y dispara la alarma cuando llega la hora
-function actualizarTemporizadoresYAlarmas() {
-    // 1. Actualizar etiquetas de cuenta regresiva en las tarjetas visibles
-    document.querySelectorAll('.timer-live-badge').forEach((badge) => {
-        const iso = badge.getAttribute('data-entrega');
-        const info = ui.formatearCuentaRegresiva(iso);
-        if (info) {
-            badge.textContent = info.texto;
-            badge.style.background = info.vencido ? '#D1272B' : info.urgente ? '#F5A623' : '#2A0E4F';
-            badge.style.color = info.vencido ? '#FFFFFF' : info.urgente ? '#1B0836' : '#FBBB1E';
-        }
-    });
-
-    const banner = document.getElementById('alarmBanner');
-
-    // 2. EXCLUSIVO ADMINISTRADOR: Los clientes NUNCA escuchan la alarma ni ven el banner rojo
-    if (!usuarioActual || usuarioActual.rol !== 'admin') {
-        if (banner) banner.style.display = 'none';
-        return;
-    }
-
-    // 3. Verificar si algún apartado ya cumplió su hora de entrega (Solo Admin)
-    const vencidosNoSilenciados = apartados.filter((ap) => {
-        if (!ap.entregaProgramadaISO || alarmasSilenciadas.has(ap.id)) return false;
-        const t = new Date(ap.entregaProgramadaISO).getTime();
-        return !Number.isNaN(t) && Date.now() >= t;
-    });
-
-    const bannerTxt = document.getElementById('alarmBannerText');
-
-    if (vencidosNoSilenciados.length > 0) {
-        const primero = vencidosNoSilenciados[0];
-        if (banner && bannerTxt) {
-            bannerTxt.textContent = `Pedido de ${primero.nombre} (${primero.bowl}) programado para las ${formatearHoraBogota(primero.entregaProgramadaISO)}`;
-            banner.style.display = 'flex';
-        }
-        if (Math.floor(Date.now() / 1000) % 5 === 0) {
-            reproducirBeepAlarma();
-        }
-    } else if (banner) {
-        banner.style.display = 'none';
-    }
-}
-
-// Calcula la fecha/hora objetivo según el temporizador o la hora específica seleccionada
-function calcularEntregaProgramadaISO() {
-    const ahora = new Date();
-    if (estado.apartadoHoraExacta) {
-        const [hh, mm] = estado.apartadoHoraExacta.split(':').map(Number);
-        if (Number.isFinite(hh) && Number.isFinite(mm)) {
-            const fechaHoyBogota = obtenerFechaBogotaISO(ahora).slice(0, 10);
-            const isoCandidato = `${fechaHoyBogota}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00-05:00`;
-            const dCandidato = new Date(isoCandidato);
-            // Si la hora elegida ya pasó hoy, programar para mañana a esa hora
-            if (dCandidato.getTime() < ahora.getTime() - 60000) {
-                return obtenerFechaBogotaISO(new Date(dCandidato.getTime() + 86400000));
-            }
-            return isoCandidato;
-        }
-    }
-    if (estado.apartadoMinutos > 0) {
-        return obtenerFechaBogotaISO(new Date(ahora.getTime() + estado.apartadoMinutos * 60000));
-    }
-    return null;
-}
-
-function actualizarPreviewProgramador() {
-    const badge = document.getElementById('schedulePreviewBadge');
-    if (!badge) return;
-    const iso = calcularEntregaProgramadaISO();
-    if (!iso) {
-        badge.textContent = 'Sin alarma (Solo apartar)';
-    } else {
-        badge.textContent = `🔔 Alarma a las ${formatearHoraBogota(iso)}`;
-    }
-}
-
-// ---------------- GESTIÓN DE SESIÓN Y ROLES (ADMIN vs CLIENTE) ----------------
-async function aplicarVistaPorRol() {
-    const gate = document.getElementById('authGateModal');
-    const adminAside = document.getElementById('adminAsideColumn');
-    const adminButtons = document.getElementById('adminOrderButtons');
-    const mainGrid = document.getElementById('mainAppGrid');
-    const sessionBadge = document.getElementById('userSessionBadge');
-    const loyaltyBanner = document.getElementById('clienteLoyaltyBanner');
-    const loyaltyTitle = document.getElementById('clienteLoyaltyTitle');
-    const loyaltySub = document.getElementById('clienteLoyaltySub');
-    const inputNombre = document.getElementById('nombreCliente');
-    const bannerPedidos = document.getElementById('bannerPedidosTitle');
-    const bannerApartados = document.getElementById('bannerApartadosTitle');
-
-    // Si aún no hay usuario en memoria local, verificar si existe sesión activa de Supabase Auth (ej. al volver del Dashboard)
-    if (!usuarioActual) {
-        const sbSession = await api.getSession();
-        if (sbSession) {
-            usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
-            localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
-        }
-    }
-
-    // Solo mostrar el modal si definitivamente no hay sesión iniciada
-    if (!usuarioActual) {
-        if (gate) gate.style.display = 'flex';
-        return;
-    }
-
-    if (gate) gate.style.display = 'none';
-
-    if (usuarioActual.rol === 'admin') {
-        if (adminAside) adminAside.style.display = 'block';
-        if (adminButtons) adminButtons.style.display = 'block';
-        if (mainGrid) mainGrid.style.gridTemplateColumns = '';
-        if (loyaltyBanner) loyaltyBanner.style.display = 'none';
-        if (sessionBadge) sessionBadge.textContent = `🔐 Admin: ${usuarioActual.nombre}`;
-        if (bannerPedidos) bannerPedidos.textContent = 'Pedidos de Hoy (Todos los Dispositivos)';
-        if (bannerApartados) bannerApartados.textContent = 'Apartados Activos (Con Temporizador)';
-        if (inputNombre && !estado.clienteBloqueado) {
-            inputNombre.readOnly = false;
-            inputNombre.style.backgroundColor = '';
-        }
-    } else {
-        const nombreCli = normalizarNombreCliente(usuarioActual.nombre);
-        if (adminAside) adminAside.style.display = 'none';
-        if (adminButtons) adminButtons.style.display = 'none';
-        if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
-        if (sessionBadge) sessionBadge.textContent = `👤 Cliente: ${nombreCli}`;
-        if (bannerPedidos) bannerPedidos.textContent = `Mis Pedidos de Hoy (${nombreCli})`;
-        if (bannerApartados) bannerApartados.textContent = `Mis Pedidos Apartados (${nombreCli})`;
-
-        if (inputNombre) {
-            inputNombre.value = nombreCli;
-            inputNombre.readOnly = true;
-            inputNombre.style.backgroundColor = '#EFE4C8';
-        }
-
-        if (loyaltyBanner && loyaltyTitle && loyaltySub) {
-            loyaltyBanner.style.display = 'block';
-            const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli) : 0;
-            const faltan = 5 - (compras % 5);
-            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} ${compras === 1 ? 'compra registrada' : 'compras registradas'}`;
-            loyaltySub.textContent = compras > 0 && compras % 5 === 0
-                ? '🎉 ¡Felicidades! En este pedido tienes un TOPPING GRATIS incluido.'
-                : `Te faltan ${faltan} ${faltan === 1 ? 'compra' : 'compras'} para tu próximo topping gratis. ¡Arma tu bowl y apártalo con temporizador!`;
-        }
-    }
-
-    renderAll();
-}
-
-function normalizarCategoria(cat) {
-    const limpia = String(cat || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-    if (limpia.startsWith('acomp')) return 'acompanante';
-    if (limpia.startsWith('bowl')) return 'bowl';
-    if (limpia.startsWith('bebida')) return 'bebida';
-    return 'topping';
-}
-
-// ---------------- SINCRONIZACIÓN MULTI-DISPOSITIVO EN TIEMPO REAL ----------------
-function reconstruirPedidoDesdeNube(row) {
-    const detalles = row.pedido_detalles || [];
-    const bowlDetalle = detalles.find((d) => getBowls().some((b) => b.id === d.producto_id));
-    const bowlObj = bowlDetalle ? getBowls().find((b) => b.id === bowlDetalle.producto_id) : null;
-
-    const mapCat = (listaCat) =>
-        detalles
-            .filter((d) => listaCat.some((x) => x.id === d.producto_id))
-            .map((d) => {
-                const ref = listaCat.find((x) => x.id === d.producto_id);
-                const precio = Number(d.precio_unitario_historico || ref?.precio || 0);
-                const cantidad = Number(d.cantidad || 1);
-                return {
-                    id: d.producto_id,
-                    nombre: ref ? ref.nombre : d.producto_id,
-                    cantidad,
-                    precio,
-                    subtotal: precio * cantidad
-                };
-            });
-
-    return {
-        id: row.id,
-        fechaISO: row.created_at,
-        fechaLocal: formatearFechaBogota(row.created_at),
-        hora: formatearHoraBogota(row.created_at),
-        nombre: normalizarNombreCliente(row.clientes?.nombre || 'Cliente'),
-        notas: row.notas || '',
-        bowl: bowlObj ? bowlObj.nombre : 'Individual',
-        bowlId: bowlObj ? bowlObj.id : 'ninguno',
-        acompDetalle: mapCat(getAcomp()),
-        toppingDetalle: mapCat(getToppings()),
-        bebidaDetalle: mapCat(getBebidas()),
-        pago: row.medio_pago || 'Efectivo',
-        total: Number(row.total || 0),
-        estado: row.estado || 'completado',
-        entregaProgramadaISO: row.entrega_programada_at || null,
-        abierto: false,
-        sincronizado: true,
-        syncError: false
-    };
-}
-
-async function sincronizarDesdeNubeMultiDispositivo() {
-    if (!navigator.onLine) return;
-    try {
-        // Primero subir cualquier pedido local que esté en la cola de IndexedDB
-        await sincronizarCola();
-
-        const remotos = await api.obtenerPedidosJornadaHoy();
-        if (!Array.isArray(remotos)) return;
-
-        const colaPendiente = await dbSync.getQueue();
-        const idsEnCola = new Set(colaPendiente.map((x) => x.id));
-
-        const hoyStr = obtenerFechaHoyStr();
-        const nuevosPedidos = [];
-        const nuevosApartados = [];
-
-        remotos.forEach((row) => {
-            const reconstruido = reconstruirPedidoDesdeNube(row);
-            if (reconstruido.estado === 'apartado') {
-                const prev = apartados.find((a) => a.id === reconstruido.id);
-                if (prev) reconstruido.abierto = prev.abierto;
-                nuevosApartados.push(reconstruido);
-            } else if (reconstruido.fechaLocal === hoyStr) {
-                const prev = pedidos.find((p) => p.id === reconstruido.id);
-                if (prev) reconstruido.abierto = prev.abierto;
-                nuevosPedidos.push(reconstruido);
-            }
-        });
-
-        // Preservar los pedidos creados offline en este dispositivo que aún estén en cola
-        pedidos.forEach((localPed) => {
-            if (idsEnCola.has(localPed.id) && !nuevosPedidos.some((x) => x.id === localPed.id)) {
-                nuevosPedidos.unshift(localPed);
-            }
-        });
-        apartados.forEach((localAp) => {
-            if (idsEnCola.has(localAp.id) && !nuevosApartados.some((x) => x.id === localAp.id)) {
-                nuevosApartados.unshift(localAp);
-            }
-        });
-
-        pedidos = nuevosPedidos;
-        apartados = nuevosApartados;
-        saveState();
-        renderAll();
-    } catch (err) {
-        console.warn('Error sincronizando dispositivos:', err);
-    }
-}
-
 // ---------------- CALCULADORA DE DEVUELTA, COMBOS Y NOTAS ----------------
 function actualizarCalculadoraEfectivo() {
     const panel = document.getElementById('cashCalcPanel');
@@ -736,7 +791,7 @@ function alternarNotaRapida(etiqueta) {
     ui.renderQuickNotes('quickNotesGrid', NOTAS_RAPIDAS, inputNotas.value, alternarNotaRapida);
 }
 
-// ---------------- WHATSAPP Y CORTE DE MEDIANOCHE ----------------
+// ---------------- WHATSAPP Y CORTE AUTOMÁTICO DE MEDIANOCHE ----------------
 function construirMensajeWhatsApp(listaPedidos, fechaEtiqueta) {
     const totalVentas = listaPedidos.reduce((s, p) => s + Number(p.total || 0), 0);
     const personasUnicas = new Set(
@@ -791,7 +846,7 @@ function abrirWhatsAppConReporte(mensaje) {
     document.body.removeChild(a);
 }
 
-function verificarCorteAutomaticoMedianoche() {
+async function verificarCorteAutomaticoMedianoche() {
     const hoyStr = obtenerFechaHoyStr();
     const pedidosDiaAnterior = pedidos.filter((p) => p.fechaLocal && p.fechaLocal !== hoyStr);
 
@@ -809,8 +864,26 @@ function verificarCorteAutomaticoMedianoche() {
 
             pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
             fechaJornadaActiva = hoyStr;
+            idsPedidosConocidos.clear();
+            colaCartasVerdes = [];
             saveState();
             renderAll();
+            renderizarPilaNotificacionesVerdes();
+
+            const yaEnviadoFecha = localStorage.getItem('fz_wa_auto_sent_date');
+            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
+            if (yaEnviadoFecha !== fechaReporte && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
+                localStorage.setItem('fz_wa_auto_sent_date', fechaReporte);
+                const { enviadoAuto } = await api.enviarWhatsAppAutomaticoCloud(
+                    WHATSAPP_ADMIN_PHONE,
+                    resumenTxt,
+                    apiKeyGuardada
+                );
+                if (enviadoAuto) {
+                    ui.mostrarToast(`📲 Reporte del ${fechaReporte} enviado automáticamente a tu WhatsApp`);
+                    return;
+                }
+            }
 
             if (usuarioActual?.rol === 'admin') {
                 const modalAuto = document.getElementById('autoCloseModal');
@@ -945,9 +1018,7 @@ function depurarSeleccionPorDisponibilidad() {
     });
 }
 
-// Carga el catálogo completo de productos desde Supabase (incluyendo productos nuevos creados en el front)
 async function cargarCatalogoProductos() {
-    // Normalizar también lo que ya esté guardado en caché local
     catalogoMenu = catalogoMenu.map((item) => ({
         ...item,
         categoria: normalizarCategoria(item.categoria)
@@ -1082,7 +1153,7 @@ function resetForm() {
         apartadoHoraExacta: ''
     };
 
-    document.getElementById('orderForm').reset();
+    document.getElementById('orderForm')?.reset();
     limpiarCalculadoraEfectivo();
 
     const timeInput = document.getElementById('apartadoTimeInput');
@@ -1194,7 +1265,6 @@ function renderAll() {
         renderAll();
     });
 
-    // Filtrar pedidos según privilegio de usuario (Admin ve todo; Cliente solo ve lo suyo)
     let pedidosVisibles = esAdmin
         ? pedidos
         : pedidos.filter((p) => String(p.nombre || '').toLowerCase() === nombreClienteActual);
@@ -1224,8 +1294,10 @@ function renderAll() {
         onDelete: (id) => {
             ui.confirmarAccion('¿Eliminar este pedido de la caja y de todos los dispositivos?', async () => {
                 pedidos = pedidos.filter((x) => x.id !== id);
+                colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== id);
                 saveState();
                 renderAll();
+                renderizarPilaNotificacionesVerdes();
                 try {
                     await dbSync.removeFromQueue(id);
                     if (navigator.onLine) {
@@ -1253,9 +1325,11 @@ function renderAll() {
         onDelete: (id) => {
             ui.confirmarAccion('¿Cancelar y eliminar este pedido apartado?', async () => {
                 apartados = apartados.filter((x) => x.id !== id);
+                colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== id);
                 alarmasSilenciadas.add(id);
                 saveState();
                 renderAll();
+                renderizarPilaNotificacionesVerdes();
                 await dbSync.removeFromQueue(id);
                 if (navigator.onLine) await api.deletePedido(id);
                 else await dbSync.saveDeleteToQueue(id);
@@ -1316,7 +1390,7 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
         const itemsArray = [];
         if (pedido.bowlId && pedido.bowlId !== 'ninguno') {
             const bowlObj = getBowls().find((b) => b.id === pedido.bowlId);
-            if (bowlObj) itemsArray.push({ id: bowlObj.id, precio: bowlObj.precio, cantidad: 1 });
+            if (bowlObj) itemsArray.push({ id: bowlObj.id, nombre: bowlObj.nombre, precio: bowlObj.precio, cantidad: 1 });
         }
 
         const pedidoAdaptadoAPI = {
@@ -1332,6 +1406,13 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
         };
 
         await dbSync.saveToQueue(pedidoAdaptadoAPI);
+
+        if (usuarioActual?.rol === 'cliente') {
+            cargaInicialCompletada = true;
+            encolarNotificacionVerdeNuevoPedido(pedido);
+        } else {
+            idsPedidosConocidos.add(pedido.id);
+        }
 
         if (esApartado) {
             apartados.forEach((a) => { a.abierto = false; });
@@ -1414,11 +1495,20 @@ async function sincronizarCola() {
     }
 }
 
-// ---------------- MODAL ADMIN: AGREGAR, QUITAR Y EDITAR PRODUCTOS ----------------
+// ---------------- MODAL ADMIN: CREAR, BORRAR DE BD Y EDITAR PRODUCTOS ----------------
 function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
     if (btnGuardar) btnGuardar.style.display = 'block';
     const addSec = document.getElementById('adminAddProductSection');
     if (addSec) addSec.style.display = 'block';
+
+    const inputApiKey = document.getElementById('adminWhatsappApiKey');
+    if (inputApiKey) {
+        inputApiKey.value = localStorage.getItem('fz_whatsapp_apikey') || '';
+        inputApiKey.onchange = (e) => {
+            localStorage.setItem('fz_whatsapp_apikey', e.target.value.trim());
+        };
+    }
+
     listaDiv.innerHTML = '';
 
     const mapaCategorias = [
@@ -1451,7 +1541,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
                         </button>
                         <button type="button" class="btn-remove-prod" data-remove-id="${ui.esc(prod.id)}"
                             style="min-height:32px; padding:3px 9px; border-radius:99px; border:1px solid #F5C2C7; background:#FDECEA; color:#D1272B; font-weight:900; font-size:0.72rem; cursor:pointer;">
-                            🗑️ Quitar
+                            🗑️ Borrar de BD
                         </button>
                     </div>
                 </div>
@@ -1484,19 +1574,25 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
                 btnStock.style.color = nuevoEstado ? '#1E7E34' : '#D1272B';
             });
 
-            // Botón para quitar producto del menú y sincronizar con Supabase
-            row.querySelector('.btn-remove-prod').addEventListener('click', () => {
-                ui.confirmarAccion(`¿Quitar "${prod.nombre}" del menú en todos los dispositivos?`, async () => {
+            const btnRemove = row.querySelector('.btn-remove-prod');
+            btnRemove.addEventListener('click', () => {
+                ui.confirmarAccion(`¿Eliminar definitivamente "${prod.nombre}" de la base de datos y del menú?`, async () => {
+                    btnRemove.disabled = true;
+                    btnRemove.textContent = 'Borrando...';
+
                     const { error } = await api.eliminarProductoAdmin(prod.id);
                     if (error) {
-                        return ui.mostrarToast('⚠️ Error al quitar en la nube. Verifica tu sesión Admin.');
+                        btnRemove.disabled = false;
+                        btnRemove.textContent = '🗑️ Borrar de BD';
+                        return ui.mostrarToast(`⚠️ ${error.message || 'Error al borrar en Supabase'}`);
                     }
+
                     catalogoMenu = catalogoMenu.filter((x) => x.id !== prod.id);
                     depurarSeleccionPorDisponibilidad();
                     saveState();
                     abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar);
                     renderAll();
-                    ui.mostrarToast(`🗑️ ${prod.nombre} eliminado del menú`);
+                    ui.mostrarToast(`🗑️ "${prod.nombre}" eliminado de la base de datos y del front`);
                 });
             });
 
@@ -1512,10 +1608,7 @@ async function init() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
-    // 1. Aplicar rol y ocultar login de inmediato sin esperar la red
     await aplicarVistaPorRol();
-
-    // 2. Inicializar base de datos local y sincronizar nube en segundo plano
     await dbSync.init();
     await cargarCatalogoProductos();
     await sincronizarDesdeNubeMultiDispositivo();
@@ -1524,20 +1617,16 @@ async function init() {
 
     verificarCorteAutomaticoMedianoche();
     setInterval(verificarCorteAutomaticoMedianoche, 15000);
-    // Reloj de 1 segundo para actualizar temporizadores de apartados y disparar alarmas
     setInterval(actualizarTemporizadoresYAlarmas, 1000);
-    // Respaldo de sincronización multi-dispositivo cada 20 segundos
     setInterval(() => {
         if (navigator.onLine) sincronizarDesdeNubeMultiDispositivo();
-    }, 20000);
+    }, 15000);
 
-    // Suscripción en tiempo real a cambios de otros dispositivos (Supabase Realtime)
     api.suscribirCambiosRealtime(async (tabla) => {
         if (tabla === 'productos') await cargarCatalogoProductos();
         if (tabla === 'pedidos') await sincronizarDesdeNubeMultiDispositivo();
     });
 
-    // Eventos del Login Inicial (Cliente vs Administrador)
     const tabCli = document.getElementById('tabRoleCliente');
     const tabAdm = document.getElementById('tabRoleAdmin');
     const formCli = document.getElementById('formLoginCliente');
@@ -1625,7 +1714,6 @@ async function init() {
         ui.mostrarToast('☁️ Dispositivos sincronizados');
     });
 
-    // Silenciar alarma de apartados
     document.getElementById('btnStopAlarm')?.addEventListener('click', () => {
         apartados.forEach((ap) => {
             if (ap.entregaProgramadaISO && new Date(ap.entregaProgramadaISO).getTime() <= Date.now()) {
@@ -1636,7 +1724,6 @@ async function init() {
         ui.mostrarToast('🔇 Alarma silenciada');
     });
 
-    // Programador de Temporizador y Hora Específica para Apartados
     document.querySelectorAll('.timer-chip').forEach((chip) => {
         chip.addEventListener('click', () => {
             document.querySelectorAll('.timer-chip').forEach((c) => c.classList.remove('active'));
@@ -1658,8 +1745,7 @@ async function init() {
         actualizarPreviewProgramador();
     });
 
-    // Guardado y Apartado
-    document.getElementById('orderForm').addEventListener('submit', (e) => {
+    document.getElementById('orderForm')?.addEventListener('submit', (e) => {
         e.preventDefault();
         if (usuarioActual?.rol === 'cliente') {
             procesarGuardado(construirPedido(true), { modoReset: 'completo', esApartado: true });
@@ -1672,11 +1758,10 @@ async function init() {
         procesarGuardado(construirPedido(false), { modoReset: 'mismoCliente', esApartado: false });
     });
 
-    document.getElementById('btnApartar').addEventListener('click', () => {
+    document.getElementById('btnApartar')?.addEventListener('click', () => {
         procesarGuardado(construirPedido(true), { modoReset: 'completo', esApartado: true });
     });
 
-    // Calculadora de devuelta
     document.querySelectorAll('.bill-chip').forEach((btn) => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.bill-chip').forEach((b) => b.classList.remove('active'));
@@ -1723,7 +1808,6 @@ async function init() {
         });
     }
 
-    // Modal Administrador: Crear, Quitar y Actualizar Productos
     const modal = document.getElementById('adminModal');
     const listaDiv = document.getElementById('adminListaProductos');
     const btnGuardarPrecios = document.getElementById('btnGuardarPrecios');
@@ -1736,14 +1820,13 @@ async function init() {
         modal.style.display = 'none';
     });
 
-    // Crear nuevo producto desde el Front
     document.getElementById('btnCrearProducto')?.addEventListener('click', async () => {
         const nomIn = document.getElementById('newProdNombre');
         const catIn = document.getElementById('newProdCat');
         const preIn = document.getElementById('newProdPrecio');
 
         const nombre = (nomIn?.value || '').trim();
-        const categoria = catIn?.value || 'topping';
+        const categoria = normalizarCategoria(catIn?.value || 'topping');
         const precio = Number(preIn?.value || 0);
 
         if (!nombre || !Number.isFinite(precio) || precio <= 0) {
@@ -1760,7 +1843,7 @@ async function init() {
         btn.textContent = '➕ Crear y Sincronizar Producto';
 
         if (error) {
-            return ui.mostrarToast('⚠️ Error guardando en Supabase. Verifica tu sesión Admin.');
+            return ui.mostrarToast('⚠️ Error guardando en Supabase.');
         }
 
         const existente = catalogoMenu.find((x) => x.id === idSlug);
@@ -1778,7 +1861,7 @@ async function init() {
         saveState();
         abrirEditorPreciosEnModal(modal, listaDiv, btnGuardarPrecios);
         renderAll();
-        ui.mostrarToast(`✅ Producto "${nombre}" agregado al menú`);
+        ui.mostrarToast(`✅ Producto "${nombre}" agregado a la base de datos y al front`);
     });
 
     btnGuardarPrecios?.addEventListener('click', async () => {
@@ -1786,6 +1869,11 @@ async function init() {
         btnGuardarPrecios.disabled = true;
         btnGuardarPrecios.textContent = 'Sincronizando...';
         let fallos = 0;
+
+        const inputApiKey = document.getElementById('adminWhatsappApiKey');
+        if (inputApiKey) {
+            localStorage.setItem('fz_whatsapp_apikey', inputApiKey.value.trim());
+        }
 
         for (const inpt of inputs) {
             const val = Number(inpt.value);
@@ -1828,7 +1916,7 @@ async function init() {
         ui.mostrarToast(fallos === 0 ? '✅ Menú sincronizado en todos los dispositivos' : `⚠️ Guardado con ${fallos} errores`);
     });
 
-    document.getElementById('btnWhatsapp')?.addEventListener('click', () => {
+    document.getElementById('btnWhatsapp')?.addEventListener('click', async () => {
         if (pedidos.length === 0) {
             const ultimoAuto = leerStorageSeguro('fz_ultimo_cierre_auto', null);
             if (ultimoAuto && ultimoAuto.resumen) {
@@ -1838,7 +1926,13 @@ async function init() {
             return ui.mostrarToast('No hay pedidos hoy para reportar');
         }
         const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
-        abrirWhatsAppConReporte(msg);
+        const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
+        if (apiKeyGuardada && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
+            await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
+            ui.mostrarToast('📲 Reporte enviado automáticamente a tu WhatsApp (+57 3503129384)');
+        } else {
+            abrirWhatsAppConReporte(msg);
+        }
     });
 
     document.getElementById('btnExcel')?.addEventListener('click', () => {
@@ -1891,25 +1985,26 @@ async function init() {
         XLSX.writeFile(wb, `Frizzy_${f.replaceAll('/', '-')}.xlsx`);
     });
 
-    document.getElementById('btnImagen')?.addEventListener('click', () => {
-        html2canvas(document.getElementById('summaryCapture'), { backgroundColor: '#F7EFDD', scale: 2 }).then((c) => {
-            const link = document.createElement('a');
-            link.download = `Frizzy_${obtenerFechaHoyStr().replaceAll('/', '-')}.png`;
-            link.href = c.toDataURL();
-            link.click();
-        });
-    });
+    document.getElementById('btnImagen')?.addEventListener('click', exportarImagenDashboardEjecutivo);
 
     document.getElementById('btnCerrar')?.addEventListener('click', () => {
         if (pedidos.length === 0) return ui.mostrarToast('No hay ventas registradas para cerrar');
-        ui.confirmarAccion('¿Cerrar el día, enviar resumen a WhatsApp y limpiar las ventas locales? (Los apartados se conservarán)', () => {
+        ui.confirmarAccion('¿Cerrar el día, enviar resumen a WhatsApp y limpiar las ventas locales? (Los apartados se conservarán)', async () => {
             const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
             pedidos = [];
+            colaCartasVerdes = [];
             fechaJornadaActiva = obtenerFechaHoyStr();
             saveState();
             renderAll();
+            renderizarPilaNotificacionesVerdes();
             ui.mostrarToast('Día cerrado correctamente.');
-            abrirWhatsAppConReporte(msg);
+
+            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
+            if (apiKeyGuardada && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
+                await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
+            } else {
+                abrirWhatsAppConReporte(msg);
+            }
         });
     });
 }
