@@ -870,12 +870,14 @@ async function verificarCorteAutomaticoMedianoche() {
             const listaParaReporte = pedidosDiaAnterior.length > 0 ? pedidosDiaAnterior : [...pedidos];
             const fechaReporte = listaParaReporte[0]?.fechaLocal || fechaJornadaActiva;
             const resumenTxt = construirMensajeWhatsApp(listaParaReporte, fechaReporte);
+            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
 
-            localStorage.setItem('fz_ultimo_cierre_auto', JSON.stringify({
-                fecha: fechaReporte,
-                resumen: resumenTxt,
-                cerradoEn: obtenerFechaBogotaISO()
-            }));
+            if (navigator.onLine) {
+                await api.cerrarJornadaServidor(apiKeyGuardada);
+                if (apiKeyGuardada) {
+                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, resumenTxt, apiKeyGuardada);
+                }
+            }
 
             pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
             fechaJornadaActiva = hoyStr;
@@ -884,40 +886,7 @@ async function verificarCorteAutomaticoMedianoche() {
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-
-            const yaEnviadoFecha = localStorage.getItem('fz_wa_auto_sent_date');
-            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
-            if (yaEnviadoFecha !== fechaReporte && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
-                localStorage.setItem('fz_wa_auto_sent_date', fechaReporte);
-                const { enviadoAuto } = await api.enviarWhatsAppAutomaticoCloud(
-                    WHATSAPP_ADMIN_PHONE,
-                    resumenTxt,
-                    apiKeyGuardada
-                );
-                if (enviadoAuto) {
-                    ui.mostrarToast(`📲 Reporte del ${fechaReporte} enviado automáticamente a tu WhatsApp`);
-                    return;
-                }
-            }
-
-            if (usuarioActual?.rol === 'admin') {
-                const modalAuto = document.getElementById('autoCloseModal');
-                const textoAuto = document.getElementById('autoCloseText');
-                const btnWaAuto = document.getElementById('btnEnviarWhatsAppAuto');
-                const btnCerrarAuto = document.getElementById('btnCerrarAutoModal');
-
-                if (modalAuto && textoAuto && btnWaAuto) {
-                    textoAuto.textContent = resumenTxt.replace(/\*/g, '');
-                    modalAuto.style.display = 'flex';
-                    btnWaAuto.onclick = () => {
-                        abrirWhatsAppConReporte(resumenTxt);
-                        modalAuto.style.display = 'none';
-                    };
-                    if (btnCerrarAuto) {
-                        btnCerrarAuto.onclick = () => { modalAuto.style.display = 'none'; };
-                    }
-                }
-            }
+            ui.mostrarToast(`🌙 Corte automático de medianoche completado`);
         } else {
             fechaJornadaActiva = hoyStr;
             saveState();
@@ -1571,29 +1540,29 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
         productosCat.forEach((prod) => {
             const estaDisp = prod.disponible !== false;
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; background:#FFFAEF; border:1px solid #E9DEC0; border-radius:12px; padding:10px 12px; margin-bottom:6px; gap:8px;';
+            row.className = 'admin-prod-row';
             row.innerHTML = `
-                <div style="flex:1 1 130px; min-width:0;">
-                    <div style="color:#2A0E4F; font-weight:800; font-size:0.95rem;">${ui.esc(prod.nombre)}</div>
-                    <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                <div style="flex:1 1 180px; min-width:0;">
+                    <div style="color:#2A0E4F; font-weight:800; font-size:1rem;">${ui.esc(prod.nombre)}</div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
                         <button type="button" class="btn-toggle-stock" data-stock-id="${ui.esc(prod.id)}" data-disponible="${estaDisp ? 'true' : 'false'}"
-                            style="min-height:32px; padding:3px 9px; border-radius:99px; border:none; font-weight:900; font-size:0.72rem; cursor:pointer; background:${estaDisp ? '#E6F4EA' : '#FDECEA'}; color:${estaDisp ? '#1E7E34' : '#D1272B'};">
+                            style="min-height:34px; padding:4px 11px; border-radius:99px; border:none; font-weight:900; font-size:0.74rem; cursor:pointer; background:${estaDisp ? '#E6F4EA' : '#FDECEA'}; color:${estaDisp ? '#1E7E34' : '#D1272B'};">
                             ${estaDisp ? '🟢 Disponible' : '🔴 Agotado'}
                         </button>
                         <button type="button" class="btn-remove-prod" data-remove-id="${ui.esc(prod.id)}"
-                            style="min-height:32px; padding:3px 9px; border-radius:99px; border:1px solid #F5C2C7; background:#FDECEA; color:#D1272B; font-weight:900; font-size:0.72rem; cursor:pointer;">
+                            style="min-height:34px; padding:4px 11px; border-radius:99px; border:1px solid #F5C2C7; background:#FDECEA; color:#D1272B; font-weight:900; font-size:0.74rem; cursor:pointer;">
                             🗑️ Borrar de BD
                         </button>
                     </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <button type="button" class="btn-step-minus" style="width:38px; height:38px; border-radius:8px; border:1px solid #D3C4A3; background:#FFF; color:#2A0E4F; font-weight:900; cursor:pointer;">−500</button>
-                    <div style="display:flex; align-items:center; background:#FFFFFF; border-radius:8px; padding:6px 10px; border:2px solid #2A0E4F;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="btn-step-minus">−500</button>
+                    <div style="display:flex; align-items:center; justify-content:center; background:#FFFFFF; border-radius:11px; padding:6px 12px; border:2px solid #2A0E4F; min-width:118px;">
                         <span style="color:#2A0E4F; margin-right:4px; font-weight:900;">$</span>
                         <input type="number" min="100" step="100" data-id="${ui.esc(prod.id)}" value="${Number(prod.precio)}"
-                            style="width:76px; text-align:right; border:none; background:transparent; font-size:16px; font-weight:800; color:#2A0E4F; outline:none;">
+                            style="width:84px; text-align:center; border:none; background:transparent; font-size:16px; font-weight:900; color:#2A0E4F; outline:none;">
                     </div>
-                    <button type="button" class="btn-step-plus" style="width:38px; height:38px; border-radius:8px; border:none; background:#F5A623; color:#1B0836; font-weight:900; cursor:pointer;">+500</button>
+                    <button type="button" class="btn-step-plus">+500</button>
                 </div>
             `;
 
@@ -2033,23 +2002,30 @@ async function init() {
     document.getElementById('btnImagen')?.addEventListener('click', exportarImagenDashboardEjecutivo);
 
     document.getElementById('btnCerrar')?.addEventListener('click', () => {
-        if (pedidos.length === 0) return ui.mostrarToast('No hay ventas registradas para cerrar');
-        ui.confirmarAccion('¿Cerrar el día, enviar resumen a WhatsApp y limpiar las ventas locales? (Los apartados se conservarán)', async () => {
+        if (pedidos.length === 0) return ui.mostrarToast('La caja ya está en cero');
+        ui.confirmarAccion('¿Cerrar el día y reiniciar la caja en todos los dispositivos? (El reporte se envía en segundo plano y los datos quedan en el Dashboard)', async () => {
             const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
+            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
+
+            // 1. Subir cualquier pedido pendiente antes de cerrar
+            if (navigator.onLine) {
+                await sincronizarCola();
+                // 2. Marcar como 'cerrado' en Supabase y disparar WhatsApp desde el servidor
+                await api.cerrarJornadaServidor(apiKeyGuardada);
+                if (apiKeyGuardada) {
+                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
+                }
+            }
+
+            // 3. Reiniciar inmediatamente la caja local a 0 (sin abrir links externos)
             pedidos = [];
             colaCartasVerdes = [];
+            filtroPago = null;
             fechaJornadaActiva = obtenerFechaHoyStr();
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-            ui.mostrarToast('Día cerrado correctamente.');
-
-            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
-            if (apiKeyGuardada && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
-                await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
-            } else {
-                abrirWhatsAppConReporte(msg);
-            }
+            ui.mostrarToast('✅ Día cerrado y caja reiniciada en todos los dispositivos.');
         });
     });
 }

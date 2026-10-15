@@ -1309,3 +1309,90 @@ hr.divider {
   background: var(--dorado);
   color: var(--morado-950);
 }
+
+/* ---------- Ajuste de Ancho y Alineación Perfecta en Modal Admin ---------- */
+#adminModal .admin-modal-box {
+  max-width: 720px !important;
+  width: 95% !important;
+  padding: 26px 24px !important;
+}
+
+/* Grilla amplia para Crear Producto sin cortar "Nombre (Ej. Maicitos)" */
+.admin-add-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1.1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+  .admin-add-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fila de cada producto en el Modal Admin */
+.admin-prod-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  background: #FFFAEF;
+  border: 1.5px solid #E6DAC0;
+  border-radius: 16px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+/* Botones -500 y +500 perfectamente centrados y más anchos */
+.btn-step-minus,
+.btn-step-plus {
+  min-width: 56px !important;
+  height: 42px !important;
+  padding: 0 10px !important;
+  border-radius: 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: inherit !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s var(--apple-spring), filter 0.12s ease;
+}
+
+.btn-step-minus {
+  background: #FFFFFF !important;
+  color: var(--morado-900) !important;
+  border: 1.5px solid #D3C4A3 !important;
+}
+
+.btn-step-plus {
+  background: linear-gradient(180deg, var(--dorado-claro), var(--dorado)) !important;
+  color: var(--morado-950) !important;
+  border: none !important;
+  box-shadow: 0 2px 0 var(--dorado-fuerte);
+}
+
+.btn-step-minus:active,
+.btn-step-plus:active {
+  transform: scale(0.94);
+}
+
+/* Quitar las flechitas nativas (spinners) de los inputs de precio para centrar el número */
+#adminListaProductos input[type="number"]::-webkit-outer-spin-button,
+#adminListaProductos input[type="number"]::-webkit-inner-spin-button,
+#newProdPrecio::-webkit-outer-spin-button,
+#newProdPrecio::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#adminListaProductos input[type="number"],
+#newProdPrecio {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

@@ -291,7 +291,6 @@ export const api = {
         const sb = await getSupabase();
         if (!sb) return null;
 
-        // Calcular las 00:00:00 de hoy en hora de Colombia (-05:00)
         const inicioHoyBogota = obtenerFechaBogotaISO().slice(0, 10) + 'T00:00:00-05:00';
 
         const { data, error } = await sb
@@ -305,16 +304,51 @@ export const api = {
                 estado,
                 entrega_programada_at,
                 clientes ( nombre ),
-                pedido_detalles ( producto_id, cantidad, precio_unitario_historico )
+                pedido_detalles ( producto_id, producto_nombre_historico, cantidad, precio_unitario_historico )
             `)
+            .in('estado', ['completado', 'apartado'])
             .or(`created_at.gte.${inicioHoyBogota},estado.eq.apartado`)
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.warn('Error descargando pedidos del día:', error);
-            return null;
+            const retry = await sb
+                .from('pedidos')
+                .select(`
+                    id,
+                    medio_pago,
+                    total,
+                    notas,
+                    created_at,
+                    estado,
+                    entrega_programada_at,
+                    clientes ( nombre ),
+                    pedido_detalles ( producto_id, cantidad, precio_unitario_historico )
+                `)
+                .in('estado', ['completado', 'apartado'])
+                .or(`created_at.gte.${inicioHoyBogota},estado.eq.apartado`)
+                .order('created_at', { ascending: false });
+            return retry.data || [];
         }
         return data || [];
+    },
+
+    async cerrarJornadaServidor(apiKeyOpcional = '') {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión' } };
+
+        const { data, error } = await sb.rpc('cerrar_jornada_y_notificar', {
+            p_api_key: apiKeyOpcional || null
+        });
+
+        if (error) {
+            // Respaldo directo si aún no se ha corrido el RPC
+            const { error: updErr } = await sb
+                .from('pedidos')
+                .update({ estado: 'cerrado' })
+                .eq('estado', 'completado');
+            return { data: null, error: updErr };
+        }
+        return { data, error: null };
     },
 
     async deletePedido(pedidoId) {
