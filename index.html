@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#1B0836" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Frizzy POS — Caja & Pedidos</title>
+  <title>Frizzy POS — Caja &amp; Pedidos</title>
   <link rel="manifest" href="manifest.json" />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&amp;family=Nunito:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
@@ -23,6 +23,9 @@
         </svg>
       </div>
       <div class="tagline">PUNTO DE VENTA · CAJA &amp; PEDIDOS</div>
+      <div id="syncStatusBadge" style="margin-top:6px; font-size:0.75rem; font-weight:800; background:rgba(255,255,255,0.12); padding:4px 12px; border-radius:999px; color:#FBBB1E;">
+        🟢 En línea · Cola sincronizada
+      </div>
     </div>
   </header>
 
@@ -30,7 +33,12 @@
     <!-- COLUMNA IZQUIERDA: FORMULARIO, APARTADOS Y PEDIDOS DE HOY -->
     <section>
       <div class="panel">
-        <div class="banner">Nuevo Pedido</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div class="banner">Nuevo Pedido</div>
+          <span id="multiOrderBadge" style="display:none; background:#2A0E4F; color:#FBBB1E; font-size:0.78rem; font-weight:800; padding:6px 12px; border-radius:999px;">
+            🥣 Agregando otro bowl para el mismo cliente
+          </span>
+        </div>
 
         <form id="orderForm" novalidate>
           <div class="field">
@@ -42,6 +50,9 @@
               autocomplete="off"
               required
             />
+            <small style="display:block; font-size:0.74rem; color:#4E2286; font-weight:700; margin-top:5px;">
+              Al registrar el nombre, el cliente autoriza su uso para la gestión del pedido y fidelización (Ley 1581 de 2012).
+            </small>
             <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
           </div>
 
@@ -66,16 +77,27 @@
           </div>
 
           <div class="total-bar">
-            <span class="label">TOTAL DEL PEDIDO</span>
+            <span class="label">TOTAL DEL PEDIDO ACTUAL</span>
             <span id="totalPedido" class="amount">$0</span>
           </div>
 
           <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
-            Guardar Pedido
+            ✅ Guardar Pedido
+          </button>
+
+          <!-- NUEVO BOTÓN: Facilita registrar 2 o más bowls distintos para la misma persona -->
+          <button
+            type="button"
+            class="btn-secundario"
+            id="btnGuardarYOtro"
+            style="margin-top: 10px; border-color: var(--morado-800); color: var(--morado-900); background: linear-gradient(160deg, #FFF3D2, #FFE3A0);"
+            disabled
+          >
+            ➕ Guardar y Agregar Otro Bowl (Mismo Cliente)
           </button>
 
           <button type="button" class="btn-secundario" id="btnApartar" style="margin-top: 10px;" disabled>
-            Apartar para Después
+            📌 Apartar para Después
           </button>
         </form>
       </div>
@@ -97,10 +119,14 @@
         <div id="summaryCapture">
           <div class="banner">Cierre de Caja</div>
 
-          <div class="summary-grid">
+          <div class="summary-grid" style="grid-template-columns: repeat(3, 1fr);">
             <div class="stat">
               <div class="n" id="sumCount">0</div>
               <div class="l">PEDIDOS HOY</div>
+            </div>
+            <div class="stat">
+              <div class="n" id="sumClients">0</div>
+              <div class="l">PERSONAS HOY</div>
             </div>
             <div class="stat">
               <div class="n" id="sumTotal">$0</div>
@@ -149,6 +175,17 @@
       <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="margin-top: 16px;">
         Guardar Cambios en Nube
       </button>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMACIÓN PROPIO (Reemplaza window.confirm) -->
+  <div id="confirmOverlay" role="dialog" aria-modal="true">
+    <div class="confirm-box">
+      <div class="msg" id="confirmMsg">¿Confirmar acción?</div>
+      <div class="btns">
+        <button type="button" class="btn-no" id="confirmBtnNo">Cancelar</button>
+        <button type="button" class="btn-si" id="confirmBtnSi">Sí, confirmar</button>
+      </div>
     </div>
   </div>
 

@@ -46,7 +46,7 @@ async function obtenerTodosLosPedidos(sb) {
     while (true) {
         const respuesta = await sb
             .from('pedidos')
-            .select('id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
+            .select('id, cliente_id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
             .order('created_at', { ascending: false })
             .range(desde, desde + LOTE - 1);
 
@@ -110,6 +110,17 @@ function filtrarPedidosPorRango(lista, rango) {
 function renderizarDashboard() {
     const ChartLib = window.Chart;
     const pedidos = filtrarPedidosPorRango(pedidosCache, rangoActivo);
+    const clientesUnicosSet = new Set();
+    pedidos.forEach((p, index) => {
+        if (p.cliente_id) {
+            clientesUnicosSet.add(p.cliente_id);
+        } else {
+            clientesUnicosSet.add('anon_' + (p.id || index));
+        }
+    });
+
+    const elClientes = document.getElementById('kpiClientes');
+    if (elClientes) elClientes.textContent = String(clientesUnicosSet.size);
 
     let ingresosTotales = 0;
     let totalUnidades = 0;

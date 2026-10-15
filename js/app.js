@@ -43,6 +43,25 @@ function saveState() {
     localStorage.setItem('fz_apartados', JSON.stringify(apartados));
 }
 
+async function actualizarBadgeSincronizacion() {
+    const badge = document.getElementById('syncStatusBadge');
+    if (!badge) return;
+    try {
+        const cola = await dbSync.getQueue();
+        const pendientes = cola.length;
+        if (!navigator.onLine) {
+            badge.textContent = `🟠 Modo Offline · ${pendientes} en cola local`;
+            badge.style.color = '#FBBB1E';
+        } else if (pendientes > 0) {
+            badge.textContent = `⏳ Sincronizando ${pendientes} pedido(s)...`;
+            badge.style.color = '#FBBB1E';
+        } else {
+            badge.textContent = '🟢 En línea · Todo sincronizado';
+            badge.style.color = '#A8F0C0';
+        }
+    } catch (_) {}
+}
+
 function registrarClienteEnCache(nombre) {
     const limpio = normalizarNombreCliente(nombre || '');
     if (!limpio) return;
@@ -171,8 +190,11 @@ function calcularTotal() {
 
     const habilitado = Boolean(nombreOk && pagoOk && tieneItems && !guardandoEnCurso);
     const btnGuardar = document.getElementById('btnGuardar');
+    const btnGuardarYOtro = document.getElementById('btnGuardarYOtro');
     const btnApartar = document.getElementById('btnApartar');
+
     if (btnGuardar) btnGuardar.disabled = !habilitado;
+    if (btnGuardarYOtro) btnGuardarYOtro.disabled = !habilitado;
     if (btnApartar) btnApartar.disabled = !habilitado;
 }
 
@@ -224,8 +246,39 @@ function resetForm() {
         inputNombre.style.borderColor = '';
         inputNombre.style.boxShadow = '';
     }
+    const multiBadge = document.getElementById('multiOrderBadge');
+    if (multiBadge) multiBadge.style.display = 'none';
     ui.renderSugerenciasClientes([], () => {});
     renderAll();
+}
+
+// Mantiene el cliente y el medio de pago activos para armar un 2do bowl inmediatamente
+function prepararSiguienteBowlMismoCliente(nombreCliente, pagoIdOpcional = null) {
+    const pagoConservado = pagoIdOpcional || estado.pago || 'efectivo';
+    estado = {
+        bowl: null,
+        acomp: {},
+        toppings: {},
+        bebidas: {},
+        pago: pagoConservado,
+        total: 0,
+        premioFidelidad: false
+    };
+
+    const inputNombre = document.getElementById('nombreCliente');
+    const inputNotas = document.getElementById('notas');
+    if (inputNombre) inputNombre.value = normalizarNombreCliente(nombreCliente);
+    if (inputNotas) inputNotas.value = '';
+
+    const multiBadge = document.getElementById('multiOrderBadge');
+    if (multiBadge) {
+        multiBadge.textContent = `🥣 Armando otro bowl para ${normalizarNombreCliente(nombreCliente)}`;
+        multiBadge.style.display = 'inline-block';
+    }
+
+    renderAll();
+    verificarFidelidadCliente(normalizarNombreCliente(nombreCliente));
+    document.getElementById('bowlGrid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderAll() {
@@ -263,22 +316,30 @@ function renderAll() {
                 renderAll();
             }
         },
-        onDelete: async (id) => {
-            pedidos = pedidos.filter((x) => x.id !== id);
-            saveState();
-            renderAll();
-            try {
-                await dbSync.removeFromQueue(id);
-                if (navigator.onLine) {
-                    const borradoRemoto = await api.deletePedido(id);
-                    if (!borradoRemoto) await dbSync.saveDeleteToQueue(id);
-                } else {
-                    await dbSync.saveDeleteToQueue(id);
+        onNewForClient: (pedidoBase) => {
+            const pagoObj = PAGOS.find((pg) => pg.nombre.toLowerCase() === String(pedidoBase.pago || '').toLowerCase());
+            prepararSiguienteBowlMismoCliente(pedidoBase.nombre, pagoObj ? pagoObj.id : 'efectivo');
+            ui.mostrarToast(`🥣 Listo para agregar otro bowl a ${pedidoBase.nombre}`);
+        },
+        onDelete: (id) => {
+            ui.confirmarAccion('¿Eliminar este pedido de la caja y de la nube?', async () => {
+                pedidos = pedidos.filter((x) => x.id !== id);
+                saveState();
+                renderAll();
+                try {
+                    await dbSync.removeFromQueue(id);
+                    if (navigator.onLine) {
+                        const borradoRemoto = await api.deletePedido(id);
+                        if (!borradoRemoto) await dbSync.saveDeleteToQueue(id);
+                    } else {
+                        await dbSync.saveDeleteToQueue(id);
+                    }
+                } catch (err) {
+                    console.error('Error propagando eliminación:', err);
                 }
-            } catch (err) {
-                console.error('Error propagando eliminación:', err);
-            }
-            ui.mostrarToast('Pedido eliminado en caja y nube');
+                actualizarBadgeSincronizacion();
+                ui.mostrarToast('Pedido eliminado en caja y nube');
+            });
         }
     });
 
@@ -304,7 +365,7 @@ function renderAll() {
             p.fechaISO = ahora.toISOString();
             p.fechaLocal = ahora.toLocaleDateString('es-CO');
             p.hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-            await procesarGuardado(p, { limpiarFormulario: false });
+            await procesarGuardado(p, { modoReset: 'ninguno' });
         }
     });
 
@@ -333,10 +394,12 @@ function renderAll() {
     calcularTotal();
 }
 
-async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
+async function procesarGuardado(pedido, { modoReset = 'completo' } = {}) {
     if (guardandoEnCurso) return;
     guardandoEnCurso = true;
     calcularTotal();
+
+    const pagoIdActual = estado.pago;
 
     try {
         const itemsArray = [];
@@ -363,24 +426,36 @@ async function procesarGuardado(pedido, { limpiarFormulario = true } = {}) {
         pedidos.unshift(pedido);
         registrarClienteEnCache(pedido.nombre);
         saveState();
-        ui.mostrarToast(`Pedido guardado — ${ui.fmt(pedido.total)}`);
 
-        if (limpiarFormulario) resetForm();
-        else renderAll();
+        if (modoReset === 'mismoCliente') {
+            ui.mostrarToast(`✅ Bowl 1 guardado (${ui.fmt(pedido.total)}) · Arma el siguiente para ${pedido.nombre}`);
+            prepararSiguienteBowlMismoCliente(pedido.nombre, pagoIdActual);
+        } else if (modoReset === 'completo') {
+            ui.mostrarToast(`Pedido guardado — ${ui.fmt(pedido.total)}`);
+            resetForm();
+        } else {
+            ui.mostrarToast(`Apartado confirmado — ${ui.fmt(pedido.total)}`);
+            renderAll();
+        }
     } catch (err) {
         console.error('Error crítico guardando en cola local:', err);
         ui.mostrarToast('⚠️ Error guardando en memoria local. Intenta de nuevo.');
     } finally {
         guardandoEnCurso = false;
         calcularTotal();
+        actualizarBadgeSincronizacion();
     }
 
     if (navigator.onLine) sincronizarCola();
 }
 
 async function sincronizarCola() {
-    if (sincronizando || !navigator.onLine) return;
+    if (sincronizando || !navigator.onLine) {
+        actualizarBadgeSincronizacion();
+        return;
+    }
     sincronizando = true;
+    actualizarBadgeSincronizacion();
 
     try {
         const cola = await dbSync.getQueue();
@@ -411,10 +486,10 @@ async function sincronizarCola() {
         renderAll();
     } finally {
         sincronizando = false;
+        actualizarBadgeSincronizacion();
     }
 }
 
-// ---------------- PANEL ADMINISTRADOR VISUAL (SIN PROMPTS) ----------------
 function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
     if (btnGuardar) btnGuardar.style.display = 'block';
     listaDiv.innerHTML = '';
@@ -425,26 +500,26 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
         if (productosCat.length === 0) return;
 
         const headerCat = document.createElement('div');
-        headerCat.style.cssText = 'font-size:0.76rem; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; color:#2B113F; background:#F4B41A; display:inline-block; padding:4px 10px; border-radius:99px; margin:10px 0 4px 0; align-self:flex-start;';
+        headerCat.style.cssText = 'font-size:0.76rem; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; color:#1B0836; background:#F5A623; display:inline-block; padding:4px 10px; border-radius:99px; margin:10px 0 4px 0; align-self:flex-start;';
         headerCat.textContent = catNombre;
         listaDiv.appendChild(headerCat);
 
         productosCat.forEach((prod) => {
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#FFF9EC; border:1px solid #E2D5B5; border-radius:12px; padding:10px 12px; margin-bottom:6px; gap:8px;';
+            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#FFFAEF; border:1px solid #E9DEC0; border-radius:12px; padding:10px 12px; margin-bottom:6px; gap:8px;';
             row.innerHTML = `
                 <div style="flex:1; min-width:0;">
-                    <div style="color:#2B113F; font-weight:800; font-size:0.95rem;">${ui.esc(prod.nombre)}</div>
-                    <div style="color:#6D5E78; font-size:0.75rem;">ID: ${ui.esc(prod.id)}</div>
+                    <div style="color:#2A0E4F; font-weight:800; font-size:0.95rem;">${ui.esc(prod.nombre)}</div>
+                    <div style="color:#653BA0; font-size:0.75rem;">ID: ${ui.esc(prod.id)}</div>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <button type="button" class="btn-step-minus" style="width:36px; height:36px; border-radius:8px; border:1px solid #D3C4A3; background:#FFF; color:#2B113F; font-weight:900; cursor:pointer;">−500</button>
-                    <div style="display:flex; align-items:center; background:#FFFFFF; border-radius:8px; padding:6px 10px; border:2px solid #2B113F;">
-                        <span style="color:#2B113F; margin-right:4px; font-weight:900;">$</span>
+                    <button type="button" class="btn-step-minus" style="width:40px; height:40px; border-radius:8px; border:1px solid #D3C4A3; background:#FFF; color:#2A0E4F; font-weight:900; cursor:pointer;">−500</button>
+                    <div style="display:flex; align-items:center; background:#FFFFFF; border-radius:8px; padding:6px 10px; border:2px solid #2A0E4F;">
+                        <span style="color:#2A0E4F; margin-right:4px; font-weight:900;">$</span>
                         <input type="number" min="100" step="100" data-id="${ui.esc(prod.id)}" value="${Number(prod.precio)}"
-                            style="width:82px; text-align:right; border:none; background:transparent; font-size:16px; font-weight:800; color:#2B113F; outline:none;">
+                            style="width:82px; text-align:right; border:none; background:transparent; font-size:16px; font-weight:800; color:#2A0E4F; outline:none;">
                     </div>
-                    <button type="button" class="btn-step-plus" style="width:36px; height:36px; border-radius:8px; border:none; background:#F4B41A; color:#2B113F; font-weight:900; cursor:pointer;">+500</button>
+                    <button type="button" class="btn-step-plus" style="width:40px; height:40px; border-radius:8px; border:none; background:#F5A623; color:#1B0836; font-weight:900; cursor:pointer;">+500</button>
                 </div>
             `;
 
@@ -466,22 +541,19 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
 function mostrarLoginEnModal(modal, listaDiv, btnGuardar) {
     if (btnGuardar) btnGuardar.style.display = 'none';
     listaDiv.innerHTML = `
-        <div style="background:#FFF9EC; border:1px solid #E2D5B5; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;">
-            <p style="margin:0; font-size:0.9rem; color:#5A4B65; font-weight:600;">
+        <div style="background:#FFFAEF; border:1px solid #E9DEC0; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <p style="margin:0; font-size:0.9rem; color:#3B1766; font-weight:700;">
                 🔒 Ingresa con tu cuenta de Administrador para modificar los precios del menú en la nube.
             </p>
             <div>
-                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2B113F; margin-bottom:4px;">CORREO ELECTRÓNICO</label>
-                <input type="email" id="adminLoginEmail" placeholder="elmanr248@gmail.com" autocomplete="username"
-                    style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1.5px solid #C9B896; font-size:16px; color:#1A1A1A;">
+                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2A0E4F; margin-bottom:4px;">CORREO ELECTRÓNICO</label>
+                <input type="email" id="adminLoginEmail" placeholder="elmanr248@gmail.com" autocomplete="username">
             </div>
             <div>
-                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2B113F; margin-bottom:4px;">CONTRASEÑA</label>
-                <input type="password" id="adminLoginPass" placeholder="••••••••" autocomplete="current-password"
-                    style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1.5px solid #C9B896; font-size:16px; color:#1A1A1A;">
+                <label style="display:block; font-size:0.78rem; font-weight:800; color:#2A0E4F; margin-bottom:4px;">CONTRASEÑA</label>
+                <input type="password" id="adminLoginPass" placeholder="••••••••" autocomplete="current-password">
             </div>
-            <button type="button" id="btnSubmitAdminLogin"
-                style="width:100%; min-height:46px; background:#2B113F; color:#F4B41A; border:none; border-radius:10px; font-weight:900; font-size:0.98rem; cursor:pointer; margin-top:4px;">
+            <button type="button" id="btnSubmitAdminLogin" class="btn-guardar">
                 Desbloquear Panel de Precios
             </button>
         </div>
@@ -515,11 +587,17 @@ async function init() {
     await dbSync.init();
     await cargarPreciosActualizados();
     await sincronizarClientesConocidos();
+    await actualizarBadgeSincronizacion();
     sincronizarCola();
 
     document.getElementById('orderForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        procesarGuardado(construirPedido(), { limpiarFormulario: true });
+        procesarGuardado(construirPedido(), { modoReset: 'completo' });
+    });
+
+    // Evento para Guardar y Agregar Otro Bowl para la misma persona
+    document.getElementById('btnGuardarYOtro')?.addEventListener('click', () => {
+        procesarGuardado(construirPedido(), { modoReset: 'mismoCliente' });
     });
 
     document.getElementById('btnApartar').addEventListener('click', () => {
@@ -631,9 +709,12 @@ async function init() {
         peds['!cols'] = [{wch:12},{wch:8},{wch:18},{wch:12},{wch:40},{wch:24},{wch:12},{wch:12}];
 
         const totalDia = pedidos.reduce((s, p) => s + p.total, 0);
+        const personasUnicas = new Set(pedidos.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)).size;
+
         const resArr = [
             { Concepto: 'Fecha reporte', Valor: f },
-            { Concepto: 'Total pedidos', Valor: pedidos.length },
+            { Concepto: 'Total pedidos (bowls)', Valor: pedidos.length },
+            { Concepto: 'Personas atendidas (clientes únicos)', Valor: personasUnicas },
             { Concepto: 'Total ventas', Valor: totalDia },
             { Concepto: '', Valor: '' }
         ];
@@ -682,8 +763,10 @@ async function init() {
 }
 
 window.addEventListener('online', () => {
+    actualizarBadgeSincronizacion();
     cargarPreciosActualizados();
     sincronizarClientesConocidos();
     sincronizarCola();
 });
+window.addEventListener('offline', actualizarBadgeSincronizacion);
 document.addEventListener('DOMContentLoaded', init);
