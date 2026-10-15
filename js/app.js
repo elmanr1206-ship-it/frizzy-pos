@@ -345,7 +345,7 @@ function actualizarPreviewProgramador() {
 
 // ---------------- GESTIÓN DE ROLES (ADMIN vs CLIENTE) ----------------
 async function aplicarVistaPorRol() {
-    const gate = document.getElementById('authGateModal');
+    await cargarConfiguracionClientes();
     const adminAside = document.getElementById('adminAsideColumn');
     const adminButtons = document.getElementById('adminOrderButtons');
     const mainGrid = document.getElementById('mainAppGrid');
@@ -356,28 +356,20 @@ async function aplicarVistaPorRol() {
     const inputNombre = document.getElementById('nombreCliente');
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
+    const btnToggleRole = document.getElementById('btnToggleRoleView');
 
     if (!usuarioActual) {
-        const sbSession = await api.getSession();
-        if (sbSession) {
-            usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
-            localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
-        }
+        usuarioActual = { rol: 'admin', nombre: 'Administrador' };
+        localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
     }
-
-    if (!usuarioActual) {
-        if (gate) gate.style.display = 'flex';
-        return;
-    }
-
-    if (gate) gate.style.display = 'none';
 
     if (usuarioActual.rol === 'admin') {
         if (adminAside) adminAside.style.display = 'block';
         if (adminButtons) adminButtons.style.display = 'block';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '';
         if (loyaltyBanner) loyaltyBanner.style.display = 'none';
-        if (sessionBadge) sessionBadge.textContent = `🔐 Admin: ${usuarioActual.nombre}`;
+        if (sessionBadge) sessionBadge.textContent = '🔐 Admin';
+        if (btnToggleRole) btnToggleRole.textContent = '👤 Vista Cliente';
         if (bannerPedidos) bannerPedidos.textContent = 'Pedidos de Hoy (Todos los Dispositivos)';
         if (bannerApartados) bannerApartados.textContent = 'Apartados Activos (Con Temporizador)';
         if (inputNombre && !estado.clienteBloqueado) {
@@ -389,7 +381,8 @@ async function aplicarVistaPorRol() {
         if (adminAside) adminAside.style.display = 'none';
         if (adminButtons) adminButtons.style.display = 'none';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
-        if (sessionBadge) sessionBadge.textContent = `👤 Cliente: ${nombreCli}`;
+        if (sessionBadge) sessionBadge.textContent = `👤 ${nombreCli}`;
+        if (btnToggleRole) btnToggleRole.textContent = '🔐 Volver a Admin';
         if (bannerPedidos) bannerPedidos.textContent = `Mis Pedidos de Hoy (${nombreCli})`;
         if (bannerApartados) bannerApartados.textContent = `Mis Pedidos Apartados (${nombreCli})`;
 
@@ -403,10 +396,10 @@ async function aplicarVistaPorRol() {
             loyaltyBanner.style.display = 'block';
             const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli) : 0;
             const faltan = 5 - (compras % 5);
-            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} ${compras === 1 ? 'compra registrada' : 'compras registradas'}`;
+            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} compras`;
             loyaltySub.textContent = compras > 0 && compras % 5 === 0
                 ? '🎉 ¡Felicidades! En este pedido tienes un TOPPING GRATIS incluido.'
-                : `Te faltan ${faltan} ${faltan === 1 ? 'compra' : 'compras'} para tu próximo topping gratis. ¡Arma tu bowl y apártalo con temporizador!`;
+                : `Te faltan ${faltan} ${faltan === 1 ? 'compra' : 'compras'} para tu próximo topping gratis.`;
         }
     }
 
@@ -1236,6 +1229,8 @@ async function cargarConfiguracionClientes() {
         }
         localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
     }
+    const pinDisplay = document.getElementById('pillPinDisplay');
+    if (pinDisplay) pinDisplay.textContent = configClientes.pin || '1234';
 }
 
 // IDEA 4: Mostrar el Ticket estilo Apple Wallet al cliente o admin
@@ -1891,6 +1886,23 @@ async function init() {
         if (searchInput) searchInput.value = '';
         btnClearSearch.style.display = 'none';
         renderAll();
+    });
+
+    document.getElementById('btnToggleRoleView')?.addEventListener('click', async () => {
+        if (usuarioActual?.rol === 'admin') {
+            const nombreCli = prompt('Ingresa tu nombre para entrar en Vista Cliente:') || 'Cliente';
+            const pinIngresado = prompt('Ingresa el PIN de acceso del local:');
+            if (pinIngresado !== String(configClientes.pin || '1234')) {
+                return ui.mostrarToast('🔒 PIN incorrecto');
+            }
+            usuarioActual = { rol: 'cliente', nombre: normalizarNombreCliente(nombreCli) };
+        } else {
+            usuarioActual = { rol: 'admin', nombre: 'Administrador' };
+        }
+        localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+        resetForm();
+        await aplicarVistaPorRol();
+        ui.mostrarToast(usuarioActual.rol === 'admin' ? '🔓 Vista Administrador activa' : '👤 Vista Cliente activa');
     });
 
     document.getElementById('btnCloseWalletModal')?.addEventListener('click', () => {

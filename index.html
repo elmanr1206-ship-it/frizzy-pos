@@ -15,130 +15,71 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
-  <!-- BANNER FLOTANTE DE ALARMA SONORA DE APARTADOS -->
-  <div id="alarmBanner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:2500; background:linear-gradient(135deg, #D1272B, #9E1417); color:#FFF; padding:14px 20px; border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,0.5); border:2px solid #FBBB1E; width:92%; max-width:520px; align-items:center; justify-content:space-between; gap:12px;">
-    <div>
-      <div style="font-weight:900; font-size:1rem; color:#FBBB1E;">🔔 ¡ALARMA DE PEDIDO APARTADO!</div>
-      <div id="alarmBannerText" style="font-size:0.88rem; font-weight:700; margin-top:2px;">Es hora de preparar/entregar el pedido.</div>
+  <!-- CENTRO DE NOTIFICACIONES ESTILO APPLE iOS -->
+  <div id="appleNotificationCenter">
+    <div id="alarmBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <div style="font-weight:900; font-size:0.92rem; color:#FBBB1E;">🔔 Alarma de Apartado</div>
+        <div id="alarmBannerText" style="font-size:0.84rem; font-weight:700; margin-top:2px; color:#FFF;">Es hora de preparar el pedido.</div>
+      </div>
+      <button type="button" id="btnStopAlarm" style="min-height:38px; padding:6px 14px; border-radius:99px; border:none; background:#FFFFFF; color:#1B0836; font-weight:900; font-size:0.78rem; cursor:pointer; flex-shrink:0;">
+        Silenciar
+      </button>
     </div>
-    <button type="button" id="btnStopAlarm" style="min-height:44px; padding:8px 14px; border-radius:10px; border:none; background:#FBBB1E; color:#1B0836; font-weight:900; cursor:pointer; flex-shrink:0;">
-      🔇 Silenciar
-    </button>
+    <div id="incomingOrderStack" aria-live="polite"></div>
   </div>
 
-<!-- PANTALLA DE INICIO DE SESIÓN OBLIGATORIA (OCULTA POR DEFECTO Y FIJA A PANTALLA COMPLETA) -->
-  <div id="authGateModal" class="auth-gate-backdrop" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at top, #3B1766 0%, #1B0836 100%); z-index: 3000; align-items: center; justify-content: center; padding: 18px;">
-    <div class="auth-gate-card" style="background: linear-gradient(180deg, #FFFAEF, #F7EFDD); color: #2A0E4F; border: 2px solid #F5A623; border-radius: 24px; padding: 26px 22px; width: 100%; max-width: 420px; box-shadow: 0 10px 28px rgba(15,3,34,0.4); text-align: center;">
-      <div class="logo-plate" style="margin-bottom:8px;">
-        <svg width="180" height="50" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg">
-          <rect x="3" y="4" width="204" height="50" rx="16" fill="#2A0E4F" stroke="#F5A623" stroke-width="3.5" />
-          <text x="105" y="39" text-anchor="middle" fill="#FBBB1E" font-family="Fredoka, sans-serif" font-size="32" font-weight="700" letter-spacing="3">FRIZZY</text>
-        </svg>
-      </div>
-      <p style="margin:0 0 14px 0; font-size:0.86rem; color:#4E2286; font-weight:800;">
-        Selecciona tu perfil para ingresar al sistema
-      </p>
-
-      <div class="role-tabs" style="display:flex; gap:8px; background:#E9DEC0; padding:5px; border-radius:14px; margin-bottom:18px;">
-        <button type="button" class="role-tab active" id="tabRoleCliente" style="flex:1; min-height:44px; border:none; border-radius:10px; font-weight:900; cursor:pointer;">👤 Soy Cliente</button>
-        <button type="button" class="role-tab" id="tabRoleAdmin" style="flex:1; min-height:44px; border:none; border-radius:10px; font-weight:900; cursor:pointer;">🔐 Administrador</button>
-      </div>
-
-      <!-- FORMULARIO CLIENTE PERSONALIZADO -->
-      <form id="formLoginCliente" style="text-align:left;">
-        <div class="field" style="margin-bottom:12px;">
-          <label for="loginClienteNombre">Tu Nombre</label>
-          <input type="text" id="loginClienteNombre" placeholder="Ej. Camila" required autocomplete="name" />
-        </div>
-        <div class="field" style="margin-bottom:12px;">
-          <label for="loginClienteCodigo">Código de acceso del local (PIN)</label>
-          <input type="password" id="loginClienteCodigo" placeholder="PIN del local (Ej. 1234)" required />
-          <small style="display:block; font-size:0.72rem; color:#653BA0; font-weight:700; margin-top:4px;">
-            Pide el PIN en caja para armar y apartar tu pedido desde tu dispositivo.
-          </small>
-        </div>
-        <button type="submit" class="btn-guardar">🥣 Entrar a Pedir / Apartar</button>
-      </form>
-
-      <!-- FORMULARIO ADMINISTRADOR -->
-      <form id="formLoginAdminGate" style="display:none; text-align:left;">
-        <div class="field" style="margin-bottom:12px;">
-          <label for="gateAdminEmail">Correo Administrador</label>
-          <input type="email" id="gateAdminEmail" placeholder="admin@frizzy.com" autocomplete="username" required />
-        </div>
-        <div class="field" style="margin-bottom:12px;">
-          <label for="gateAdminPass">Contraseña</label>
-          <input type="password" id="gateAdminPass" placeholder="••••••••" autocomplete="current-password" required />
-        </div>
-        <button type="submit" class="btn-guardar" id="btnSubmitGateAdmin">🔓 Iniciar Sesión Admin</button>
-      </form>
-
-      <p id="authGateError" style="display:none; color:#D1272B; font-size:0.84rem; font-weight:800; margin:10px 0 0 0;"></p>
-    </div>
-  </div>
-
+  <!-- HEADER CON CÁPSULA SUPERIOR MINIMALISTA -->
   <header>
     <div class="logo-wrap">
       <div class="logo-plate">
-        <svg width="210" height="58" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Frizzy">
+        <svg width="186" height="52" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Frizzy">
           <rect x="3" y="4" width="204" height="50" rx="16" fill="#2A0E4F" stroke="#F5A623" stroke-width="3.5" />
           <text x="105" y="39" text-anchor="middle" fill="#FBBB1E" font-family="Fredoka, sans-serif" font-size="32" font-weight="700" letter-spacing="3">FRIZZY</text>
         </svg>
       </div>
-      <div class="tagline" id="roleHeaderTagline">PUNTO DE VENTA · CAJA &amp; PEDIDOS</div>
 
-      <!-- BARRA DE SESIÓN ACTIVA Y SINCRONIZACIÓN MULTI-DISPOSITIVO -->
-      <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin-top:6px;">
-        <div id="userSessionBadge" style="font-size:0.78rem; font-weight:900; background:#2A0E4F; border:1.5px solid #F5A623; padding:5px 12px; border-radius:999px; color:#FFFAEF;">
-          👤 Sin sesión
-        </div>
-        <div id="syncStatusBadge" style="font-size:0.75rem; font-weight:800; background:rgba(255,255,255,0.12); padding:5px 12px; border-radius:999px; color:#FBBB1E;">
-          🟢 En línea · Sincronizado
-        </div>
-        <button type="button" id="btnRefreshCloud" style="min-height:34px; padding:4px 12px; border-radius:999px; border:1px solid #FBBB1E; background:rgba(42,14,79,0.8); color:#FBBB1E; font-weight:800; font-size:0.74rem; cursor:pointer;">
-          🔄 Sincronizar Dispositivos
-        </button>
-        <button type="button" id="btnLogoutApp" style="min-height:34px; padding:4px 12px; border-radius:999px; border:none; background:#D1272B; color:#FFF; font-weight:800; font-size:0.74rem; cursor:pointer;">
-          Salir
-        </button>
+      <!-- CÁPSULA SUPERIOR MINIMALISTA -->
+      <div class="apple-status-pill">
+        <span id="userSessionBadge">🔐 Admin</span>
+        <span class="pill-sep">·</span>
+        <span id="syncStatusBadge">🟢 En línea</span>
+        <span class="pill-sep">·</span>
+        <span style="font-weight:800; color:var(--dorado-claro);">PIN: <strong id="pillPinDisplay" style="color:#FFF;">1234</strong></span>
+        <span class="pill-sep">·</span>
+        <button type="button" id="btnRefreshCloud" class="pill-action" title="Sincronizar ahora">🔄 Sincronizar</button>
+        <button type="button" id="btnToggleRoleView" class="pill-action">👤 Vista Cliente</button>
       </div>
     </div>
   </header>
 
   <main class="app" id="mainAppGrid">
-    <!-- COLUMNA IZQUIERDA: FORMULARIO, APARTADOS Y PEDIDOS -->
     <section>
       <div class="panel">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <div class="banner" id="formMainBanner">Nuevo Pedido</div>
-          <span id="multiOrderBadge" style="display:none; background:#2A0E4F; color:#FBBB1E; font-size:0.78rem; font-weight:800; padding:6px 12px; border-radius:999px;">
-            🥣 Agregando otro bowl para el mismo cliente
-          </span>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+          <div class="banner" id="formMainBanner" style="margin-bottom:8px;">Nuevo Pedido</div>
+          <span id="multiOrderBadge" style="display:none; background:#2A0E4F; color:#FBBB1E; font-size:0.76rem; font-weight:800; padding:5px 12px; border-radius:999px;"></span>
         </div>
 
-        <!-- TARJETA PERSONALIZADA DE FIDELIDAD (SOLO VISIBLE PARA CLIENTES) -->
-        <div id="clienteLoyaltyBanner" style="display:none; background:linear-gradient(135deg, #2A0E4F, #4E2286); color:#FFFAEF; padding:14px 16px; border-radius:16px; margin-bottom:16px; border:2px solid #F5A623;">
-          <div id="clienteLoyaltyTitle" style="font-weight:900; font-size:1rem; color:#FBBB1E;">¡Hola!</div>
-          <div id="clienteLoyaltySub" style="font-size:0.84rem; margin-top:4px; font-weight:700;">Arma tu Frizzy favorito y apártalo con la hora a la que pasas por él.</div>
+        <div id="clienteLoyaltyBanner" style="display:none; background:rgba(42,14,79,0.06); border:1px solid rgba(42,14,79,0.12); color:#2A0E4F; padding:12px 15px; border-radius:16px; margin-bottom:16px;">
+          <div id="clienteLoyaltyTitle" style="font-weight:900; font-size:0.94rem;">¡Hola!</div>
+          <div id="clienteLoyaltySub" style="font-size:0.8rem; margin-top:2px; color:#4E2286; font-weight:700;"></div>
         </div>
 
         <form id="orderForm" novalidate>
           <div class="field" id="fieldNombreCliente">
-            <label for="nombreCliente">Nombre del cliente</label>
-            <input
-              type="text"
-              id="nombreCliente"
-              placeholder="Ej. Camila"
-              autocomplete="off"
-              required
-            />
+            <label for="nombreCliente">Cliente</label>
+            <input type="text" id="nombreCliente" placeholder="Nombre del cliente..." autocomplete="off" required />
+            <small style="display:block; font-size:0.7rem; color:#653BA0; opacity:0.8; margin-top:4px;">
+              Autoriza uso para gestión del pedido y fidelización (Ley 1581 de 2012)[cite: 9].
+            </small>
             <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
           </div>
 
-          <p class="subhead">⚡ Combos Rápidos (1 Toque)</p>
-          <div id="comboGrid" class="combo-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
+          <p class="subhead">Combos Rápidos</p>
+          <div id="comboGrid" class="combo-bar" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
 
-          <p class="subhead">Bowl Base (Opcional si es compra individual)</p>
+          <p class="subhead">Bowl Base</p>
           <div id="bowlGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Acompañantes</p>
@@ -151,306 +92,250 @@
           <div id="bebidaGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
           <p class="subhead">Medio de Pago</p>
-          <div id="payGrid" class="pay-grid" style="margin-bottom: 16px;"></div>
+          <div id="payGrid" class="pay-grid" style="margin-bottom: 14px;"></div>
 
-          <!-- CALCULADORA RÁPIDA DE DEVUELTA (SOLO ADMIN + EFECTIVO) -->
-          <div id="cashCalcPanel" style="display:none; background:linear-gradient(160deg, #FFF9EB, #F7E9C6); border:2px solid var(--dorado); border-radius:16px; padding:14px; margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-              <span style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-900);">💵 Calculadora de Devuelta (Efectivo)</span>
-              <span id="cashChangeDisplay" style="font-family:'Fredoka',sans-serif; font-size:1.1rem; font-weight:700; color:var(--morado-950); background:#FFF; padding:4px 12px; border-radius:99px; border:1px solid #E9DEC0;">
-                Selecciona con cuánto paga
+          <div id="cashCalcPanel" class="apple-cash-box" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+              <span style="font-size:0.74rem; font-weight:800; color:var(--morado-800);">💵 Cambio en Efectivo</span>
+              <span id="cashChangeDisplay" style="font-size:0.9rem; font-weight:900; color:var(--morado-950); background:#FFF; padding:3px 10px; border-radius:99px;">
+                Selecciona billete
               </span>
             </div>
-            <div id="cashBillsRow" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <div id="cashBillsRow" style="display:flex; flex-wrap:wrap; gap:6px;">
               <button type="button" class="bill-chip" data-bill="exacto">Exacto</button>
-              <button type="button" class="bill-chip" data-bill="10000">$10.000</button>
-              <button type="button" class="bill-chip" data-bill="20000">$20.000</button>
-              <button type="button" class="bill-chip" data-bill="50000">$50.000</button>
-              <button type="button" class="bill-chip" data-bill="100000">$100.000</button>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <label for="cashReceivedInput" style="font-size:0.76rem; font-weight:800; color:var(--morado-800); margin:0; white-space:nowrap;">Otro valor recibido:</label>
-              <input type="number" id="cashReceivedInput" placeholder="Ej. 30000" min="0" step="500" style="flex:1; padding:8px 12px; border-radius:10px; border:1.5px solid #D3C4A3; background:#FFF; color:var(--morado-950); font-weight:800;" />
+              <button type="button" class="bill-chip" data-bill="10000">$10k</button>
+              <button type="button" class="bill-chip" data-bill="20000">$20k</button>
+              <button type="button" class="bill-chip" data-bill="50000">$50k</button>
+              <button type="button" class="bill-chip" data-bill="100000">$100k</button>
+              <input type="number" id="cashReceivedInput" placeholder="Otro $" min="0" step="500" style="width:95px; min-height:38px !important; padding:4px 10px; border-radius:10px; border:1px solid #D8C9A8; background:#FFF; font-weight:800;" />
             </div>
           </div>
 
-          <!-- NOTAS + CHIPS TÁCTILES RÁPIDOS -->
-          <div class="field">
-            <label for="notas">Notas de preparación</label>
-            <div id="quickNotesGrid" style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px;"></div>
-            <textarea id="notas" rows="2" placeholder="Ej. sin cebolla, para llevar..."></textarea>
+          <div class="field" style="margin-bottom:12px;">
+            <label for="notas">Notas</label>
+            <div id="quickNotesGrid" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:7px;"></div>
+            <textarea id="notas" rows="1" placeholder="Opcional: sin cebolla, para llevar..."></textarea>
           </div>
 
           <div class="total-bar">
-            <span class="label">TOTAL DEL PEDIDO ACTUAL</span>
+            <span class="label">TOTAL</span>
             <span id="totalPedido" class="amount">$0</span>
           </div>
 
-          <!-- BOTONES EXCLUSIVOS DE CAJA / ADMIN -->
           <div id="adminOrderButtons">
             <button type="submit" class="btn-guardar" id="btnGuardar" disabled>
-              ✅ Guardar Pedido (Entrega Inmediata)
+              Guardar Pedido
             </button>
-
-            <button
-              type="button"
-              class="btn-secundario"
-              id="btnGuardarYOtro"
-              style="margin-top: 10px; border-color: var(--morado-800); color: var(--morado-900); background: linear-gradient(160deg, #FFF3D2, #FFE3A0);"
-              disabled
-            >
+            <button type="button" class="btn-apple-subtle" id="btnGuardarYOtro" style="margin-top:8px;" disabled>
               ➕ Guardar y Agregar Otro Bowl (Mismo Cliente)
             </button>
           </div>
 
-          <!-- PROGRAMADOR DE ALARMA Y TEMPORIZADOR PARA PEDIDOS APARTADOS -->
-          <div class="apartado-scheduler">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-              <span style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-900);">
-                ⏰ Programar Alarma para Apartado ("¿Para cuándo lo quieres?")
-              </span>
-              <span id="schedulePreviewBadge" style="font-size:0.76rem; font-weight:800; background:#2A0E4F; color:#FBBB1E; padding:3px 10px; border-radius:99px;">
-                Sin hora (Solo apartar)
-              </span>
+          <details class="apple-apartado-drawer">
+            <summary>
+              <span>📌 Apartar para después</span>
+              <span id="schedulePreviewBadge" class="drawer-badge">Sin alarma</span>
+            </summary>
+            <div class="drawer-content">
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                <button type="button" class="timer-chip active" data-mins="0">Sin alarma</button>
+                <button type="button" class="timer-chip" data-mins="15">+15 min</button>
+                <button type="button" class="timer-chip" data-mins="30">+30 min</button>
+                <button type="button" class="timer-chip" data-mins="60">+1 hora</button>
+                <button type="button" class="timer-chip" data-mins="120">+2 horas</button>
+                <input type="time" id="apartadoTimeInput" title="Hora exacta" style="padding:4px 10px; min-height:36px !important; border-radius:99px; border:1px solid #C9B896; background:#FFF; color:var(--morado-950); font-weight:800;" />
+              </div>
+              <button type="button" class="btn-guardar" id="btnApartar" style="margin-top:0; background:var(--morado-900); color:var(--dorado-claro); box-shadow:none;" disabled>
+                Confirmar Apartado
+              </button>
             </div>
-
-            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
-              <button type="button" class="timer-chip" data-mins="15">⏱️ En 15 min</button>
-              <button type="button" class="timer-chip" data-mins="30">⏱️ En 30 min</button>
-              <button type="button" class="timer-chip" data-mins="60">🕐 En 1 hora</button>
-              <button type="button" class="timer-chip" data-mins="120">🕑 En 2 horas</button>
-              <button type="button" class="timer-chip active" data-mins="0">Sin alarma</button>
-            </div>
-
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <label for="apartadoTimeInput" style="font-size:0.76rem; font-weight:800; color:var(--morado-800); margin:0;">
-                O elige una hora específica:
-              </label>
-              <input type="time" id="apartadoTimeInput" style="padding:6px 12px; border-radius:10px; border:1.5px solid #D3C4A3; background:#FFF; color:var(--morado-950); font-weight:800; font-size:16px;" />
-            </div>
-
-            <button type="button" class="btn-guardar" id="btnApartar" style="margin-top: 12px; background:linear-gradient(180deg, #4E2286, #2A0E4F); color:#FBBB1E; box-shadow:0 4px 0 #1B0836;" disabled>
-              📌 Apartar Pedido con Alarma
-            </button>
-          </div>
+          </details>
         </form>
       </div>
 
       <div class="panel" id="panelApartados">
-        <div class="banner small" id="bannerApartadosTitle">Apartados (Con Temporizador)</div>
-        <div id="apartadosList"></div>
-      </div>
-
-      <!-- IDEA 3: BUSCADOR INSTANTÁNEO DE PEDIDOS Y APARTADOS -->
-      <div class="panel" style="padding: 14px 18px; margin-bottom: 16px;">
-        <div class="apple-search-bar">
-          <span style="font-size: 1.05rem;">🔍</span>
-          <input
-            type="text"
-            id="searchOrdersInput"
-            placeholder="Buscar pedido por cliente, bowl, adición o nota..."
-            autocomplete="off"
-          />
-          <button type="button" id="btnClearSearch" style="display: none;" aria-label="Limpiar búsqueda">✖</button>
+        <div class="panel-header-row">
+          <div class="banner small" id="bannerApartadosTitle" style="margin-bottom:0;">Apartados</div>
         </div>
+        <div id="apartadosList" style="margin-top:12px;"></div>
       </div>
 
       <div class="panel" id="panelPedidosHoy">
-        <div class="banner small" id="bannerPedidosTitle">Pedidos de Hoy</div>
-        <div id="ordersList"></div>
+        <div class="panel-header-row">
+          <div class="banner small" id="bannerPedidosTitle" style="margin-bottom:0;">Pedidos de Hoy</div>
+          <div class="apple-search-bar">
+            <span style="font-size:0.85rem; opacity:0.6;">🔍</span>
+            <input type="text" id="searchOrdersInput" placeholder="Buscar cliente o bowl..." autocomplete="off" />
+            <button type="button" id="btnClearSearch" style="display:none;" aria-label="Limpiar">✖</button>
+          </div>
+        </div>
+        <div id="ordersList" style="margin-top:12px;"></div>
       </div>
     </section>
 
-    <!-- COLUMNA DERECHA: CIERRE DE CAJA Y REPORTES (SOLO ADMIN) -->
+    <!-- COLUMNA DERECHA: CIERRE DE CAJA (SOLO ADMIN) -->
     <aside id="adminAsideColumn">
       <div class="panel">
         <div id="summaryCapture">
           <div class="banner">Cierre de Caja</div>
 
-          <div class="summary-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="summary-grid">
             <div class="stat">
               <div class="n" id="sumCount">0</div>
-              <div class="l">PEDIDOS HOY</div>
+              <div class="l">PEDIDOS</div>
             </div>
             <div class="stat">
               <div class="n" id="sumClients">0</div>
-              <div class="l">PERSONAS HOY</div>
+              <div class="l">PERSONAS</div>
             </div>
             <div class="stat">
               <div class="n" id="sumTotal">$0</div>
-              <div class="l">VENTAS HOY</div>
+              <div class="l">VENTAS</div>
             </div>
           </div>
 
-          <div class="banner small">Por Medio de Pago</div>
+          <p class="subhead" style="margin-top:6px;">Por Medio de Pago</p>
           <div id="payBreakdown" class="pay-summary"></div>
 
-          <div class="banner small">Más Vendidos</div>
+          <p class="subhead" style="margin-top:6px;">Más Vendidos</p>
           <div id="topList" class="top-list"></div>
         </div>
 
         <hr class="divider" />
 
-        <p class="subhead">Descargar reporte del día</p>
         <div class="export-row">
           <button type="button" class="btn-export" id="btnExcel">Excel</button>
           <button type="button" class="btn-export" id="btnImagen">Imagen</button>
-          <button type="button" class="btn-export" id="btnWhatsapp" style="background:#25D366; color:#1B0836;">📲 WhatsApp</button>
+          <button type="button" class="btn-export" id="btnWhatsapp" style="background:#25D366; color:#1B0836;">WhatsApp</button>
         </div>
 
-        <button type="button" class="btn-secundario btn-admin" id="btnAdmin">
-          ⚙️ Administrar Menú, Precios y Stock
-        </button>
-
-        <a href="dashboard.html" class="btn-secundario btn-dashboard">
-          📊 Ver Dashboard Histórico
-        </a>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <button type="button" class="btn-apple-subtle" id="btnAdmin">⚙️ Menú y Ajustes</button>
+          <a href="dashboard.html" class="btn-apple-subtle" style="text-decoration:none;">📊 Dashboard</a>
+        </div>
 
         <button type="button" class="btn-secundario" id="btnCerrar">
-          Cerrar Día / Reiniciar
+          Cerrar Día / Reiniciar Caja
         </button>
       </div>
     </aside>
   </main>
 
-  <!-- MODAL ADMINISTRADOR (CREAR/QUITAR PRODUCTOS + PRECIOS + STOCK) -->
+  <!-- MODAL ADMINISTRADOR (PIN DE CLIENTES Y TELEGRAM LIMPIO) -->
   <div id="adminModal" style="display: none;">
-    <div class="admin-modal-box" style="max-width: 540px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px dashed #E9DEC0;">
-        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.2rem;">⚙️ Menú, Precios y Stock</h3>
-        <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background: #E9DEC0; border: none; width: 38px; height: 38px; border-radius: 50%; font-size: 1.4rem; color: var(--morado-950); font-weight: 900; cursor: pointer;">&times;</button>
+    <div class="admin-modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #E9DEC0;">
+        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.2rem;">⚙️ Ajustes y Menú</h3>
+        <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background: #E9DEC0; border: none; width: 34px; height: 34px; border-radius: 50%; font-size: 1.2rem; color: var(--morado-950); font-weight: 900; cursor: pointer;">&times;</button>
       </div>
 
-      <!-- SECCIÓN PARA AGREGAR NUEVO PRODUCTO DESDE EL FRONT -->
-      <div id="adminAddProductSection" style="background:#FFF3D2; border:2px solid var(--dorado); border-radius:14px; padding:12px; margin-bottom:14px;">
-        <div style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-950); margin-bottom:8px;">
-          ➕ Agregar Nuevo Producto al Menú
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div style="background:#F8F4EC; border:1px solid #E5D8B8; border-radius:14px; padding:10px 12px;">
+          <label for="adminWhatsappApiKey" style="display:block; font-size:0.7rem; font-weight:900; color:#4E2286; text-transform:uppercase; margin-bottom:4px;">✈️ IDs Telegram (12 AM)</label>
+          <input type="text" id="adminWhatsappApiKey" value="7412641484" placeholder="7412641484, ID2" style="width:100%; padding:6px 10px; min-height:36px !important; border-radius:8px; border:1px solid #D8C9A8;" />
         </div>
+
+        <div style="background:#F8F4EC; border:1px solid #E5D8B8; border-radius:14px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div>
+            <label for="adminClientPinInput" style="display:block; font-size:0.7rem; font-weight:900; color:#4E2286; text-transform:uppercase; margin-bottom:4px;">🔑 PIN Clientes</label>
+            <input type="text" id="adminClientPinInput" value="1234" maxlength="10" style="width:80px; padding:6px 8px; min-height:36px !important; border-radius:8px; border:1px solid #D8C9A8; font-weight:900; text-align:center;" />
+          </div>
+          <button type="button" id="btnToggleClientAccess" data-enabled="true" style="min-height:36px; padding:6px 12px; border-radius:99px; border:none; font-weight:800; font-size:0.74rem; cursor:pointer; background:#E6F4EA; color:#1E7E34;">
+            🟢 Abierto
+          </button>
+        </div>
+      </div>
+
+      <div id="adminAddProductSection" style="background:#FFF8E7; border:1px solid var(--dorado); border-radius:14px; padding:12px; margin-bottom:14px;">
         <div class="admin-add-grid">
-          <input type="text" id="newProdNombre" placeholder="Nombre (Ej. Maicitos)" style="padding:8px 10px; border-radius:8px; border:1px solid #C9B896;" />
-          <select id="newProdCat" style="padding:8px; border-radius:8px; border:1px solid #C9B896; font-weight:800; color:var(--morado-950); background:#FFF; font-size:15px;">
+          <input type="text" id="newProdNombre" placeholder="Nuevo producto (Ej. Maicitos)" style="padding:8px 12px; border-radius:10px; border:1px solid #D8C9A8;" />
+          <select id="newProdCat" style="padding:8px 10px; border-radius:10px; border:1px solid #D8C9A8; font-weight:800; color:var(--morado-950); background:#FFF;">
             <option value="bowl">Bowl Base</option>
             <option value="acompanante">Acompañante</option>
             <option value="topping" selected>Topping</option>
             <option value="bebida">Bebida</option>
           </select>
-          <input type="number" id="newProdPrecio" placeholder="Precio $" min="100" step="100" style="padding:8px 10px; border-radius:8px; border:1px solid #C9B896;" />
+          <input type="number" id="newProdPrecio" placeholder="Precio $" min="100" step="100" style="padding:8px 12px; border-radius:10px; border:1px solid #D8C9A8;" />
         </div>
-        <button type="button" id="btnCrearProducto" style="width:100%; min-height:42px; background:var(--morado-900); color:var(--dorado-claro); border:none; border-radius:10px; font-weight:900; cursor:pointer;">
-          ➕ Crear y Sincronizar Producto
+        <button type="button" id="btnCrearProducto" style="width:100%; min-height:40px; background:var(--morado-900); color:var(--dorado-claro); border:none; border-radius:10px; font-weight:800; font-size:0.84rem; cursor:pointer;">
+          ➕ Agregar al Menú
         </button>
       </div>
 
-      <div id="adminListaProductos" style="display: flex; flex-direction: column; gap: 8px;"></div>
-      <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="margin-top: 16px;">
-        Guardar Cambios en Nube
+      <div id="adminListaProductos" style="display: flex; flex-direction: column; gap: 6px;"></div>
+      <button type="button" id="btnGuardarPrecios" class="btn-guardar" style="margin-top: 14px;">
+        Guardar Cambios
       </button>
     </div>
   </div>
 
-  <!-- PUNTO C: CONTROL DE PIN DINÁMICO Y ACCESO DE CLIENTES -->
-      <div style="background:#FFF8E7; border:1.5px solid var(--dorado); border-radius:14px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
-          <span style="font-size:0.76rem; font-weight:900; color:var(--morado-950); white-space:nowrap;">🔑 PIN Clientes:</span>
-          <input type="text" id="adminClientPinInput" value="1234" maxlength="10" style="width:90px; padding:6px 10px; border-radius:8px; border:1.5px solid #C9B896; font-weight:900; text-align:center;" />
-        </div>
-        <button type="button" id="btnToggleClientAccess" data-enabled="true" style="min-height:38px; padding:6px 14px; border-radius:99px; border:none; font-weight:900; font-size:0.76rem; cursor:pointer; background:#E6F4EA; color:#1E7E34;">
-          🟢 Acceso Clientes: ABIERTO
-        </button>
-      </div>
-
-  <!-- MODAL DE CONFIRMACIÓN PROPIO -->
+  <!-- MODAL DE CONFIRMACIÓN -->
   <div id="confirmOverlay" role="dialog" aria-modal="true">
     <div class="confirm-box">
       <div class="msg" id="confirmMsg">¿Confirmar acción?</div>
       <div class="btns">
         <button type="button" class="btn-no" id="confirmBtnNo">Cancelar</button>
-        <button type="button" class="btn-si" id="confirmBtnSi">Sí, confirmar</button>
+        <button type="button" class="btn-si" id="confirmBtnSi">Confirmar</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL DE CIERRE AUTOMÁTICO DE MEDIANOCHE (12:00 AM) -->
-  <div id="autoCloseModal" style="display: none; position: fixed; inset: 0; background: rgba(15,3,34,0.72); z-index: 1500; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px);">
-    <div class="admin-modal-box" style="max-width: 420px; text-align: center;">
-      <div class="banner small" style="margin-bottom: 10px;">🌙 Corte Automático 12:00 AM</div>
-      <h3 id="autoCloseTitle" style="margin: 0 0 8px 0; color: var(--morado-950);">Día Cerrado Automáticamente</h3>
-      <p id="autoCloseText" style="font-size: 0.9rem; color: var(--morado-800); font-weight: 700; margin-bottom: 14px; white-space: pre-line; text-align: left; background: #FFF3D2; padding: 12px; border-radius: 12px; border: 1px solid #E9DEC0;"></p>
+  <!-- MODAL DE CORTE 12:00 AM -->
+  <div id="autoCloseModal" style="display: none; position: fixed; inset: 0; background: rgba(15,3,34,0.72); z-index: 1500; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px);">
+    <div class="admin-modal-box" style="max-width: 400px; text-align: center;">
+      <div class="banner small" style="margin-bottom: 10px;">🌙 Cierre 12:00 AM</div>
+      <h3 id="autoCloseTitle" style="margin: 0 0 8px 0; color: var(--morado-950);">Resumen del Día</h3>
+      <p id="autoCloseText" style="font-size: 0.86rem; color: var(--morado-800); font-weight: 700; margin-bottom: 14px; white-space: pre-line; text-align: left; background: #FFF8E7; padding: 12px; border-radius: 12px;"></p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button type="button" id="btnEnviarWhatsAppAuto" class="btn-guardar" style="background: linear-gradient(180deg, #38E54D, #25D366); color: #1B0836; box-shadow: 0 4px 0 #1DA851; margin-top: 0;">
-          Enviar Reporte a WhatsApp
-        </button>
-        <button type="button" id="btnCerrarAutoModal" class="btn-secundario" style="border-color: var(--morado-800); color: var(--morado-900);">
-          Entendido, iniciar nuevo día
-        </button>
+        <button type="button" id="btnEnviarWhatsAppAuto" class="btn-guardar" style="margin-top: 0;">📲 Compartir en WhatsApp</button>
+        <button type="button" id="btnCerrarAutoModal" class="btn-apple-subtle">Cerrar</button>
       </div>
     </div>
   </div>
 
-  <!-- IDEA 4: PASE VISUAL ESTILO APPLE WALLET PARA EL CLIENTE -->
-  <div id="walletPassModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 3, 34, 0.76); z-index: 3200; align-items: center; justify-content: center; padding: 18px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);">
-    <div style="width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px;">
+  <!-- MODAL PASE APPLE WALLET -->
+  <div id="walletPassModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 3, 34, 0.72); z-index: 3200; align-items: center; justify-content: center; padding: 18px; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);">
+    <div style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px;">
       <div id="walletPassCapture" class="apple-wallet-pass">
         <div class="wallet-pass-header">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="background:#FBBB1E; color:#1B0836; font-family:'Fredoka',sans-serif; font-weight:900; padding:4px 10px; border-radius:8px; font-size:0.9rem;">FRIZZY</span>
-            <span style="font-size:0.72rem; font-weight:800; color:#E9DEC0; letter-spacing:0.08em;">PASE DE PEDIDO</span>
-          </div>
-          <span id="walletPassCode" style="font-family:'Fredoka',sans-serif; font-size:1rem; color:#FBBB1E; font-weight:700;">#FZ-0000</span>
+          <span style="background:#FBBB1E; color:#1B0836; font-family:'Fredoka',sans-serif; font-weight:900; padding:3px 10px; border-radius:8px; font-size:0.86rem;">FRIZZY PASS</span>
+          <span id="walletPassCode" style="font-family:'Fredoka',sans-serif; font-size:0.95rem; color:#FBBB1E;">#FZ-0000</span>
         </div>
-
         <div class="wallet-pass-body">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
             <div>
-              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">CLIENTE</div>
-              <div id="walletPassClient" style="font-size:1.2rem; font-weight:900; color:#1B0836;">Camila</div>
+              <div style="font-size:0.65rem; font-weight:800; color:#653BA0;">CLIENTE</div>
+              <div id="walletPassClient" style="font-size:1.15rem; font-weight:900; color:#1B0836;">Camila</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">HORA DE ENTREGA</div>
-              <div id="walletPassTime" style="font-size:1rem; font-weight:900; color:#D1272B; background:#FDECEA; padding:3px 10px; border-radius:99px; margin-top:2px;">Inmediata</div>
+              <div style="font-size:0.65rem; font-weight:800; color:#653BA0;">ENTREGA</div>
+              <div id="walletPassTime" style="font-size:0.9rem; font-weight:900; color:#2A0E4F;">En caja</div>
             </div>
           </div>
-
-          <div style="background:#FFFDF9; border:1.5px solid #E9DEC0; border-radius:14px; padding:12px; margin-bottom:14px;">
-            <div style="font-size:0.7rem; font-weight:900; color:#4E2286; text-transform:uppercase; margin-bottom:6px;">DETALLE DE TU FRIZZY</div>
-            <div id="walletPassItems" style="font-size:0.88rem; color:#2A0E4F; font-weight:700; line-height:1.45;"></div>
-          </div>
-
+          <div id="walletPassItems" style="background:#FFFFFF; border:1px solid #EFE6D5; border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:0.85rem; color:#2A0E4F; font-weight:700; line-height:1.45;"></div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">MEDIO DE PAGO</div>
-              <div id="walletPassPay" style="font-size:0.92rem; font-weight:900; color:#2A0E4F;">Efectivo</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">TOTAL A PAGAR</div>
-              <div id="walletPassTotal" style="font-family:'Fredoka',sans-serif; font-size:1.65rem; font-weight:700; color:#1B0836;">$0</div>
-            </div>
+            <span id="walletPassPay" style="font-size:0.84rem; font-weight:800; color:#4E2286;">Efectivo</span>
+            <span id="walletPassTotal" style="font-family:'Fredoka',sans-serif; font-size:1.5rem; font-weight:700; color:#1B0836;">$0</span>
           </div>
         </div>
-
         <div class="wallet-pass-divider">
           <span class="notch-left"></span>
           <div class="dashed-line"></div>
           <span class="notch-right"></span>
         </div>
-
         <div class="wallet-pass-footer">
           <div class="barcode-bars"></div>
-          <div id="walletPassDate" style="font-size:0.72rem; font-weight:800; color:#4E2286; margin-top:6px;">Muestra este pase en caja al recoger tu pedido</div>
+          <div id="walletPassDate" style="font-size:0.7rem; font-weight:700; color:#653BA0; margin-top:6px;">Presenta este pase en caja</div>
         </div>
       </div>
-
-      <div style="display:flex; gap:10px;">
-        <button type="button" id="btnSaveWalletImage" class="btn-guardar" style="margin-top:0; flex:1.3;">
-          📸 Guardar Pase en Fotos
-        </button>
-        <button type="button" id="btnCloseWalletModal" class="btn-secundario" style="background:#FFFFFF; color:#1B0836; border-color:#FFFFFF; flex:0.7;">
-          Cerrar
-        </button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnSaveWalletImage" class="btn-guardar" style="margin-top:0; flex:1;">Guardar Imagen</button>
+        <button type="button" id="btnCloseWalletModal" class="btn-apple-subtle" style="background:#FFF; flex:0.6;">Cerrar</button>
       </div>
     </div>
   </div>
 
+  <div id="dashboardReportCapture" style="position: fixed; left: -9999px; top: 0; width: 1080px; background: #F7EFDD; color: #2A0E4F; padding: 32px; font-family: 'Nunito', sans-serif; border-radius: 24px;"></div>
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="js/app.js"></script>
