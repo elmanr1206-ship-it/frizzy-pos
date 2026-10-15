@@ -89,10 +89,10 @@ let alarmasSilenciadas = new Set();
 let audioCtx = null;
 
 // Helpers dinámicos por categoría para soportar agregar/quitar productos en vivo
-const getBowls = () => catalogoMenu.filter((p) => p.categoria === 'bowl');
-const getAcomp = () => catalogoMenu.filter((p) => p.categoria === 'acompanante');
-const getToppings = () => catalogoMenu.filter((p) => p.categoria === 'topping');
-const getBebidas = () => catalogoMenu.filter((p) => p.categoria === 'bebida');
+const getBowls = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bowl');
+const getAcomp = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'acompanante');
+const getToppings = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'topping');
+const getBebidas = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bebida');
 
 function saveState() {
     localStorage.setItem('fz_pedidos', JSON.stringify(pedidos));
@@ -264,6 +264,18 @@ async function aplicarVistaPorRol() {
     }
 
     renderAll();
+}
+
+function normalizarCategoria(cat) {
+    const limpia = String(cat || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    if (limpia.startsWith('acomp')) return 'acompanante';
+    if (limpia.startsWith('bowl')) return 'bowl';
+    if (limpia.startsWith('bebida')) return 'bebida';
+    return 'topping';
 }
 
 // ---------------- SINCRONIZACIÓN MULTI-DISPOSITIVO EN TIEMPO REAL ----------------
@@ -687,6 +699,12 @@ function depurarSeleccionPorDisponibilidad() {
 
 // Carga el catálogo completo de productos desde Supabase (incluyendo productos nuevos creados en el front)
 async function cargarCatalogoProductos() {
+    // Normalizar también lo que ya esté guardado en caché local
+    catalogoMenu = catalogoMenu.map((item) => ({
+        ...item,
+        categoria: normalizarCategoria(item.categoria)
+    }));
+
     if (navigator.onLine) {
         const remotos = await api.obtenerProductos();
         if (Array.isArray(remotos) && remotos.length > 0) {
@@ -694,7 +712,7 @@ async function cargarCatalogoProductos() {
                 id: r.id,
                 nombre: r.nombre,
                 precio: Number(r.precio_actual || 0),
-                categoria: r.categoria || 'topping',
+                categoria: normalizarCategoria(r.categoria),
                 disponible: r.disponible !== false
             }));
             saveState();
@@ -1163,7 +1181,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
     ];
 
     mapaCategorias.forEach((catInfo) => {
-        const productosCat = catalogoMenu.filter((p) => p.categoria === catInfo.codigo);
+        const productosCat = catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === catInfo.codigo);
         if (productosCat.length === 0) return;
 
         const headerCat = document.createElement('div');
