@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frizzy-pos-v4';
+const CACHE_NAME = 'frizzy-pos-v6';
 const ASSETS = [
     '/',
     '/index.html',

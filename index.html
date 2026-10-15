@@ -26,9 +26,9 @@
     </button>
   </div>
 
-  <!-- PANTALLA DE INICIO DE SESIÓN OBLIGATORIA (ADMIN / CLIENTE) -->
-  <div id="authGateModal" class="auth-gate-backdrop" style="display: none;"></div>
-    <div class="auth-gate-card">
+<!-- PANTALLA DE INICIO DE SESIÓN OBLIGATORIA (OCULTA POR DEFECTO Y FIJA A PANTALLA COMPLETA) -->
+  <div id="authGateModal" class="auth-gate-backdrop" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at top, #3B1766 0%, #1B0836 100%); z-index: 3000; align-items: center; justify-content: center; padding: 18px;">
+    <div class="auth-gate-card" style="background: linear-gradient(180deg, #FFFAEF, #F7EFDD); color: #2A0E4F; border: 2px solid #F5A623; border-radius: 24px; padding: 26px 22px; width: 100%; max-width: 420px; box-shadow: 0 10px 28px rgba(15,3,34,0.4); text-align: center;">
       <div class="logo-plate" style="margin-bottom:8px;">
         <svg width="180" height="50" viewBox="0 0 210 58" xmlns="http://www.w3.org/2000/svg">
           <rect x="3" y="4" width="204" height="50" rx="16" fill="#2A0E4F" stroke="#F5A623" stroke-width="3.5" />
@@ -39,9 +39,9 @@
         Selecciona tu perfil para ingresar al sistema
       </p>
 
-      <div class="role-tabs">
-        <button type="button" class="role-tab active" id="tabRoleCliente">👤 Soy Cliente</button>
-        <button type="button" class="role-tab" id="tabRoleAdmin">🔐 Administrador</button>
+      <div class="role-tabs" style="display:flex; gap:8px; background:#E9DEC0; padding:5px; border-radius:14px; margin-bottom:18px;">
+        <button type="button" class="role-tab active" id="tabRoleCliente" style="flex:1; min-height:44px; border:none; border-radius:10px; font-weight:900; cursor:pointer;">👤 Soy Cliente</button>
+        <button type="button" class="role-tab" id="tabRoleAdmin" style="flex:1; min-height:44px; border:none; border-radius:10px; font-weight:900; cursor:pointer;">🔐 Administrador</button>
       </div>
 
       <!-- FORMULARIO CLIENTE PERSONALIZADO -->
