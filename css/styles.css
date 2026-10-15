@@ -1036,7 +1036,7 @@ hr.divider {
   inset: 0;
   background: radial-gradient(circle at top, #3B1766 0%, #1B0836 100%);
   z-index: 2000;
-  display: flex;
+  display: none; /* Evita el parpadeo al recargar o volver del Dashboard */
   align-items: center;
   justify-content: center;
   padding: 18px;

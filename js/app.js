@@ -127,7 +127,7 @@ function reproducirBeepAlarma() {
 
 // Revisa cada segundo los temporizadores de los pedidos apartados y dispara la alarma cuando llega la hora
 function actualizarTemporizadoresYAlarmas() {
-    // 1. Actualizar etiquetas de tiempo en vivo sin re-renderizar todo el DOM
+    // 1. Actualizar etiquetas de cuenta regresiva en las tarjetas visibles
     document.querySelectorAll('.timer-live-badge').forEach((badge) => {
         const iso = badge.getAttribute('data-entrega');
         const info = ui.formatearCuentaRegresiva(iso);
@@ -138,14 +138,21 @@ function actualizarTemporizadoresYAlarmas() {
         }
     });
 
-    // 2. Verificar si algún apartado ya cumplió su hora de entrega
+    const banner = document.getElementById('alarmBanner');
+
+    // 2. EXCLUSIVO ADMINISTRADOR: Los clientes NUNCA escuchan la alarma ni ven el banner rojo
+    if (!usuarioActual || usuarioActual.rol !== 'admin') {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+
+    // 3. Verificar si algún apartado ya cumplió su hora de entrega (Solo Admin)
     const vencidosNoSilenciados = apartados.filter((ap) => {
         if (!ap.entregaProgramadaISO || alarmasSilenciadas.has(ap.id)) return false;
         const t = new Date(ap.entregaProgramadaISO).getTime();
         return !Number.isNaN(t) && Date.now() >= t;
     });
 
-    const banner = document.getElementById('alarmBanner');
     const bannerTxt = document.getElementById('alarmBannerText');
 
     if (vencidosNoSilenciados.length > 0) {
@@ -154,7 +161,6 @@ function actualizarTemporizadoresYAlarmas() {
             bannerTxt.textContent = `Pedido de ${primero.nombre} (${primero.bowl}) programado para las ${formatearHoraBogota(primero.entregaProgramadaISO)}`;
             banner.style.display = 'flex';
         }
-        // Sonar alarma cada 5 segundos mientras no se silencie
         if (Math.floor(Date.now() / 1000) % 5 === 0) {
             reproducirBeepAlarma();
         }
@@ -210,13 +216,16 @@ async function aplicarVistaPorRol() {
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
 
-    // Verificar si ya hay sesión de Supabase Auth activa (Admin)
-    const sbSession = await api.getSession();
-    if (sbSession) {
-        usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
-        localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+    // Si aún no hay usuario en memoria local, verificar si existe sesión activa de Supabase Auth (ej. al volver del Dashboard)
+    if (!usuarioActual) {
+        const sbSession = await api.getSession();
+        if (sbSession) {
+            usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
+            localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+        }
     }
 
+    // Solo mostrar el modal si definitivamente no hay sesión iniciada
     if (!usuarioActual) {
         if (gate) gate.style.display = 'flex';
         return;
@@ -237,7 +246,6 @@ async function aplicarVistaPorRol() {
             inputNombre.style.backgroundColor = '';
         }
     } else {
-        // Vista personalizada exclusiva para el Cliente
         const nombreCli = normalizarNombreCliente(usuarioActual.nombre);
         if (adminAside) adminAside.style.display = 'none';
         if (adminButtons) adminButtons.style.display = 'none';
@@ -1264,9 +1272,12 @@ async function init() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
+    // 1. Aplicar rol y ocultar login de inmediato sin esperar la red
+    await aplicarVistaPorRol();
+
+    // 2. Inicializar base de datos local y sincronizar nube en segundo plano
     await dbSync.init();
     await cargarCatalogoProductos();
-    await aplicarVistaPorRol();
     await sincronizarDesdeNubeMultiDispositivo();
     await sincronizarClientesConocidos();
     await actualizarBadgeSincronizacion();
