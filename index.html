@@ -53,6 +53,10 @@
             <div id="sugerenciasClientes" role="listbox" aria-label="Clientes frecuentes"></div>
           </div>
 
+          <!-- IDEA 2: BARRA DE COMBOS RÁPIDOS DE 1 TOQUE -->
+          <p class="subhead">⚡ Combos Rápidos (1 Toque)</p>
+          <div id="comboGrid" class="combo-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
+
           <p class="subhead">Bowl Base (Opcional si es compra individual)</p>
           <div id="bowlGrid" class="choice-grid" style="margin-bottom: 16px;"></div>
 
@@ -68,8 +72,31 @@
           <p class="subhead">Medio de Pago</p>
           <div id="payGrid" class="pay-grid" style="margin-bottom: 16px;"></div>
 
+          <!-- IDEA 1: CALCULADORA RÁPIDA DE DEVUELTA (SOLO EFECTIVO) -->
+          <div id="cashCalcPanel" style="display:none; background:linear-gradient(160deg, #FFF9EB, #F7E9C6); border:2px solid var(--dorado); border-radius:16px; padding:14px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+              <span style="font-size:0.78rem; font-weight:900; text-transform:uppercase; color:var(--morado-900);">💵 Calculadora de Devuelta (Efectivo)</span>
+              <span id="cashChangeDisplay" style="font-family:'Fredoka',sans-serif; font-size:1.1rem; font-weight:700; color:var(--morado-950); background:#FFF; padding:4px 12px; border-radius:99px; border:1px solid #E9DEC0;">
+                Selecciona con cuánto paga
+              </span>
+            </div>
+            <div id="cashBillsRow" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+              <button type="button" class="bill-chip" data-bill="exacto">Exacto</button>
+              <button type="button" class="bill-chip" data-bill="10000">$10.000</button>
+              <button type="button" class="bill-chip" data-bill="20000">$20.000</button>
+              <button type="button" class="bill-chip" data-bill="50000">$50.000</button>
+              <button type="button" class="bill-chip" data-bill="100000">$100.000</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label for="cashReceivedInput" style="font-size:0.76rem; font-weight:800; color:var(--morado-800); margin:0; white-space:nowrap;">Otro valor recibido:</label>
+              <input type="number" id="cashReceivedInput" placeholder="Ej. 30000" min="0" step="500" style="flex:1; padding:8px 12px; border-radius:10px; border:1.5px solid #D3C4A3; background:#FFF; color:var(--morado-950); font-weight:800;" />
+            </div>
+          </div>
+
+          <!-- IDEA 4: NOTAS + CHIPS TÁCTILES RÁPIDOS -->
           <div class="field">
-            <label for="notas">Notas</label>
+            <label for="notas">Notas de preparación</label>
+            <div id="quickNotesGrid" style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px;"></div>
             <textarea id="notas" rows="2" placeholder="Ej. sin cebolla, para llevar..."></textarea>
           </div>
 
@@ -82,7 +109,6 @@
             ✅ Guardar Pedido
           </button>
 
-          <!-- NUEVO BOTÓN: Facilita registrar 2 o más bowls distintos para la misma persona -->
           <button
             type="button"
             class="btn-secundario"
@@ -144,10 +170,11 @@
         <div class="export-row">
           <button type="button" class="btn-export" id="btnExcel">Excel</button>
           <button type="button" class="btn-export" id="btnImagen">Imagen</button>
+          <button type="button" class="btn-export" id="btnWhatsapp" style="background:#25D366; color:#1B0836;">📲 WhatsApp</button>
         </div>
 
         <button type="button" class="btn-secundario btn-admin" id="btnAdmin">
-          ⚙️ Modo Administrador (Precios)
+          ⚙️ Modo Administrador (Precios y Stock)
         </button>
 
         <a href="dashboard.html" class="btn-secundario btn-dashboard">
@@ -161,11 +188,11 @@
     </aside>
   </main>
 
-  <!-- MODAL ADMINISTRADOR -->
+  <!-- MODAL ADMINISTRADOR (PRECIOS + SEMÁFORO DE AGOTADOS) -->
   <div id="adminModal" style="display: none;">
     <div class="admin-modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px dashed #E9DEC0;">
-        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.25rem;">⚙️ Gestión de Precios</h3>
+        <h3 style="margin: 0; color: var(--morado-950); font-size: 1.2rem;">⚙️ Precios y Disponibilidad</h3>
         <button type="button" id="btnCerrarAdmin" aria-label="Cerrar modal" style="background: #E9DEC0; border: none; width: 38px; height: 38px; border-radius: 50%; font-size: 1.4rem; color: var(--morado-950); font-weight: 900; cursor: pointer;">&times;</button>
       </div>
       <div id="adminListaProductos" style="display: flex; flex-direction: column; gap: 8px;"></div>
@@ -175,13 +202,30 @@
     </div>
   </div>
 
-  <!-- MODAL DE CONFIRMACIÓN PROPIO (Reemplaza window.confirm) -->
+  <!-- MODAL DE CONFIRMACIÓN PROPIO -->
   <div id="confirmOverlay" role="dialog" aria-modal="true">
     <div class="confirm-box">
       <div class="msg" id="confirmMsg">¿Confirmar acción?</div>
       <div class="btns">
         <button type="button" class="btn-no" id="confirmBtnNo">Cancelar</button>
         <button type="button" class="btn-si" id="confirmBtnSi">Sí, confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CIERRE AUTOMÁTICO DE MEDIANOCHE (12:00 AM) -->
+  <div id="autoCloseModal" style="display: none; position: fixed; inset: 0; background: rgba(15,3,34,0.72); z-index: 1500; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px);">
+    <div class="admin-modal-box" style="max-width: 420px; text-align: center;">
+      <div class="banner small" style="margin-bottom: 10px;">🌙 Corte Automático 12:00 AM</div>
+      <h3 id="autoCloseTitle" style="margin: 0 0 8px 0; color: var(--morado-950);">Día Cerrado Automáticamente</h3>
+      <p id="autoCloseText" style="font-size: 0.9rem; color: var(--morado-800); font-weight: 700; margin-bottom: 14px; white-space: pre-line; text-align: left; background: #FFF3D2; padding: 12px; border-radius: 12px; border: 1px solid #E9DEC0;"></p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button type="button" id="btnEnviarWhatsAppAuto" class="btn-guardar" style="background: linear-gradient(180deg, #38E54D, #25D366); color: #1B0836; box-shadow: 0 4px 0 #1DA851; margin-top: 0;">
+          📲 Enviar Reporte a WhatsApp
+        </button>
+        <button type="button" id="btnCerrarAutoModal" class="btn-secundario" style="border-color: var(--morado-800); color: var(--morado-900);">
+          Entendido, iniciar nuevo día
+        </button>
       </div>
     </div>
   </div>

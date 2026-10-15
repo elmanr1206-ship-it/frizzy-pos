@@ -948,3 +948,84 @@ hr.divider {
   background: var(--dorado);
   color: var(--morado-950);
 }
+
+/* ---------- Combos Rápidos, Chips de Notas, Billetes y Estado Agotado ---------- */
+.combo-chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--dorado);
+  background: linear-gradient(160deg, #FFF9EB, #FFE8B3);
+  color: var(--morado-950);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--sombra-suave);
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+.combo-chip:active {
+  transform: scale(0.96);
+}
+
+.note-chip {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #D8C9A8;
+  background: var(--crema-2);
+  color: var(--morado-800);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.note-chip.active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  border-color: var(--morado-900);
+}
+
+.bill-chip {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  border: 2px solid var(--morado-800);
+  background: var(--crema-2);
+  color: var(--morado-950);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.bill-chip.active,
+.bill-chip:active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+}
+
+/* Tarjetas de productos agotados (Idea 3) */
+.choice-card.agotado,
+.qty-card.agotado {
+  opacity: 0.52;
+  background: #EFE8D8 !important;
+  border-color: #C9BFA8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+.badge-agotado {
+  background: var(--rojo);
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}

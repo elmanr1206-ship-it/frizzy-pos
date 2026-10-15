@@ -45,7 +45,7 @@ export const api = {
     async obtenerProductos() {
         const sb = await getSupabase();
         if (!sb) return null;
-        const { data, error } = await sb.from('productos').select('id, categoria, nombre, precio_actual');
+        const { data, error } = await sb.from('productos').select('*');
         if (error) {
             console.error('Error leyendo productos:', error);
             return null;
@@ -142,18 +142,38 @@ export const api = {
     },
 
     async actualizarPrecioProducto(productoId, nuevoPrecio) {
+        return await this.actualizarProductoAdmin(productoId, { precio_actual: nuevoPrecio });
+    },
+
+    async actualizarProductoAdmin(productoId, cambios) {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión' } };
 
-        const { data, error } = await sb
+        const payload = { precio_actual: cambios.precio_actual };
+        if (typeof cambios.disponible === 'boolean') {
+            payload.disponible = cambios.disponible;
+        }
+
+        let { data, error } = await sb
             .from('productos')
-            .update({ precio_actual: nuevoPrecio })
+            .update(payload)
             .eq('id', productoId)
             .select('id, precio_actual');
 
+        // Respaldo si aún no se ha corrido el ALTER TABLE ADD COLUMN disponible en Supabase
+        if (error && payload.disponible !== undefined) {
+            const retry = await sb
+                .from('productos')
+                .update({ precio_actual: cambios.precio_actual })
+                .eq('id', productoId)
+                .select('id, precio_actual');
+            data = retry.data;
+            error = retry.error;
+        }
+
         if (error) return { error };
         if (!data || data.length === 0) {
-            return { error: { message: `No se pudo actualizar "${productoId}" (verifica permisos RLS o ID).` } };
+            return { error: { message: `No se pudo actualizar "${productoId}"` } };
         }
         return { error: null, data: data[0] };
     },

@@ -206,3 +206,5 @@ CREATE POLICY "anon_insert_detalles" ON public.pedido_detalles
 DROP POLICY IF EXISTS "anon_update_detalles" ON public.pedido_detalles;
 CREATE POLICY "anon_update_detalles" ON public.pedido_detalles
     FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS disponible BOOLEAN NOT NULL DEFAULT true;

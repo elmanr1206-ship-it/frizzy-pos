@@ -12,6 +12,37 @@ export const ui = {
             .replace(/'/g, '&#39;');
     },
 
+    renderCombos(containerId, combos, onSelectCombo) {
+        const c = document.getElementById(containerId);
+        if (!c) return;
+        c.innerHTML = '';
+        combos.forEach((cb) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'combo-chip';
+            btn.innerHTML = `<span>${this.esc(cb.icono)}</span><span>${this.esc(cb.nombre)}</span>`;
+            btn.addEventListener('click', () => onSelectCombo(cb));
+            c.appendChild(btn);
+        });
+    },
+
+    renderQuickNotes(containerId, tags, currentNoteText, onToggleTag) {
+        const c = document.getElementById(containerId);
+        if (!c) return;
+        c.innerHTML = '';
+        const textoActual = String(currentNoteText || '').toLowerCase();
+
+        tags.forEach((tag) => {
+            const activo = textoActual.includes(tag.toLowerCase());
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'note-chip' + (activo ? ' active' : '');
+            btn.textContent = (activo ? '✓ ' : '+ ') + tag;
+            btn.addEventListener('click', () => onToggleTag(tag));
+            c.appendChild(btn);
+        });
+    },
+
     renderChoiceGrid(containerId, items, selectedIdOrFn, onSelect) {
         const c = document.getElementById(containerId);
         if (!c) return;
@@ -19,11 +50,13 @@ export const ui = {
         const selectedId = typeof selectedIdOrFn === 'function' ? selectedIdOrFn() : selectedIdOrFn;
 
         items.forEach((it) => {
+            const agotado = it.disponible === false;
+            const isSelected = !agotado && selectedId === it.id;
             const div = document.createElement('div');
-            const isSelected = selectedId === it.id;
-            div.className = 'choice-card' + (isSelected ? ' selected active' : '');
+            div.className = 'choice-card' + (isSelected ? ' selected active' : '') + (agotado ? ' agotado' : '');
             div.setAttribute('role', 'button');
-            div.setAttribute('tabindex', '0');
+            div.setAttribute('tabindex', agotado ? '-1' : '0');
+            div.setAttribute('aria-disabled', agotado ? 'true' : 'false');
             div.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 
             div.innerHTML = `
@@ -32,13 +65,21 @@ export const ui = {
                         <div class="name">${this.esc(it.nombre)}</div>
                         ${it.precio !== undefined ? `<div class="price">${this.fmt(it.precio)}</div>` : ''}
                     </div>
-                    ${isSelected
-                        ? '<span style="background:#2A0E4F; color:#FBBB1E; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:900; flex-shrink:0;">✓</span>'
-                        : '<span style="border:2px solid #D3C4A3; width:22px; height:22px; border-radius:50%; display:inline-block; flex-shrink:0;"></span>'}
+                    ${agotado
+                        ? '<span class="badge-agotado">Agotado</span>'
+                        : isSelected
+                            ? '<span style="background:#2A0E4F; color:#FBBB1E; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:900; flex-shrink:0;">✓</span>'
+                            : '<span style="border:2px solid #D3C4A3; width:22px; height:22px; border-radius:50%; display:inline-block; flex-shrink:0;"></span>'}
                 </div>
             `;
 
-            const activar = () => onSelect(it.id);
+            const activar = () => {
+                if (agotado) {
+                    this.mostrarToast(`🚫 ${it.nombre} está marcado como AGOTADO`);
+                    return;
+                }
+                onSelect(it.id);
+            };
             div.addEventListener('click', activar);
             div.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -56,34 +97,42 @@ export const ui = {
         c.innerHTML = '';
 
         items.forEach((it) => {
-            const cant = stateObj[it.id] || 0;
+            const agotado = it.disponible === false;
+            const cant = agotado ? 0 : (stateObj[it.id] || 0);
             const div = document.createElement('div');
-            div.className = 'qty-card' + (cant > 0 ? ' active selected' : '');
+            div.className = 'qty-card' + (cant > 0 ? ' active selected' : '') + (agotado ? ' agotado' : '');
 
             div.innerHTML = `
-                <div class="info" title="Toca para sumar 1">
-                    <div class="name">${this.esc(it.nombre)}</div>
+                <div class="info" title="${agotado ? 'Producto agotado' : 'Toca para sumar 1'}">
+                    <div class="name" style="display:flex; align-items:center; gap:6px;">
+                        <span>${this.esc(it.nombre)}</span>
+                        ${agotado ? '<span class="badge-agotado">Agotado</span>' : ''}
+                    </div>
                     <div class="price">${this.fmt(it.precio)}</div>
                 </div>
                 <div class="qty-controls">
-                    <button type="button" class="qty-btn" aria-label="Disminuir ${this.esc(it.nombre)}">−</button>
+                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''} aria-label="Disminuir ${this.esc(it.nombre)}">−</button>
                     <span class="qty-num">${cant}</span>
-                    <button type="button" class="qty-btn" aria-label="Aumentar ${this.esc(it.nombre)}">+</button>
+                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''} aria-label="Aumentar ${this.esc(it.nombre)}">+</button>
                 </div>
             `;
 
             div.querySelector('.info').addEventListener('click', () => {
+                if (agotado) {
+                    this.mostrarToast(`🚫 ${it.nombre} está marcado como AGOTADO`);
+                    return;
+                }
                 onChange(it.id, cant + 1);
             });
 
             const botones = div.querySelectorAll('.qty-btn');
             botones[0].addEventListener('click', (e) => {
                 e.stopPropagation();
-                onChange(it.id, Math.max(0, cant - 1));
+                if (!agotado) onChange(it.id, Math.max(0, cant - 1));
             });
             botones[1].addEventListener('click', (e) => {
                 e.stopPropagation();
-                onChange(it.id, cant + 1);
+                if (!agotado) onChange(it.id, cant + 1);
             });
 
             c.appendChild(div);
@@ -99,7 +148,6 @@ export const ui = {
         }
         c.innerHTML = '';
 
-        // Contar cuántos pedidos tiene cada cliente hoy para mostrar insignia si compró varios bowls
         const conteoPorCliente = {};
         lista.forEach((item) => {
             const k = String(item.nombre || '').toLowerCase().trim();
@@ -252,7 +300,6 @@ export const ui = {
     renderSummary(pedidos, pagos, topItems, filtroPagoActivo = null, onFiltrarPago = null) {
         const totalDia = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
 
-        // Calcular cantidad de personas únicas atendidas hoy
         const clientesUnicos = new Set(
             pedidos
                 .map((p) => String(p.nombre || '').toLowerCase().trim())
