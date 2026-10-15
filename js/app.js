@@ -131,13 +131,28 @@ function saveState() {
 
 // ---------------- MAZO DE NOTIFICACIONES VERDES TIPO APPLE (SOLO ADMIN) ----------------
 function obtenerContenedorStack() {
+    let center = document.getElementById('appleNotificationCenter');
+    if (!center) {
+        center = document.createElement('div');
+        center.id = 'appleNotificationCenter';
+        document.body.prepend(center);
+    }
+
+    const alarmBanner = document.getElementById('alarmBanner');
+    if (alarmBanner && alarmBanner.parentElement !== center) {
+        center.prepend(alarmBanner);
+    }
+
     let stack = document.getElementById('incomingOrderStack');
     if (!stack) {
         stack = document.createElement('div');
         stack.id = 'incomingOrderStack';
         stack.setAttribute('aria-live', 'polite');
-        document.body.prepend(stack);
+        center.appendChild(stack);
+    } else if (stack.parentElement !== center) {
+        center.appendChild(stack);
     }
+
     return stack;
 }
 
@@ -1502,11 +1517,37 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
     if (addSec) addSec.style.display = 'block';
 
     const inputApiKey = document.getElementById('adminWhatsappApiKey');
-    if (inputApiKey) {
-        inputApiKey.value = localStorage.getItem('fz_whatsapp_apikey') || '';
-        inputApiKey.onchange = (e) => {
+        if (inputApiKey) {
+            inputApiKey.value = localStorage.getItem('fz_whatsapp_apikey') || '';
+            inputApiKey.onchange = (e) => {
             localStorage.setItem('fz_whatsapp_apikey', e.target.value.trim());
         };
+
+        // Crear botón para probar el envío automático a WhatsApp en cualquier momento
+        if (!document.getElementById('btnTestWhatsappAuto')) {
+            const btnTest = document.createElement('button');
+            btnTest.type = 'button';
+            btnTest.id = 'btnTestWhatsappAuto';
+            btnTest.textContent = '🧪 Probar WhatsApp';
+            btnTest.style.cssText = 'min-height:36px; padding:6px 12px; border-radius:8px; border:none; background:#25D366; color:#1B0836; font-weight:900; font-size:0.75rem; cursor:pointer;';
+            inputApiKey.parentElement.appendChild(btnTest);
+
+            btnTest.addEventListener('click', async () => {
+                const key = inputApiKey.value.trim();
+                localStorage.setItem('fz_whatsapp_apikey', key);
+                const msgPrueba = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr() + ' (PRUEBA)');
+                if (key) {
+                    btnTest.disabled = true;
+                    btnTest.textContent = 'Enviando...';
+                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msgPrueba, key);
+                    btnTest.disabled = false;
+                    btnTest.textContent = '🧪 Probar WhatsApp';
+                    ui.mostrarToast('📲 Petición automática enviada a +57 3503129384');
+                } else {
+                    abrirWhatsAppConReporte(msgPrueba);
+                }
+            });
+        }
     }
 
     listaDiv.innerHTML = '';
@@ -1608,8 +1649,12 @@ async function init() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
+    obtenerContenedorStack();
     await aplicarVistaPorRol();
     await dbSync.init();
+
+    await verificarCorteAutomaticoMedianoche();
+
     await cargarCatalogoProductos();
     await sincronizarDesdeNubeMultiDispositivo();
     await sincronizarClientesConocidos();

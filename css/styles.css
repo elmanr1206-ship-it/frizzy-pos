@@ -11,9 +11,9 @@
   --crema-2: #FFFAEF;
   --rojo: #D1272B;
   --verde: #3E9B5C;
-  --sombra: 0 14px 34px rgba(15, 3, 34, 0.38);
-  --sombra-suave: 0 4px 14px rgba(15, 3, 34, 0.12);
-  --apple-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --sombra: 0 18px 40px rgba(12, 2, 28, 0.36);
+  --sombra-suave: 0 6px 16px rgba(15, 3, 34, 0.10);
+  --apple-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -38,10 +38,10 @@ body {
     linear-gradient(180deg, var(--morado-950), var(--morado-900) 40%, var(--morado-950));
   background-attachment: fixed;
   color: var(--crema);
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   touch-action: manipulation;
@@ -53,7 +53,7 @@ button, .choice-card, .qty-btn, .order-head, input, textarea, select {
   touch-action: manipulation;
 }
 
-/* Obligatorio para iPadOS y móviles: evita zoom automático y asegura target táctil de 44px */
+/* Prevención de auto-zoom en Safari iPadOS/iOS y target mínimo de 44px */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -84,9 +84,9 @@ header, .app, #toast {
   z-index: 1;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Header Estilo Apple ---------- */
 header {
-  padding: calc(22px + env(safe-area-inset-top)) 14px 14px;
+  padding: calc(20px + env(safe-area-inset-top)) 16px 14px;
   text-align: center;
 }
 
@@ -94,14 +94,15 @@ header {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   max-width: 100%;
 }
 
 .logo-plate {
   position: relative;
-  padding: 6px 20px 8px;
-  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.38));
+  padding: 4px 18px 6px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s var(--apple-spring);
 }
 
 .logo-plate svg {
@@ -117,36 +118,38 @@ header {
   color: var(--dorado-claro);
   text-transform: uppercase;
   font-weight: 800;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 /* ---------- Layout Principal ---------- */
 .app {
-  max-width: 1220px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 6px 14px 0;
+  padding: 6px 16px 0;
   display: grid;
   grid-template-columns: 1.55fr 1fr;
   gap: 22px;
+  align-items: start;
 }
 
-@media (max-width: 920px) {
+@media (max-width: 940px) {
   .app {
     grid-template-columns: 1fr;
     gap: 16px;
   }
 }
 
-/* Paneles con acabado Apple Glass / Bisel especular */
 .panel {
-  background: linear-gradient(180deg, rgba(255, 250, 239, 0.96), rgba(247, 239, 221, 0.94));
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: linear-gradient(180deg, rgba(255, 251, 242, 0.97), rgba(247, 239, 221, 0.95));
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
   color: var(--morado-900);
-  border-radius: 24px;
-  padding: 20px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), var(--sombra);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 26px;
+  padding: 22px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 38px rgba(12, 2, 28, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.65);
   margin-bottom: 20px;
 }
 
@@ -158,10 +161,10 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 9px 22px;
-  border-radius: 11px 20px 11px 20px;
-  transform: rotate(-1.1deg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 0 var(--dorado-fuerte), var(--sombra-suave);
-  font-size: 1.05rem;
+  border-radius: 12px 20px 12px 20px;
+  transform: rotate(-1deg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 4px 0 var(--dorado-fuerte), var(--sombra-suave);
+  font-size: 1.04rem;
   margin-bottom: 16px;
 }
 
@@ -188,9 +191,9 @@ header {
 .field label {
   display: block;
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--morado-800);
   margin-bottom: 7px;
 }
@@ -200,14 +203,14 @@ input[type="email"],
 input[type="password"],
 textarea {
   width: 100%;
-  padding: 12px 15px;
-  border-radius: 14px;
+  padding: 12px 16px;
+  border-radius: 15px;
   border: 1.5px solid #E5D8B8;
-  background: rgba(255, 250, 239, 0.9);
+  background: rgba(255, 255, 255, 0.85);
   color: var(--morado-900);
   font-family: inherit;
   box-shadow: inset 0 1px 2px rgba(15, 3, 34, 0.04);
-  transition: border-color 0.2s var(--apple-spring), box-shadow 0.2s var(--apple-spring), background 0.2s ease;
+  transition: border-color 0.22s var(--apple-spring), box-shadow 0.22s var(--apple-spring), background 0.2s ease;
 }
 
 input[type="text"]:focus,
@@ -217,7 +220,7 @@ textarea:focus {
   outline: none;
   background: #FFFFFF;
   border-color: var(--dorado);
-  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.25);
+  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.24);
 }
 
 textarea {
@@ -232,12 +235,12 @@ textarea {
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(255, 250, 239, 0.98);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background: rgba(255, 252, 245, 0.98);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
   border: 2px solid var(--morado-900);
   border-radius: 16px;
-  box-shadow: 0 14px 32px rgba(15, 3, 34, 0.28);
+  box-shadow: 0 16px 34px rgba(15, 3, 34, 0.26);
   z-index: 200;
   margin-top: 6px;
   overflow: hidden;
@@ -247,7 +250,7 @@ textarea {
   width: 100%;
   min-height: 46px;
   text-align: left;
-  padding: 10px 14px;
+  padding: 10px 15px;
   background: transparent;
   border: none;
   border-bottom: 1px solid #E9DEC0;
@@ -274,28 +277,28 @@ textarea {
 /* ---------- Tarjetas Estilo Apple iOS ---------- */
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
   gap: 10px;
 }
 
 .choice-card {
-  border: 1.5px solid #E5D8B8;
-  background: var(--crema-2);
-  border-radius: 16px;
-  padding: 13px 14px;
+  border: 1.5px solid #E6DAC0;
+  background: rgba(255, 252, 245, 0.9);
+  border-radius: 17px;
+  padding: 13px 15px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 6px rgba(15, 3, 34, 0.04);
-  transition: transform 0.2s var(--apple-spring), border-color 0.2s var(--apple-spring), background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(15, 3, 34, 0.04);
+  transition: transform 0.22s var(--apple-spring), border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
-  min-height: 50px;
+  min-height: 52px;
 }
 
 .choice-card:hover {
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--sombra-suave);
+  box-shadow: inset 0 1px 0 #FFFFFF, var(--sombra-suave);
 }
 
 .choice-card:active {
@@ -318,8 +321,8 @@ textarea {
 
 .choice-card.selected {
   border-color: var(--dorado);
-  background: linear-gradient(160deg, #FFF5D6, #FFE4A3);
-  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 6px 16px rgba(245, 166, 35, 0.24);
+  background: linear-gradient(160deg, #FFF6D9, #FFE5A3);
+  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 8px 18px rgba(245, 166, 35, 0.22);
 }
 
 .choice-card.selected .name {
@@ -327,24 +330,29 @@ textarea {
 }
 
 .qty-card {
-  border: 1.5px solid #E5D8B8;
-  background: var(--crema-2);
-  border-radius: 16px;
-  padding: 11px 13px;
+  border: 1.5px solid #E6DAC0;
+  background: rgba(255, 252, 245, 0.9);
+  border-radius: 17px;
+  padding: 11px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 6px rgba(15, 3, 34, 0.04);
-  transition: transform 0.18s var(--apple-spring), border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-  min-height: 54px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(15, 3, 34, 0.04);
+  transition: transform 0.2s var(--apple-spring), border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  min-height: 56px;
+}
+
+.qty-card:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 #FFFFFF, var(--sombra-suave);
 }
 
 .qty-card.active {
   border-color: var(--dorado);
-  background: linear-gradient(160deg, #FFF5D6, #FFE4A3);
-  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 6px 16px rgba(245, 166, 35, 0.22);
+  background: linear-gradient(160deg, #FFF6D9, #FFE5A3);
+  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 8px 18px rgba(245, 166, 35, 0.2);
 }
 
 .qty-card .info,
@@ -361,7 +369,7 @@ textarea {
 .qty-card .name,
 .qty-card .qty-title {
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   color: var(--morado-900);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,8 +407,8 @@ textarea {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  box-shadow: 0 3px 8px rgba(42, 14, 79, 0.28);
-  transition: transform 0.12s var(--apple-spring), background 0.12s ease;
+  box-shadow: 0 4px 10px rgba(42, 14, 79, 0.26);
+  transition: transform 0.14s var(--apple-spring), background 0.14s ease;
 }
 
 .qty-btn:hover {
@@ -408,7 +416,7 @@ textarea {
 }
 
 .qty-btn:active {
-  transform: scale(0.88);
+  transform: scale(0.86);
 }
 
 .qty-num,
@@ -416,7 +424,7 @@ textarea {
   min-width: 22px;
   text-align: center;
   font-weight: 900;
-  font-size: 1rem;
+  font-size: 1.02rem;
   color: var(--morado-950);
 }
 
@@ -438,23 +446,23 @@ hr.divider {
   margin: 22px 0;
 }
 
-/* ---------- Barra Flotante de Total (Sticky Estilo Apple Glass) ---------- */
+/* ---------- Barra Flotante de Total (Sticky Apple Dock) ---------- */
 .total-bar {
   position: sticky;
   bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 40;
-  background: linear-gradient(135deg, rgba(27, 8, 54, 0.92), rgba(59, 23, 102, 0.92));
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: linear-gradient(135deg, rgba(27, 8, 54, 0.90), rgba(59, 23, 102, 0.90));
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
   color: var(--crema);
   border-radius: 20px;
-  padding: 15px 20px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 18px;
-  box-shadow: 0 12px 30px rgba(15, 3, 34, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(251, 187, 30, 0.35);
+  box-shadow: 0 14px 32px rgba(12, 2, 28, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(251, 187, 30, 0.38);
 }
 
 .total-bar .label,
@@ -488,8 +496,8 @@ hr.divider {
   cursor: pointer;
   width: 100%;
   margin-top: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 4px 0 var(--dorado-fuerte), 0 8px 18px rgba(232, 147, 12, 0.28);
-  transition: transform 0.12s var(--apple-spring), box-shadow 0.12s ease, filter 0.12s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 0 var(--dorado-fuerte), 0 8px 18px rgba(232, 147, 12, 0.25);
+  transition: transform 0.14s var(--apple-spring), box-shadow 0.14s ease, filter 0.14s ease;
   min-height: 48px;
 }
 
@@ -524,11 +532,11 @@ hr.divider {
 }
 
 .stat {
-  background: linear-gradient(160deg, var(--crema-2), #FBF1D8);
-  border-radius: 16px;
+  background: linear-gradient(160deg, #FFFFFF, #FBF1D8);
+  border-radius: 17px;
   padding: 13px 12px;
-  border: 1.5px solid #E5D8B8;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  border: 1.5px solid #E6DAC0;
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 2px 6px rgba(15, 3, 34, 0.04);
 }
 
 .stat .n {
@@ -561,11 +569,11 @@ hr.divider {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
-  background: var(--crema-2);
-  border: 1.5px solid #E5D8B8;
-  border-radius: 16px;
+  background: rgba(255, 252, 245, 0.92);
+  border: 1.5px solid #E6DAC0;
+  border-radius: 17px;
   padding: 12px 15px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 #FFFFFF;
   transition: border-color 0.2s var(--apple-spring), transform 0.2s var(--apple-spring), box-shadow 0.2s ease;
 }
 
@@ -665,7 +673,7 @@ hr.divider {
   padding: 11px 10px;
   border-radius: 13px;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.12s var(--apple-spring);
+  transition: background 0.15s ease, transform 0.14s var(--apple-spring);
   min-height: 44px;
 }
 
@@ -694,7 +702,7 @@ hr.divider {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, transform 0.12s var(--apple-spring);
+  transition: background 0.15s ease, transform 0.14s var(--apple-spring);
   min-height: 46px;
 }
 
@@ -722,12 +730,12 @@ hr.divider {
 
 /* ---------- Lista de Pedidos ---------- */
 .order-item {
-  border: 1.5px solid #E5D8B8;
-  border-radius: 16px;
+  border: 1.5px solid #E6DAC0;
+  border-radius: 17px;
   margin-bottom: 10px;
   overflow: hidden;
-  background: var(--crema-2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: rgba(255, 252, 245, 0.94);
+  box-shadow: inset 0 1px 0 #FFFFFF;
   transition: border-color 0.2s var(--apple-spring), box-shadow 0.2s ease;
 }
 
@@ -813,14 +821,14 @@ hr.divider {
   bottom: calc(24px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px) scale(0.95);
   background: rgba(27, 8, 54, 0.92);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  backdrop-filter: blur(20px) saturate(190%);
   color: var(--dorado-claro);
   padding: 13px 24px;
   border-radius: 999px;
-  border: 1px solid rgba(251, 187, 30, 0.35);
+  border: 1px solid rgba(251, 187, 30, 0.38);
   font-weight: 800;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s var(--apple-spring), transform 0.25s var(--apple-spring);
@@ -846,8 +854,8 @@ hr.divider {
   justify-content: center;
   z-index: 1000;
   padding: 16px;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 #confirmOverlay.show {
@@ -858,13 +866,13 @@ hr.divider {
 .admin-modal-box {
   background: linear-gradient(180deg, var(--crema-2), var(--crema));
   color: var(--morado-900);
-  border-radius: 24px;
+  border-radius: 26px;
   padding: 22px 20px;
-  max-width: 480px;
+  max-width: 500px;
   width: 100%;
   max-height: 86vh;
   overflow-y: auto;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   border: 2px solid var(--dorado);
 }
 
@@ -922,8 +930,8 @@ hr.divider {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), var(--sombra-suave);
-  transition: transform 0.14s var(--apple-spring), background 0.12s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), var(--sombra-suave);
+  transition: transform 0.16s var(--apple-spring), background 0.12s ease;
 }
 
 .combo-chip:active {
@@ -941,7 +949,7 @@ hr.divider {
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s var(--apple-spring);
+  transition: all 0.16s var(--apple-spring);
 }
 
 .note-chip.active {
@@ -1084,16 +1092,66 @@ hr.divider {
   background: #FFF0F0 !important;
 }
 
-/* ---------- Mazo de Cartas Tipo Apple iOS Arriba (Nuevos Pedidos) ---------- */
-#incomingOrderStack {
+/* ---------- Centro de Notificaciones Apple Unificado (Cero Superposición con el Header) ---------- */
+#appleNotificationCenter {
   position: fixed;
-  top: calc(14px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100vw - 24px);
-  max-width: 430px;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 20px;
+  width: min(390px, calc(100vw - 28px));
   z-index: 2800;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   pointer-events: none;
+}
+
+/* Sobrescribir estilos inline antiguos de #alarmBanner para que nunca se encime con las cartas verdes */
+#alarmBanner {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: linear-gradient(145deg, rgba(185, 28, 28, 0.94), rgba(136, 19, 55, 0.94)) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  backdrop-filter: blur(26px) saturate(190%);
+  border: 1.5px solid rgba(251, 187, 30, 0.75) !important;
+  border-radius: 22px !important;
+  padding: 14px 16px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 18px 38px rgba(0, 0, 0, 0.45) !important;
+  pointer-events: auto;
+  animation: appleSlideIn 0.35s var(--apple-spring);
+}
+
+#incomingOrderStack {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 215px;
+  pointer-events: none;
+}
+
+#incomingOrderStack:empty {
+  display: none;
+  min-height: 0;
+}
+
+@keyframes appleSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .green-order-card {
@@ -1101,16 +1159,16 @@ hr.divider {
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(145deg, rgba(16, 78, 43, 0.94) 0%, rgba(27, 117, 65, 0.94) 100%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  backdrop-filter: blur(24px) saturate(190%);
+  background: linear-gradient(145deg, rgba(16, 82, 45, 0.94) 0%, rgba(24, 114, 63, 0.94) 100%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  backdrop-filter: blur(28px) saturate(200%);
   color: #FFFFFF;
   border: 1.5px solid rgba(168, 240, 192, 0.65);
   border-radius: 24px;
   padding: 16px 18px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 20px 42px rgba(7, 34, 18, 0.55);
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 20px 44px rgba(5, 28, 14, 0.52);
   pointer-events: auto;
   transition:
     transform 0.38s var(--apple-spring),
@@ -1126,10 +1184,10 @@ hr.divider {
   opacity: 1;
 }
 
-/* Carta 2 asomando debajo estilo iOS Notification Stack */
+/* Carta 2 asomando debajo estilo Apple iOS Notification Stack */
 .green-order-card[data-stack-pos="1"] {
   z-index: 29;
-  transform: translate3d(0, 14px, 0) scale(0.94);
+  transform: translate3d(0, 13px, 0) scale(0.95);
   opacity: 0.92;
   filter: brightness(0.88);
   pointer-events: none;
@@ -1138,7 +1196,7 @@ hr.divider {
 /* Carta 3 en el mazo */
 .green-order-card[data-stack-pos="2"] {
   z-index: 28;
-  transform: translate3d(0, 27px, 0) scale(0.88);
+  transform: translate3d(0, 25px, 0) scale(0.90);
   opacity: 0.78;
   filter: brightness(0.76);
   pointer-events: none;
@@ -1147,7 +1205,7 @@ hr.divider {
 /* Cartas adicionales detrás */
 .green-order-card[data-stack-pos="hidden"] {
   z-index: 27;
-  transform: translate3d(0, 36px, 0) scale(0.82);
+  transform: translate3d(0, 34px, 0) scale(0.85);
   opacity: 0;
   pointer-events: none;
 }
@@ -1176,11 +1234,11 @@ hr.divider {
   color: #0F4C29;
   font-family: inherit;
   font-weight: 900;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transition: transform 0.14s var(--apple-spring), background 0.15s ease;
 }
 
@@ -1190,12 +1248,18 @@ hr.divider {
 
 /* ---------- Optimización Responsiva para Celulares ---------- */
 @media (max-width: 640px) {
+  #appleNotificationCenter {
+    right: 50%;
+    transform: translateX(50%);
+    top: calc(10px + env(safe-area-inset-top));
+    width: calc(100vw - 20px);
+  }
   header {
     padding-top: calc(14px + env(safe-area-inset-top));
   }
   .panel {
-    padding: 15px 14px;
-    border-radius: 20px;
+    padding: 16px 14px;
+    border-radius: 22px;
   }
   .choice-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1222,8 +1286,8 @@ hr.divider {
     font-size: 0.6rem;
   }
   .total-bar {
-    padding: 12px 15px;
-    border-radius: 16px;
+    padding: 12px 16px;
+    border-radius: 18px;
   }
   .total-bar .amount {
     font-size: 1.4rem;
