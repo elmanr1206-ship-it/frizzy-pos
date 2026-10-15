@@ -2,17 +2,33 @@ export const SUPABASE_URL = 'https://satsdiydoeilmdruyiru.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhdHNkaXlkb2VpbG1kcnV5aXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODM2NDMsImV4cCI6MjEwNjM1OTY0M30.YMDXmmBrwzeXYKiO2CAA_QR1xrDnGqzgXNhtMrfAvJE';
 
 let supabaseInstance = null;
+let supabaseInitPromise = null;
 
 export async function getSupabase() {
     if (supabaseInstance) return supabaseInstance;
-    try {
-        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
-        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        return supabaseInstance;
-    } catch (err) {
-        console.warn('Supabase SDK no disponible offline:', err);
-        return null;
-    }
+    if (supabaseInitPromise) return supabaseInitPromise;
+
+    supabaseInitPromise = (async () => {
+        try {
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
+            supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: false,
+                    // Evita el error: Acquiring an exclusive Navigator LockManager lock immediately failed
+                    lock: async (_name, _acquireTimeout, fn) => await fn()
+                }
+            });
+            return supabaseInstance;
+        } catch (err) {
+            console.warn('Supabase SDK no disponible offline:', err);
+            supabaseInitPromise = null;
+            return null;
+        }
+    })();
+
+    return supabaseInitPromise;
 }
 
 export function normalizarNombreCliente(nombre) {

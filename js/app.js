@@ -20,7 +20,7 @@ const COMBOS_RAPIDOS = [
 // IDEA 4: Chips Táctiles de Notas Rápidas
 const NOTAS_RAPIDAS = ['Sin cebolla', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Extra servilletas'];
 
-const WHATSAPP_ADMIN_PHONE = '3503129384';
+const WHATSAPP_ADMIN_PHONE = '573503129384';
 
 function leerStorageSeguro(clave, defecto = []) {
     try {
@@ -220,13 +220,23 @@ function construirMensajeWhatsApp(listaPedidos, fechaEtiqueta) {
     );
 }
 
-function abrirWhatsAppConReporte(mensaje) {
+function obtenerUrlWhatsApp(mensaje) {
     const encoded = encodeURIComponent(mensaje);
     const numLimpio = String(WHATSAPP_ADMIN_PHONE || '').replace(/\D/g, '');
-    const url = numLimpio
-        ? `https://wa.me/${numLimpio}?text=${encoded}`
-        : `https://wa.me/?text=${encoded}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    return `https://api.whatsapp.com/send?phone=${numLimpio}&text=${encoded}`;
+}
+
+function abrirWhatsAppConReporte(mensaje) {
+    const url = obtenerUrlWhatsApp(mensaje);
+
+    // Crear un enlace real evita que Safari (iPadOS) bloquee la apertura de WhatsApp
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 function verificarCorteAutomaticoMedianoche() {
@@ -259,6 +269,7 @@ function verificarCorteAutomaticoMedianoche() {
                 textoAuto.textContent = resumenTxt.replace(/\*/g, '');
                 modalAuto.style.display = 'flex';
 
+                // Si es un <a> o <button>, asignamos apertura directa hacia +57 3503129384
                 btnWaAuto.onclick = () => {
                     abrirWhatsAppConReporte(resumenTxt);
                     modalAuto.style.display = 'none';
@@ -269,7 +280,7 @@ function verificarCorteAutomaticoMedianoche() {
                     };
                 }
             } else {
-                ui.mostrarToast(`🌙 Día ${fechaReporte} cerrado automáticamente (12:00 AM)`);
+                ui.mostrarToast(`🌙 Día ${fechaReporte} cerrado automáticamente`);
             }
         } else {
             fechaJornadaActiva = hoyStr;
@@ -1068,7 +1079,14 @@ async function init() {
     });
 
     document.getElementById('btnWhatsapp')?.addEventListener('click', () => {
-        if (pedidos.length === 0) return ui.mostrarToast('No hay pedidos hoy para reportar');
+        if (pedidos.length === 0) {
+            const ultimoAuto = leerStorageSeguro('fz_ultimo_cierre_auto', null);
+            if (ultimoAuto && ultimoAuto.resumen) {
+                abrirWhatsAppConReporte(ultimoAuto.resumen);
+                return;
+            }
+            return ui.mostrarToast('No hay pedidos registrados para enviar a WhatsApp');
+        }
         const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
         abrirWhatsAppConReporte(msg);
     });
