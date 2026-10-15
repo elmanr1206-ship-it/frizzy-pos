@@ -241,6 +241,20 @@
         <div id="apartadosList"></div>
       </div>
 
+      <!-- IDEA 3: BUSCADOR INSTANTÁNEO DE PEDIDOS Y APARTADOS -->
+      <div class="panel" style="padding: 14px 18px; margin-bottom: 16px;">
+        <div class="apple-search-bar">
+          <span style="font-size: 1.05rem;">🔍</span>
+          <input
+            type="text"
+            id="searchOrdersInput"
+            placeholder="Buscar pedido por cliente, bowl, adición o nota..."
+            autocomplete="off"
+          />
+          <button type="button" id="btnClearSearch" style="display: none;" aria-label="Limpiar búsqueda">✖</button>
+        </div>
+      </div>
+
       <div class="panel" id="panelPedidosHoy">
         <div class="banner small" id="bannerPedidosTitle">Pedidos de Hoy</div>
         <div id="ordersList"></div>
@@ -334,6 +348,17 @@
     </div>
   </div>
 
+  <!-- PUNTO C: CONTROL DE PIN DINÁMICO Y ACCESO DE CLIENTES -->
+      <div style="background:#FFF8E7; border:1.5px solid var(--dorado); border-radius:14px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
+          <span style="font-size:0.76rem; font-weight:900; color:var(--morado-950); white-space:nowrap;">🔑 PIN Clientes:</span>
+          <input type="text" id="adminClientPinInput" value="1234" maxlength="10" style="width:90px; padding:6px 10px; border-radius:8px; border:1.5px solid #C9B896; font-weight:900; text-align:center;" />
+        </div>
+        <button type="button" id="btnToggleClientAccess" data-enabled="true" style="min-height:38px; padding:6px 14px; border-radius:99px; border:none; font-weight:900; font-size:0.76rem; cursor:pointer; background:#E6F4EA; color:#1E7E34;">
+          🟢 Acceso Clientes: ABIERTO
+        </button>
+      </div>
+
   <!-- MODAL DE CONFIRMACIÓN PROPIO -->
   <div id="confirmOverlay" role="dialog" aria-modal="true">
     <div class="confirm-box">
@@ -357,6 +382,70 @@
         </button>
         <button type="button" id="btnCerrarAutoModal" class="btn-secundario" style="border-color: var(--morado-800); color: var(--morado-900);">
           Entendido, iniciar nuevo día
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IDEA 4: PASE VISUAL ESTILO APPLE WALLET PARA EL CLIENTE -->
+  <div id="walletPassModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 3, 34, 0.76); z-index: 3200; align-items: center; justify-content: center; padding: 18px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);">
+    <div style="width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px;">
+      <div id="walletPassCapture" class="apple-wallet-pass">
+        <div class="wallet-pass-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:#FBBB1E; color:#1B0836; font-family:'Fredoka',sans-serif; font-weight:900; padding:4px 10px; border-radius:8px; font-size:0.9rem;">FRIZZY</span>
+            <span style="font-size:0.72rem; font-weight:800; color:#E9DEC0; letter-spacing:0.08em;">PASE DE PEDIDO</span>
+          </div>
+          <span id="walletPassCode" style="font-family:'Fredoka',sans-serif; font-size:1rem; color:#FBBB1E; font-weight:700;">#FZ-0000</span>
+        </div>
+
+        <div class="wallet-pass-body">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:14px;">
+            <div>
+              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">CLIENTE</div>
+              <div id="walletPassClient" style="font-size:1.2rem; font-weight:900; color:#1B0836;">Camila</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">HORA DE ENTREGA</div>
+              <div id="walletPassTime" style="font-size:1rem; font-weight:900; color:#D1272B; background:#FDECEA; padding:3px 10px; border-radius:99px; margin-top:2px;">Inmediata</div>
+            </div>
+          </div>
+
+          <div style="background:#FFFDF9; border:1.5px solid #E9DEC0; border-radius:14px; padding:12px; margin-bottom:14px;">
+            <div style="font-size:0.7rem; font-weight:900; color:#4E2286; text-transform:uppercase; margin-bottom:6px;">DETALLE DE TU FRIZZY</div>
+            <div id="walletPassItems" style="font-size:0.88rem; color:#2A0E4F; font-weight:700; line-height:1.45;"></div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">MEDIO DE PAGO</div>
+              <div id="walletPassPay" style="font-size:0.92rem; font-weight:900; color:#2A0E4F;">Efectivo</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:0.68rem; font-weight:800; color:#653BA0; text-transform:uppercase;">TOTAL A PAGAR</div>
+              <div id="walletPassTotal" style="font-family:'Fredoka',sans-serif; font-size:1.65rem; font-weight:700; color:#1B0836;">$0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wallet-pass-divider">
+          <span class="notch-left"></span>
+          <div class="dashed-line"></div>
+          <span class="notch-right"></span>
+        </div>
+
+        <div class="wallet-pass-footer">
+          <div class="barcode-bars"></div>
+          <div id="walletPassDate" style="font-size:0.72rem; font-weight:800; color:#4E2286; margin-top:6px;">Muestra este pase en caja al recoger tu pedido</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button type="button" id="btnSaveWalletImage" class="btn-guardar" style="margin-top:0; flex:1.3;">
+          📸 Guardar Pase en Fotos
+        </button>
+        <button type="button" id="btnCloseWalletModal" class="btn-secundario" style="background:#FFFFFF; color:#1B0836; border-color:#FFFFFF; flex:0.7;">
+          Cerrar
         </button>
       </div>
     </div>

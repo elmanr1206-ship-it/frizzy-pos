@@ -98,6 +98,11 @@ let apartados = leerStorageSeguro('fz_apartados', []);
 let clientesConocidos = leerStorageSeguro('fz_clientes_cache', []);
 let fechaJornadaActiva = localStorage.getItem('fz_fecha_jornada') || obtenerFechaHoyStr();
 let filtroPago = null;
+let textoBusquedaPedidos = '';
+let configClientes = leerStorageSeguro('fz_config_clientes', {
+    pin: '1234',
+    habilitado: true
+});
 let sincronizando = false;
 let guardandoEnCurso = false;
 let alarmasSilenciadas = new Set();
@@ -1217,6 +1222,124 @@ function prepararSiguienteBowlMismoCliente(nombreCliente, pagoIdOpcional = null)
     document.getElementById('bowlGrid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// Sincroniza el PIN de clientes y si el local acepta pedidos de clientes desde Supabase (Punto C)
+async function cargarConfiguracionClientes() {
+    if (!navigator.onLine || typeof api.obtenerConfiguracionSistema !== 'function') return;
+    const cfg = await api.obtenerConfiguracionSistema();
+    if (cfg) {
+        if (cfg.cliente_pin) configClientes.pin = String(cfg.cliente_pin).trim();
+        if (cfg.clientes_habilitados !== undefined) {
+            configClientes.habilitado = cfg.clientes_habilitados !== 'false';
+        }
+        if (cfg.telegram_chat_id) {
+            localStorage.setItem('fz_whatsapp_apikey', cfg.telegram_chat_id);
+        }
+        localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
+    }
+}
+
+// IDEA 4: Mostrar el Ticket estilo Apple Wallet al cliente o admin
+function mostrarPaseAppleWallet(pedido) {
+    const modal = document.getElementById('walletPassModal');
+    if (!modal || !pedido) return;
+
+    const codigoCorto = '#FZ-' + String(pedido.id || '0000').slice(0, 4).toUpperCase();
+    document.getElementById('walletPassCode').textContent = codigoCorto;
+    document.getElementById('walletPassClient').textContent = pedido.nombre || 'Cliente';
+    document.getElementById('walletPassPay').textContent = pedido.pago || 'Efectivo';
+    document.getElementById('walletPassTotal').textContent = ui.fmt(pedido.total);
+
+    const elTime = document.getElementById('walletPassTime');
+    if (pedido.entregaProgramadaISO) {
+        elTime.textContent = `⏰ ${formatearHoraBogota(pedido.entregaProgramadaISO)}`;
+    } else {
+        elTime.textContent = `⚡ ${pedido.hora || 'En caja'}`;
+    }
+
+    const extras = [
+        ...(pedido.acompDetalle || []),
+        ...(pedido.toppingDetalle || []),
+        ...(pedido.bebidaDetalle || [])
+    ];
+    const htmlItems = [
+        `<div>🥣 <strong>Base:</strong> ${ui.esc(pedido.bowl)}</div>`,
+        ...extras.map((i) => `<div>• ${ui.esc(i.nombre)} <strong>x${Number(i.cantidad)}</strong> (${ui.fmt((i.precio || 0) * i.cantidad)})</div>`),
+        pedido.notas ? `<div style="margin-top:6px; color:#653BA0; font-style:italic;">📝 "${ui.esc(pedido.notas)}"</div>` : ''
+    ].join('');
+
+    document.getElementById('walletPassItems').innerHTML = htmlItems;
+    document.getElementById('walletPassDate').textContent = `${pedido.fechaLocal || obtenerFechaHoyStr()} · Muestra este pase en caja`;
+
+    modal.style.display = 'flex';
+}
+
+// PUNTO B: Corregir nombre mal escrito en un pedido ya guardado
+async function corregirNombreEnPedido(pedidoObj) {
+    const nuevoRaw = window.prompt('Corregir nombre del cliente:', pedidoObj.nombre);
+    if (!nuevoRaw) return;
+    const nuevoNombre = normalizarNombreCliente(nuevoRaw);
+    if (!nuevoNombre || nuevoNombre === pedidoObj.nombre) return;
+
+    const nombreAnterior = pedidoObj.nombre;
+    pedidoObj.nombre = nuevoNombre;
+    registrarClienteEnCache(nuevoNombre);
+    saveState();
+    renderAll();
+
+    if (navigator.onLine && typeof api.actualizarPedidoExistente === 'function') {
+        const { error } = await api.actualizarPedidoExistente(pedidoObj.id, {
+            nuevoNombre,
+            nuevoPago: pedidoObj.pago
+        });
+        if (error) {
+            ui.mostrarToast('⚠️ Guardado en caja (se sincronizará al reconectar)');
+        } else {
+            ui.mostrarToast(`✏️ Nombre corregido: ${nombreAnterior} ➔ ${nuevoNombre}`);
+        }
+    } else {
+        ui.mostrarToast(`✏️ Nombre corregido localmente a ${nuevoNombre}`);
+    }
+}
+
+// IDEA 5: Cambiar el Medio de Pago en 1 Toque (Efectivo -> Nequi -> Llave)
+async function rotarMedioPagoPedido(pedidoObj) {
+    const ordenPagos = ['Efectivo', 'Nequi', 'Llave'];
+    const idxActual = ordenPagos.findIndex((x) => x.toLowerCase() === String(pedidoObj.pago || '').toLowerCase());
+    const nuevoPago = ordenPagos[(idxActual + 1) % ordenPagos.length];
+
+    pedidoObj.pago = nuevoPago;
+    saveState();
+    renderAll();
+
+    if (navigator.onLine && typeof api.actualizarPedidoExistente === 'function') {
+        const { error } = await api.actualizarPedidoExistente(pedidoObj.id, {
+            nuevoNombre: pedidoObj.nombre,
+            nuevoPago
+        });
+        if (!error) {
+            ui.mostrarToast(`💳 Pago cambiado a ${nuevoPago} (Caja y Nube)`);
+            return;
+        }
+    }
+    ui.mostrarToast(`💳 Pago cambiado a ${nuevoPago}`);
+}
+
+// IDEA 3: Función de filtrado por el Buscador Instantáneo
+function coincideConBusqueda(pedidoObj, queryRaw) {
+    const q = limpiarParaBusqueda(queryRaw);
+    if (!q) return true;
+    const extrasTxt = [
+        ...(pedidoObj.acompDetalle || []),
+        ...(pedidoObj.toppingDetalle || []),
+        ...(pedidoObj.bebidaDetalle || [])
+    ].map((i) => i.nombre).join(' ');
+
+    const todoElTexto = limpiarParaBusqueda(
+        `${pedidoObj.nombre} ${pedidoObj.bowl} ${pedidoObj.pago} ${pedidoObj.notas || ''} ${extrasTxt}`
+    );
+    return todoElTexto.includes(q);
+}
+
 function renderAll() {
     const esAdmin = usuarioActual?.rol !== 'cliente';
     const nombreClienteActual = usuarioActual?.rol === 'cliente'
@@ -1249,7 +1372,7 @@ function renderAll() {
         renderAll();
     });
 
-    let pedidosVisibles = esAdmin
+let pedidosVisibles = esAdmin
         ? pedidos
         : pedidos.filter((p) => String(p.nombre || '').toLowerCase() === nombreClienteActual);
 
@@ -1257,9 +1380,14 @@ function renderAll() {
         pedidosVisibles = pedidosVisibles.filter((p) => (p.pago || '').toLowerCase() === filtroPago.toLowerCase());
     }
 
-    const apartadosVisibles = esAdmin
+    if (textoBusquedaPedidos) {
+        pedidosVisibles = pedidosVisibles.filter((p) => coincideConBusqueda(p, textoBusquedaPedidos));
+    }
+
+    const apartadosVisibles = (esAdmin
         ? apartados
-        : apartados.filter((a) => String(a.nombre || '').toLowerCase() === nombreClienteActual);
+        : apartados.filter((a) => String(a.nombre || '').toLowerCase() === nombreClienteActual)
+    ).filter((a) => coincideConBusqueda(a, textoBusquedaPedidos));
 
     ui.renderOrders(pedidosVisibles, 'ordersList', false, {
         onToggle: (id) => {
@@ -1270,6 +1398,9 @@ function renderAll() {
                 renderAll();
             }
         },
+        onEditClientName: (p) => corregirNombreEnPedido(p),
+        onCyclePayment: (p) => rotarMedioPagoPedido(p),
+        onShowWalletPass: (p) => mostrarPaseAppleWallet(p),
         onNewForClient: (pedidoBase) => {
             const pagoObj = PAGOS.find((pg) => pg.nombre.toLowerCase() === String(pedidoBase.pago || '').toLowerCase());
             prepararSiguienteBowlMismoCliente(pedidoBase.nombre, pagoObj ? pagoObj.id : 'efectivo');
@@ -1294,6 +1425,46 @@ function renderAll() {
                 actualizarBadgeSincronizacion();
                 ui.mostrarToast('Pedido eliminado en todos los dispositivos');
             });
+        }
+    }, esAdmin);
+
+    ui.renderOrders(apartadosVisibles, 'apartadosList', true, {
+        onToggle: (id) => {
+            const p = apartados.find((x) => x.id === id);
+            if (p) {
+                p.abierto = !p.abierto;
+                saveState();
+                renderAll();
+            }
+        },
+        onEditClientName: (p) => corregirNombreEnPedido(p),
+        onCyclePayment: (p) => rotarMedioPagoPedido(p),
+        onShowWalletPass: (p) => mostrarPaseAppleWallet(p),
+        onDelete: (id) => {
+            ui.confirmarAccion('¿Cancelar y eliminar este pedido apartado?', async () => {
+                apartados = apartados.filter((x) => x.id !== id);
+                colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== id);
+                alarmasSilenciadas.add(id);
+                saveState();
+                renderAll();
+                renderizarPilaNotificacionesVerdes();
+                await dbSync.removeFromQueue(id);
+                if (navigator.onLine) await api.deletePedido(id);
+                else await dbSync.saveDeleteToQueue(id);
+                ui.mostrarToast('Apartado cancelado');
+            });
+        },
+        onConfirm: async (p) => {
+            apartados = apartados.filter((x) => x.id !== p.id);
+            alarmasSilenciadas.add(p.id);
+            const ahora = new Date();
+            p.estado = 'completado';
+            p.entregaProgramadaISO = null;
+            p.abierto = true;
+            p.fechaISO = obtenerFechaBogotaISO(ahora);
+            p.fechaLocal = formatearFechaBogota(ahora);
+            p.hora = formatearHoraBogota(ahora);
+            await procesarGuardado(p, { modoReset: 'ninguno', esApartado: false });
         }
     }, esAdmin);
 
@@ -1408,6 +1579,18 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             pedidos.unshift(pedido);
         }
 
+        if (esApartado) {
+            const msgHora = pedido.entregaProgramadaISO
+                ? ` con alarma para las ${formatearHoraBogota(pedido.entregaProgramadaISO)}`
+                : '';
+            ui.mostrarToast(`📌 Pedido apartado${msgHora}`);
+            resetForm();
+            // Si quien apartó es el Cliente, abrirle automáticamente su Pase estilo Apple Wallet
+            if (usuarioActual?.rol === 'cliente') {
+                mostrarPaseAppleWallet(pedido);
+            }
+        }
+
         registrarClienteEnCache(pedido.nombre);
         saveState();
 
@@ -1427,6 +1610,7 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             ui.mostrarToast(`✅ Apartado entregado y cobrado — ${ui.fmt(pedido.total)}`);
             renderAll();
         }
+
     } catch (err) {
         console.error('Error guardando en cola local:', err);
         ui.mostrarToast('⚠️ Error guardando en memoria local.');
@@ -1665,13 +1849,21 @@ async function init() {
 
     formCli?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        await cargarConfiguracionClientes();
         const nombre = normalizarNombreCliente(document.getElementById('loginClienteNombre').value);
         const pin = document.getElementById('loginClienteCodigo').value.trim();
 
         if (!nombre) return;
-        if (pin !== CLIENT_ACCESS_PIN) {
+        if (!configClientes.habilitado) {
             if (gateErr) {
-                gateErr.textContent = '🔒 Código PIN del local incorrecto. Solicítalo en caja.';
+                gateErr.textContent = '🌙 En este momento la recepción de pedidos para clientes está cerrada.';
+                gateErr.style.display = 'block';
+            }
+            return;
+        }
+        if (pin !== String(configClientes.pin || CLIENT_ACCESS_PIN)) {
+            if (gateErr) {
+                gateErr.textContent = '🔒 Código PIN del local incorrecto. Solicita el PIN de hoy en caja.';
                 gateErr.style.display = 'block';
             }
             return;
@@ -1684,6 +1876,53 @@ async function init() {
         await aplicarVistaPorRol();
         ui.mostrarToast(`¡Bienvenido(a), ${nombre}!`);
     });
+
+    const searchInput = document.getElementById('searchOrdersInput');
+    const btnClearSearch = document.getElementById('btnClearSearch');
+    searchInput?.addEventListener('input', (e) => {
+        textoBusquedaPedidos = e.target.value;
+        if (btnClearSearch) {
+            btnClearSearch.style.display = textoBusquedaPedidos ? 'inline-flex' : 'none';
+        }
+        renderAll();
+    });
+    btnClearSearch?.addEventListener('click', () => {
+        textoBusquedaPedidos = '';
+        if (searchInput) searchInput.value = '';
+        btnClearSearch.style.display = 'none';
+        renderAll();
+    });
+
+    document.getElementById('btnCloseWalletModal')?.addEventListener('click', () => {
+        document.getElementById('walletPassModal').style.display = 'none';
+    });
+    document.getElementById('btnSaveWalletImage')?.addEventListener('click', async () => {
+        const passEl = document.getElementById('walletPassCapture');
+        if (!passEl) return;
+        ui.mostrarToast('Guardando pase en tus imágenes...');
+        const canvas = await html2canvas(passEl, { backgroundColor: null, scale: 2 });
+        const link = document.createElement('a');
+        link.download = `Pase_Frizzy_${Date.now().toString().slice(-4)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+
+    const btnToggleAccess = document.getElementById('btnToggleClientAccess');
+    const pinInputAdmin = document.getElementById('adminClientPinInput');
+    if (pinInputAdmin) pinInputAdmin.value = configClientes.pin || '1234';
+    if (btnToggleAccess) {
+        const pintarEstadoAcceso = (abierto) => {
+            btnToggleAccess.setAttribute('data-enabled', abierto ? 'true' : 'false');
+            btnToggleAccess.textContent = abierto ? '🟢 Acceso Clientes: ABIERTO' : '🔴 Acceso Clientes: CERRADO';
+            btnToggleAccess.style.background = abierto ? '#E6F4EA' : '#FDECEA';
+            btnToggleAccess.style.color = abierto ? '#1E7E34' : '#D1272B';
+        };
+        pintarEstadoAcceso(configClientes.habilitado);
+        btnToggleAccess.addEventListener('click', () => {
+            const actual = btnToggleAccess.getAttribute('data-enabled') === 'true';
+            pintarEstadoAcceso(!actual);
+        });
+    }
 
     formAdm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1879,6 +2118,21 @@ async function init() {
     });
 
     btnGuardarPrecios?.addEventListener('click', async () => {
+        const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '1234').trim();
+        const nuevoAccesoCli = document.getElementById('btnToggleClientAccess')?.getAttribute('data-enabled') !== 'false';
+        const chatIdsTelegram = (document.getElementById('adminWhatsappApiKey')?.value || '7412641484').trim();
+
+        configClientes = { pin: nuevoPinCli, habilitado: nuevoAccesoCli };
+        localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
+        localStorage.setItem('fz_whatsapp_apikey', chatIdsTelegram);
+
+        if (navigator.onLine && typeof api.guardarConfiguracionSistema === 'function') {
+            await api.guardarConfiguracionSistema({
+                clientePin: nuevoPinCli,
+                clientesHabilitados: nuevoAccesoCli,
+                telegramChatIds: chatIdsTelegram
+            });
+        }
         const inputs = listaDiv.querySelectorAll('input[data-id]');
         btnGuardarPrecios.disabled = true;
         btnGuardarPrecios.textContent = 'Sincronizando...';

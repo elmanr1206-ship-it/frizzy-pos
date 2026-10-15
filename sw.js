@@ -1,57 +1,48 @@
-const CACHE_NAME = 'frizzy-pos-v8';
+const CACHE_NAME = 'frizzy-pos-v10';
 const ASSETS = [
-    '/',
-    '/index.html',
-    '/dashboard.html',
-    '/manifest.json',
-    '/css/styles.css',
-    '/js/app.js',
-    '/js/api.js',
-    '/js/dbSync.js',
-    '/js/ui.js',
-    '/js/dashboard.js',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm',
-    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/css/styles.css',
+  '/js/app.js',
+  '/js/api.js',
+  '/js/ui.js',
+  '/js/dbSync.js',
+  '/js/dashboard.js',
+  '/manifest.json'
 ];
 
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-    );
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
 });
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((keys) =>
-            Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-        ).then(() => self.clients.claim())
-    );
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', (event) => {
-    const req = event.request;
-    if (req.method !== 'GET') return;
+self.addEventListener('fetch', (e) => {
+  const url = e.request.url;
 
-    // Las consultas a la API REST/Auth de Supabase van directo a red
-    if (req.url.includes('supabase.co')) return;
+  // NUNCA cachear llamadas a Supabase ni métodos distintos de GET
+  if (e.request.method !== 'GET' || url.includes('supabase.co') || url.includes('telegram.org')) {
+    return;
+  }
 
-    event.respondWith(
-        caches.match(req).then((cached) => {
-            const networkFetch = fetch(req)
-                .then((res) => {
-                    // Solo cachear respuestas completas 200 OK (evita 206 Partial Content y errores) (#1)
-                    if (res && res.ok && res.status === 200) {
-                        const clone = res.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
-                    }
-                    return res;
-                })
-                .catch(() => cached);
-
-            return cached || networkFetch;
-        })
-    );
+  // Estrategia Network-First con respaldo en Caché para tener siempre la última versión si hay internet
+  e.respondWith(
+    fetch(e.request)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
 });

@@ -383,6 +383,82 @@ export const api = {
         }
     },
 
+    // Corrige el nombre del cliente o cambia el medio de pago en un pedido ya guardado (Punto B + Idea 5)
+    async actualizarPedidoExistente(pedidoId, { nuevoNombre, nuevoPago }) {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión' } };
+
+        const nombreNorm = normalizarNombreCliente(nuevoNombre);
+
+        const { data: rpcOk, error: rpcErr } = await sb.rpc('actualizar_pedido_existente', {
+            p_pedido_id: pedidoId,
+            p_nuevo_nombre: nombreNorm,
+            p_nuevo_pago: nuevoPago
+        });
+
+        if (!rpcErr && rpcOk) {
+            return { error: null };
+        }
+
+        // Respaldo directo si aún no se ha ejecutado el RPC en Supabase
+        try {
+            const { data: cli, error: errCli } = await sb
+                .from('clientes')
+                .upsert([{ nombre: nombreNorm }], { onConflict: 'nombre' })
+                .select('id')
+                .single();
+
+            if (errCli) throw errCli;
+
+            const { error: errPed } = await sb
+                .from('pedidos')
+                .update({ cliente_id: cli.id, medio_pago: nuevoPago })
+                .eq('id', pedidoId);
+
+            return { error: errPed };
+        } catch (err) {
+            return { error: err };
+        }
+    },
+
+    // Obtiene el PIN dinámico de clientes y si el acceso de clientes está abierto (Punto C)
+    async obtenerConfiguracionSistema() {
+        const sb = await getSupabase();
+        if (!sb) return null;
+        const { data, error } = await sb
+            .from('configuracion_sistema')
+            .select('clave, valor')
+            .in('clave', ['cliente_pin', 'clientes_habilitados', 'telegram_chat_id']);
+
+        if (error || !data) return null;
+        const mapa = {};
+        data.forEach((row) => { mapa[row.clave] = row.valor; });
+        return mapa;
+    },
+
+    // Guarda el PIN de clientes, el estado abierto/cerrado y los Chat IDs de Telegram en la nube
+    async guardarConfiguracionSistema({ clientePin, clientesHabilitados, telegramChatIds }) {
+        const sb = await getSupabase();
+        if (!sb) return { error: { message: 'Sin conexión' } };
+
+        const filas = [];
+        if (clientePin !== undefined) {
+            filas.push({ clave: 'cliente_pin', valor: String(clientePin).trim(), updated_at: new Date().toISOString() });
+        }
+        if (clientesHabilitados !== undefined) {
+            filas.push({ clave: 'clientes_habilitados', valor: clientesHabilitados ? 'true' : 'false', updated_at: new Date().toISOString() });
+        }
+        if (telegramChatIds !== undefined) {
+            filas.push({ clave: 'telegram_chat_id', valor: String(telegramChatIds).trim(), updated_at: new Date().toISOString() });
+        }
+
+        const { error } = await sb
+            .from('configuracion_sistema')
+            .upsert(filas, { onConflict: 'clave' });
+
+        return { error };
+    },
+
     async suscribirCambiosRealtime(onChangeCallback) {
         const sb = await getSupabase();
         if (!sb) return null;

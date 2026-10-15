@@ -174,11 +174,11 @@ export const ui = {
         });
     },
 
-    renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
+renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
         const c = document.getElementById(containerId);
         if (!c) return;
         if (!lista || lista.length === 0) {
-            c.innerHTML = `<p class="empty-msg">${esApartado ? 'No hay pedidos apartados en este momento' : 'Aún no hay pedidos registrados hoy'}</p>`;
+            c.innerHTML = `<p class="empty-msg">${esApartado ? 'No hay pedidos apartados que coincidan' : 'No hay pedidos registrados que coincidan'}</p>`;
             return;
         }
         c.innerHTML = '';
@@ -254,6 +254,22 @@ export const ui = {
 
                 ${p.abierto ? `
                 <div class="order-body open" style="display:block; padding:12px 15px 15px; border-top:1px solid #E9DEC0; background:#FFFFFF;">
+                    <!-- BARRA RÁPIDA DE EDICIÓN (PUNTO B + IDEA 4 + IDEA 5) -->
+                    <div class="order-quick-edit-bar">
+                        ${esAdmin && callbacks.onEditClientName ? `
+                        <button type="button" class="btn-quick-edit btn-edit-name" title="Corregir nombre mal escrito">
+                            ✏️ Corregir Nombre
+                        </button>` : ''}
+                        ${esAdmin && callbacks.onCyclePayment ? `
+                        <button type="button" class="btn-quick-edit btn-cycle-pay" title="Cambiar medio de pago con 1 toque">
+                            🔄 Pago: <strong>${this.esc(p.pago)}</strong> (Cambiar)
+                        </button>` : ''}
+                        ${callbacks.onShowWalletPass ? `
+                        <button type="button" class="btn-quick-edit btn-wallet-pass" style="margin-left:auto; background:#2A0E4F; color:#FBBB1E; border-color:#2A0E4F;">
+                            🎟️ Pase Wallet
+                        </button>` : ''}
+                    </div>
+
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #EFE8D5; font-size:0.9rem; color:#2A0E4F;">
                         <span><strong>Base:</strong> ${this.esc(p.bowl)}</span>
                         <strong>${precioBowl > 0 ? this.fmt(precioBowl) : '—'}</strong>
@@ -292,19 +308,34 @@ export const ui = {
                 }
             });
 
-            if (p.abierto && esAdmin) {
-                card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
+            if (p.abierto) {
+                card.querySelector('.btn-wallet-pass')?.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    callbacks.onDelete(p.id);
+                    callbacks.onShowWalletPass(p);
                 });
-                card.querySelector('.btn-confirm')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    callbacks.onConfirm(p);
-                });
-                card.querySelector('.btn-add-another')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    callbacks.onNewForClient(p);
-                });
+
+                if (esAdmin) {
+                    card.querySelector('.btn-edit-name')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        callbacks.onEditClientName(p);
+                    });
+                    card.querySelector('.btn-cycle-pay')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        callbacks.onCyclePayment(p);
+                    });
+                    card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        callbacks.onDelete(p.id);
+                    });
+                    card.querySelector('.btn-confirm')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        callbacks.onConfirm(p);
+                    });
+                    card.querySelector('.btn-add-another')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        callbacks.onNewForClient(p);
+                    });
+                }
             }
             c.appendChild(card);
         });
