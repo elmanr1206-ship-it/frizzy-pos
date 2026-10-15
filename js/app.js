@@ -20,7 +20,7 @@ const COMBOS_RAPIDOS = [
 // IDEA 4: Chips Táctiles de Notas Rápidas
 const NOTAS_RAPIDAS = ['Sin cebolla', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Extra servilletas'];
 
-const WHATSAPP_ADMIN_PHONE = '';
+const WHATSAPP_ADMIN_PHONE = '3503129384';
 
 function leerStorageSeguro(clave, defecto = []) {
     try {
