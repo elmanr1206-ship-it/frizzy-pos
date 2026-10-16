@@ -345,7 +345,6 @@ function actualizarPreviewProgramador() {
 
 // ---------------- GESTIÓN DE ROLES (ADMIN vs CLIENTE) ----------------
 async function aplicarVistaPorRol() {
-    await cargarConfiguracionClientes();
     const gate = document.getElementById('authGateModal');
     const adminAside = document.getElementById('adminAsideColumn');
     const adminButtons = document.getElementById('adminOrderButtons');
@@ -360,7 +359,12 @@ async function aplicarVistaPorRol() {
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
 
-    // Verificar si existe una sesión real de Supabase Auth para el Administrador
+    // 1. Si ya hay sesión en localStorage, ocultar el modal de inmediato (0 ms, cero parpadeo)
+    if (usuarioActual && gate) {
+        gate.style.display = 'none';
+    }
+
+    // 2. Si no hay sesión en memoria local, verificar sesión activa de Supabase Auth
     if (!usuarioActual) {
         const sbSession = await api.getSession();
         if (sbSession?.user) {
@@ -369,13 +373,17 @@ async function aplicarVistaPorRol() {
         }
     }
 
-    // SI NO HAY SESIÓN ACTIVA, MOSTRAR SIEMPRE EL LOGIN EN PRIMER PLANO
+    // 3. Si definitivamente no hay sesión, mostrar el Login Glass en primer plano
     if (!usuarioActual) {
         if (gate) gate.style.display = 'flex';
+        cargarConfiguracionClientes();
         return;
     }
 
     if (gate) gate.style.display = 'none';
+
+    // Cargar PIN actualizado en segundo plano sin bloquear la pantalla
+    cargarConfiguracionClientes();
 
     if (usuarioActual.rol === 'admin') {
         if (adminAside) adminAside.style.display = 'block';
@@ -384,7 +392,7 @@ async function aplicarVistaPorRol() {
         if (pinPillSep) pinPillSep.style.display = 'inline';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '';
         if (loyaltyBanner) loyaltyBanner.style.display = 'none';
-        if (sessionBadge) sessionBadge.textContent = `🔐 Admin`;
+        if (sessionBadge) sessionBadge.textContent = '🔐 Admin';
         if (bannerPedidos) bannerPedidos.textContent = 'Pedidos de Hoy (Todos los Dispositivos)';
         if (bannerApartados) bannerApartados.textContent = 'Apartados Activos (Con Temporizador)';
         if (inputNombre && !estado.clienteBloqueado) {
@@ -398,7 +406,7 @@ async function aplicarVistaPorRol() {
         if (pinPillContainer) pinPillContainer.style.display = 'none';
         if (pinPillSep) pinPillSep.style.display = 'none';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
-        if (sessionBadge) sessionBadge.textContent = `👤 Cliente: ${nombreCli}`;
+        if (sessionBadge) sessionBadge.textContent = `👤 ${nombreCli}`;
         if (bannerPedidos) bannerPedidos.textContent = `Mis Pedidos de Hoy (${nombreCli})`;
         if (bannerApartados) bannerApartados.textContent = `Mis Pedidos Apartados (${nombreCli})`;
 
@@ -1092,6 +1100,9 @@ function construirPedido(esApartado = false) {
     const ahora = new Date();
     const isoBogota = obtenerFechaBogotaISO(ahora);
     const entregaISO = esApartado ? calcularEntregaProgramadaISO() : null;
+    const nombreInput = document.getElementById('nombreCliente')?.value || '';
+    const notasInput = (document.getElementById('notas')?.value || '').trim();
+    const horaExacta = document.getElementById('apartadoTimeInput')?.value || '';
 
     let notasTexto = document.getElementById('notas').value.trim() || '';
     if (estado.premioFidelidad && !notasTexto.includes('[Premio Fidelidad')) {
