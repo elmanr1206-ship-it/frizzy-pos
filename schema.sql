@@ -80,7 +80,7 @@ do $$ declare r record; begin
   for r in select oid::regprocedure as sig from pg_proc
            where pronamespace = 'public'::regnamespace
              and proname in ('registrar_pedido_atomico','actualizar_pedido_existente',
-                             'contar_compras_cliente','acceso_clientes')
+                             'contar_compras_cliente','acceso_clientes','estado_pedidos_cliente')
   loop execute 'drop function ' || r.sig; end loop;
 end $$;
 
@@ -103,6 +103,11 @@ begin
     if p_items is null or jsonb_typeof(p_items) <> 'array'
        or jsonb_array_length(p_items) not between 1 and 60 then
         raise exception 'Ítems inválidos' using errcode = '22023'; end if;
+
+    -- Con el acceso de clientes cerrado, solo el admin puede registrar pedidos
+    if not public.es_admin() and coalesce((select valor from public.configuracion_sistema
+            where clave = 'clientes_habilitados'), 'true') = 'false' then
+        raise exception 'Recepción de pedidos cerrada' using errcode = '22023'; end if;
 
     select estado into v_actual from public.pedidos where id = p_pedido_id;
     if v_actual = 'cerrado' then return true; end if;   -- un día cerrado no se reescribe
@@ -161,6 +166,15 @@ language sql stable security definer set search_path = public as $$
         'pin_ok', exists (select 1 from public.configuracion_sistema
                           where clave = 'cliente_pin' and valor <> '' and valor = btrim(coalesce(p_pin,''))));
 $$;
+
+-- El cliente consulta solo el estado de SUS pedidos, por id (UUID no adivinable)
+create function public.estado_pedidos_cliente(p_ids uuid[])
+returns table (id uuid, estado text, medio_pago varchar, created_at timestamptz, entrega_programada_at timestamptz)
+language sql stable security definer set search_path = public as $$
+    select p.id, p.estado, p.medio_pago, p.created_at, p.entrega_programada_at
+    from public.pedidos p where p.id = any (p_ids[1:100]);
+$$;
+grant execute on function public.estado_pedidos_cliente(uuid[]) to anon, authenticated;
 
 revoke all on function public.actualizar_pedido_existente(uuid, varchar, varchar) from public, anon;
 grant execute on function public.actualizar_pedido_existente(uuid, varchar, varchar) to authenticated;

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 const CACHE_NAME = 'frizzy-pos-v19';
+=======
+const CACHE_NAME = 'frizzy-pos-v20';
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 const ASSETS = [
     '/',
     '/index.html',

@@ -377,6 +377,11 @@ async function aplicarVistaPorRol() {
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
 
+    if (usuarioActual?.rol === 'admin' && (await api.haySesionAdminValida()) === false) {
+        usuarioActual = null;
+        localStorage.removeItem('fz_usuario_actual');
+    }
+
     // 1. Si ya hay sesión en localStorage, ocultar el modal de inmediato (0 ms, cero parpadeo)
     if (usuarioActual && gate) {
         gate.style.display = 'none';
@@ -493,11 +498,89 @@ function reconstruirPedidoDesdeNube(row) {
     };
 }
 
+async function cerrarSesionClientePorAcceso() {
+    usuarioActual = null;
+    localStorage.removeItem('fz_usuario_actual');
+    resetForm();
+    await aplicarVistaPorRol();
+    const err = document.getElementById('authGateError');
+    if (err) {
+        err.textContent = '🌙 La recepción de pedidos para clientes está cerrada en este momento.';
+        err.style.display = 'block';
+    }
+}
+
+// El cliente solo consulta SUS pedidos (por id) para ver cuándo el admin los cobra o cancela
+async function sincronizarEstadoClienteDesdeNube() {
+    const acceso = await api.verificarAccesoCliente('');
+    if (acceso && acceso.habilitado === false) return cerrarSesionClientePorAcceso();
+
+    const colaPendiente = await dbSync.getQueue();
+    const idsEnCola = new Set(colaPendiente.map((x) => x.id));
+    const ids = [...apartados, ...pedidos].map((p) => p.id).filter((id) => !idsEnCola.has(id));
+    const cobrados = [];
+
+    if (ids.length > 0) {
+        const remotos = await api.obtenerEstadoPedidosCliente(ids);
+        if (Array.isArray(remotos)) {
+            const mapa = new Map(remotos.map((r) => [r.id, r]));
+            const siguenApartados = [];
+
+            apartados.forEach((a) => {
+                if (idsEnCola.has(a.id)) { siguenApartados.push(a); return; }
+                const r = mapa.get(a.id);
+                if (!r) return; // el admin lo canceló
+                a.sincronizado = true;
+                a.pago = r.medio_pago || a.pago;
+                if (r.estado === 'apartado') {
+                    a.entregaProgramadaISO = r.entrega_programada_at || a.entregaProgramadaISO;
+                    siguenApartados.push(a);
+                } else {
+                    a.estado = 'completado';
+                    a.entregaProgramadaISO = null;
+                    a.fechaISO = r.created_at;
+                    a.fechaLocal = formatearFechaBogota(r.created_at);
+                    a.hora = formatearHoraBogota(r.created_at);
+                    cobrados.push(a);
+                }
+            });
+            apartados = siguenApartados;
+
+            pedidos = pedidos.filter((p) => idsEnCola.has(p.id) || mapa.has(p.id));
+            pedidos.forEach((p) => {
+                const r = mapa.get(p.id);
+                if (r) { p.pago = r.medio_pago || p.pago; p.sincronizado = true; }
+            });
+            if (cobrados.length > 0) {
+                pedidos = [...cobrados, ...pedidos];
+                ui.mostrarToast('🎉 Tu pedido ya fue cobrado. ¡Buen provecho!');
+            }
+        }
+    }
+
+    const hoyStr = obtenerFechaHoyStr();
+    pedidos = pedidos.filter((p) => !p.fechaLocal || p.fechaLocal === hoyStr);
+    saveState();
+    renderAll();
+}
+
 async function sincronizarDesdeNubeMultiDispositivo() {
     if (!navigator.onLine) return;
     try {
         await sincronizarCola();
+<<<<<<< HEAD
         if (usuarioActual?.rol === 'cliente') return;
+=======
+        if (!usuarioActual) return;
+        if (usuarioActual.rol === 'cliente') return await sincronizarEstadoClienteDesdeNube();
+        if ((await api.haySesionAdminValida()) === false) {
+            usuarioActual = null;
+            localStorage.removeItem('fz_usuario_actual');
+            await aplicarVistaPorRol();
+            ui.mostrarToast('🔒 Tu sesión expiró, inicia sesión de nuevo');
+            return;
+        }
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 
         const remotos = await api.obtenerPedidosJornadaHoy();
         if (!Array.isArray(remotos)) return;
@@ -1053,6 +1136,7 @@ function construirPedido(esApartado = false) {
     const mapDetalle = (store, catList) =>
         Object.entries(store).map(([id, cant]) => {
             const item = catList.find((x) => x.id === id);
+            if (!item) return null;
             return {
                 id: item.id,
                 nombre: item.nombre,
@@ -1060,7 +1144,7 @@ function construirPedido(esApartado = false) {
                 precio: item.precio,
                 subtotal: item.precio * cant
             };
-        });
+        }).filter(Boolean);
 
     const bowlObj = getBowls().find((b) => b.id === estado.bowl);
     const ahora = new Date();
@@ -1200,6 +1284,18 @@ function prepararSiguienteBowlMismoCliente(nombreCliente, pagoIdOpcional = null)
     document.getElementById('bowlGrid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function pintarControlesAccesoClientes() {
+    const pinInput = document.getElementById('adminClientPinInput');
+    if (pinInput) pinInput.value = configClientes.pin || '';
+    const btn = document.getElementById('btnToggleClientAccess');
+    if (!btn) return;
+    const abierto = configClientes.habilitado !== false;
+    btn.setAttribute('data-enabled', abierto ? 'true' : 'false');
+    btn.textContent = abierto ? '🟢 Acceso Clientes: ABIERTO' : '🔴 Acceso Clientes: CERRADO';
+    btn.style.background = abierto ? '#E6F4EA' : '#FDECEA';
+    btn.style.color = abierto ? '#1E7E34' : '#D1272B';
+}
+
 // Sincroniza el PIN de clientes y si el local acepta pedidos de clientes desde Supabase (Punto C)
 async function cargarConfiguracionClientes() {
     if (usuarioActual?.rol !== 'admin') return;
@@ -1214,6 +1310,10 @@ async function cargarConfiguracionClientes() {
     }
     const pinDisplay = document.getElementById('pillPinDisplay');
     if (pinDisplay) pinDisplay.textContent = configClientes.pin || '—';
+<<<<<<< HEAD
+=======
+    pintarControlesAccesoClientes();
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 }
 
 // IDEA 4: Mostrar el Ticket estilo Apple Wallet al cliente o admin
@@ -1449,6 +1549,10 @@ let pedidosVisibles = esAdmin
             });
         },
         onConfirm: async (p) => {
+<<<<<<< HEAD
+=======
+            if (guardandoEnCurso) return ui.mostrarToast('Espera un momento, se está guardando otro pedido');
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
             apartados = apartados.filter((x) => x.id !== p.id);
             alarmasSilenciadas.add(p.id);
             const ahora = new Date();
@@ -1497,8 +1601,6 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
     const pagoIdActual = estado.pago;
 
     try {
-        verificarCorteAutomaticoMedianoche();
-
         const itemsArray = [];
         if (pedido.bowlId && pedido.bowlId !== 'ninguno') {
             const bowlObj = getBowls().find((b) => b.id === pedido.bowlId);
@@ -1536,18 +1638,6 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             pedidos.unshift(pedido);
         }
 
-        if (esApartado) {
-            const msgHora = pedido.entregaProgramadaISO
-                ? ` con alarma para las ${formatearHoraBogota(pedido.entregaProgramadaISO)}`
-                : '';
-            ui.mostrarToast(`📌 Pedido apartado${msgHora}`);
-            resetForm();
-            // Si quien apartó es el Cliente, abrirle automáticamente su Pase estilo Apple Wallet
-            if (usuarioActual?.rol === 'cliente') {
-                mostrarPaseAppleWallet(pedido);
-            }
-        }
-
         registrarClienteEnCache(pedido.nombre);
         saveState();
 
@@ -1557,6 +1647,7 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
                 : '';
             ui.mostrarToast(`📌 Pedido apartado${msgHora}`);
             resetForm();
+            if (usuarioActual?.rol === 'cliente') mostrarPaseAppleWallet(pedido);
         } else if (modoReset === 'mismoCliente') {
             ui.mostrarToast(`✅ Bowl guardado (${ui.fmt(pedido.total)}) · Arma el siguiente para ${pedido.nombre}`);
             prepararSiguienteBowlMismoCliente(pedido.nombre, pagoIdActual);
@@ -1823,6 +1914,7 @@ async function init() {
     });
 
     const btnToggleAccess = document.getElementById('btnToggleClientAccess');
+<<<<<<< HEAD
     const pinInputAdmin = document.getElementById('adminClientPinInput');
     if (pinInputAdmin) pinInputAdmin.value = configClientes.pin || '';
     if (btnToggleAccess) {
@@ -1838,6 +1930,23 @@ async function init() {
             pintarEstadoAcceso(!actual);
         });
     }
+=======
+    pintarControlesAccesoClientes();
+    btnToggleAccess?.addEventListener('click', async () => {
+        const anterior = configClientes.habilitado !== false;
+        if (!navigator.onLine) return ui.mostrarToast('⚠️ Necesitas internet para cambiar el acceso de clientes');
+        configClientes.habilitado = !anterior;
+        pintarControlesAccesoClientes();
+        const { error } = await api.guardarConfiguracionSistema({ clientesHabilitados: !anterior });
+        if (error) {
+            configClientes.habilitado = anterior;
+            pintarControlesAccesoClientes();
+            return ui.mostrarToast('⚠️ No se pudo guardar el cambio (revisa tu sesión de admin)');
+        }
+        localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
+        ui.mostrarToast(!anterior ? '🟢 Acceso de clientes ABIERTO' : '🔴 Acceso de clientes CERRADO');
+    });
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 
     formAdm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1982,6 +2091,7 @@ async function init() {
 
     document.getElementById('btnAdmin')?.addEventListener('click', () => {
         abrirEditorPreciosEnModal(modal, listaDiv, btnGuardarPrecios);
+        cargarConfiguracionClientes(); // refresca PIN y acceso desde el servidor
     });
 
     document.getElementById('btnCerrarAdmin')?.addEventListener('click', () => {
@@ -2034,6 +2144,7 @@ async function init() {
 
     document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
         const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '').trim();
+<<<<<<< HEAD
         const nuevoAccesoCli = document.getElementById('btnToggleClientAccess')?.getAttribute('data-enabled') !== 'false';
 
         configClientes = { pin: nuevoPinCli, habilitado: nuevoAccesoCli };
@@ -2047,6 +2158,23 @@ async function init() {
                 clientePin: nuevoPinCli,
                 clientesHabilitados: nuevoAccesoCli
             });
+=======
+        if (nuevoPinCli !== (configClientes.pin || '')) {
+            if (nuevoPinCli.length < 4) return ui.mostrarToast('⚠️ El PIN debe tener al menos 4 dígitos');
+            if (!navigator.onLine) {
+                ui.mostrarToast('⚠️ Sin internet: el PIN nuevo no se guardó');
+            } else {
+                const { error } = await api.guardarConfiguracionSistema({ clientePin: nuevoPinCli });
+                if (error) {
+                    ui.mostrarToast('⚠️ No se pudo guardar el PIN (revisa tu sesión de admin)');
+                } else {
+                    configClientes.pin = nuevoPinCli;
+                    localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
+                    const pinDisplay = document.getElementById('pillPinDisplay');
+                    if (pinDisplay) pinDisplay.textContent = nuevoPinCli;
+                }
+            }
+>>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
         }
         const inputs = listaDiv.querySelectorAll('input[data-id]');
         btnGuardarPrecios.disabled = true;

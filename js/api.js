@@ -31,10 +31,11 @@ export async function getSupabase() {
 }
 
 export function normalizarNombreCliente(nombre) {
+    // Mayúscula inicial por palabra, compatible con tildes (igual que initcap de Postgres)
     return String(nombre || '')
         .trim()
         .toLowerCase()
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+        .replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_m, sep, letra) => sep + letra.toUpperCase());
 }
 
 // Genera timestamp ISO con el offset exacto de Colombia (-05:00) para evitar el desfase de 5 horas (4:00 UTC)
@@ -418,7 +419,23 @@ export const api = {
         }
     },
 
-async obtenerConfiguracionSistema() {
+    // true/false si se pudo comprobar la sesión de Supabase; null si no hay forma de comprobarla (offline)
+    async haySesionAdminValida() {
+        const sb = await getSupabase();
+        if (!sb) return null;
+        const { data } = await sb.auth.getSession();
+        return Boolean(data?.session);
+    },
+
+    // Estado actual de los pedidos del propio cliente (solo por id; los UUID no se pueden adivinar)
+    async obtenerEstadoPedidosCliente(ids) {
+        const sb = await getSupabase();
+        if (!sb || !Array.isArray(ids) || ids.length === 0) return null;
+        const { data, error } = await sb.rpc('estado_pedidos_cliente', { p_ids: ids.slice(0, 100) });
+        return error ? null : (data || []);
+    },
+
+    async obtenerConfiguracionSistema() {
         const sb = await getSupabase();
         if (!sb) return null;
         const { data, error } = await sb
