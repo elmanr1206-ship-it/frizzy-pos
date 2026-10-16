@@ -36,7 +36,7 @@ const COMBOS_RAPIDOS = [
     { id: 'combo_repetir_ultimo', icono: '🔄', nombre: 'Repetir Último Bowl', esRepetir: true }
 ];
 
-const NOTAS_RAPIDAS = ['Sin cebolla', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Extra servilletas'];
+const NOTAS_RAPIDAS = ['Sin mucha salsa', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Con servilletas', 'Sin acompañante', 'Sin topping', 'Sin bebida', 'Con todo'];
 
 const WHATSAPP_ADMIN_PHONE = '573503129384';
 const CLIENT_ACCESS_PIN = '1234';
@@ -197,59 +197,84 @@ function encolarNotificacionVerdeNuevoPedido(pedidoObj) {
 }
 
 function renderizarPilaNotificacionesVerdes() {
-    const stackContainer = obtenerContenedorStack();
-    if (!stackContainer) return;
+    const stack = obtenerContenedorStack();
+    if (!stack) return;
 
     if (!usuarioActual || usuarioActual.rol !== 'admin' || colaCartasVerdes.length === 0) {
-        stackContainer.innerHTML = '';
+        stack.innerHTML = '';
         return;
     }
 
     const totalCartas = colaCartasVerdes.length;
 
-    stackContainer.innerHTML = colaCartasVerdes.map((carta, index) => {
-        const posAttr = index === 0 ? '0' : index === 1 ? '1' : index === 2 ? '2' : 'hidden';
-        const etiquetaTipo = carta.esApartado
-            ? `📌 NUEVO APARTADO${carta.horaEntrega ? ` · ${carta.horaEntrega}` : ''}`
-            : '🍏 NUEVO PEDIDO DE CLIENTE';
+    stack.innerHTML = colaCartasVerdes.map((p, idx) => {
+        const posAttr = idx === 0 ? '0' : idx === 1 ? '1' : idx === 2 ? '2' : 'hidden';
+        const esApartado = p.estado === 'apartado';
+        const iconoApp = esApartado ? '⏰' : '🥣';
+        const tituloNotif = esApartado ? 'Nuevo Apartado' : 'Nuevo Pedido';
+
+        const extras = [
+            ...(p.acompDetalle || []),
+            ...(p.toppingDetalle || []),
+            ...(p.bebidaDetalle || [])
+        ].map((i) => `${i.nombre} ×${i.cantidad}`).join(' · ');
+
+        const horaEntregaBadge = p.entregaProgramadaISO
+            ? `<span style="background:rgba(245,166,35,0.22); border:1px solid rgba(245,166,35,0.5); color:#FFE082; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">⏰ ${formatearHoraBogota(p.entregaProgramadaISO)}</span>`
+            : `<span style="opacity:0.75; font-size:0.74rem; font-weight:700;">${ui.esc(p.hora || 'Ahora')}</span>`;
 
         return `
-            <div class="green-order-card" data-stack-pos="${posAttr}" data-card-id="${ui.esc(carta.id)}">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
-                    <span class="green-card-badge">${ui.esc(etiquetaTipo)}</span>
-                    <span style="font-size:0.74rem; font-weight:900; background:rgba(0,0,0,0.28); color:#A8F0C0; padding:3px 9px; border-radius:999px;">
-                        ${index + 1} de ${totalCartas}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px;">
-                    <div style="font-size:1.1rem; font-weight:900; color:#FFFFFF;">
-                        👤 ${ui.esc(carta.cliente)}
+            <div class="green-order-card" data-stack-pos="${posAttr}" data-card-id="${ui.esc(p.id)}">
+                <!-- Cabecera estilo notificación iOS -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="width:28px; height:28px; border-radius:8px; background:linear-gradient(145deg, #FFC738, #F5A623); display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem; box-shadow:0 3px 8px rgba(245,166,35,0.35);">
+                            ${iconoApp}
+                        </span>
+                        <span style="font-size:0.74rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; color:rgba(255,255,255,0.85);">
+                            ${tituloNotif}
+                        </span>
                     </div>
-                    <div style="font-family:'Fredoka',sans-serif; font-size:1.2rem; font-weight:700; color:#FBBB1E;">
-                        ${ui.fmt(carta.total)}
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        ${horaEntregaBadge}
+                        <span style="background:rgba(255,255,255,0.14); padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:900; color:#FFF;">
+                            ${idx + 1}/${totalCartas}
+                        </span>
                     </div>
                 </div>
-                <div style="font-size:0.85rem; color:#E8F8F5; font-weight:700; line-height:1.38;">
-                    <div>🥣 <strong>Base:</strong> ${ui.esc(carta.bowl)} · <span style="color:#A8F0C0;">${ui.esc(carta.pago)}</span></div>
-                    <div>✨ <strong>Extras:</strong> ${ui.esc(carta.extras)}</div>
-                    ${carta.notas ? `<div style="margin-top:5px; background:rgba(0,0,0,0.24); padding:5px 9px; border-radius:8px;">📝 ${ui.esc(carta.notas)}</div>` : ''}
+
+                <!-- Cliente y Total -->
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px;">
+                    <div style="font-size:1.12rem; font-weight:900; color:#FFFFFF; letter-spacing:-0.01em;">
+                        ${ui.esc(p.nombre)}
+                    </div>
+                    <div style="font-family:'Fredoka',sans-serif; font-size:1.25rem; font-weight:700; color:#FFC738;">
+                        ${ui.fmt(p.total)}
+                    </div>
                 </div>
-                <button type="button" class="green-card-close-btn" data-close-card="${ui.esc(carta.id)}">
-                    ✓ Quitar Notificación ${totalCartas > 1 ? `(Siguiente: #2 de ${totalCartas})` : ''}
+
+                <!-- Resumen limpio en tarjeta translúcida interna -->
+                <div style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding:9px 12px; font-size:0.83rem; line-height:1.4; color:rgba(255,255,255,0.92);">
+                    <div><strong>Base:</strong> ${ui.esc(p.bowl)} · <span style="color:#FFE082; font-weight:800;">${ui.esc(p.pago)}</span></div>
+                    ${extras ? `<div style="margin-top:3px; opacity:0.9;"><strong>Adiciones:</strong> ${ui.esc(extras)}</div>` : ''}
+                    ${p.notas ? `<div style="margin-top:5px; padding-top:5px; border-top:1px dashed rgba(255,255,255,0.16); color:#FFE082; font-weight:800;">📝 ${ui.esc(p.notas)}</div>` : ''}
+                </div>
+
+                <button type="button" class="green-card-close-btn" data-dismiss-id="${ui.esc(p.id)}">
+                    ✓ Entendido
                 </button>
             </div>
         `;
     }).join('');
 
-    const btnCerrarPrimero = stackContainer.querySelector('.green-order-card[data-stack-pos="0"] .green-card-close-btn');
-    if (btnCerrarPrimero) {
-        btnCerrarPrimero.addEventListener('click', () => {
-            const idCerrar = btnCerrarPrimero.getAttribute('data-close-card');
-            colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== idCerrar);
-            saveState();
+    stack.querySelectorAll('[data-dismiss-id]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idCerrar = btn.getAttribute('data-dismiss-id');
+            colaCartasVerdes = colaCartasVerdes.filter((item) => String(item.id) !== String(idCerrar));
             renderizarPilaNotificacionesVerdes();
         });
-    }
+    });
 }
 
 // ---------------- ALARMA SONORA EXCLUSIVA PARA APARTADOS (SOLO ADMIN) ----------------
@@ -1264,7 +1289,7 @@ function mostrarPaseAppleWallet(pedido) {
     if (pedido.entregaProgramadaISO) {
         elTime.textContent = `⏰ ${formatearHoraBogota(pedido.entregaProgramadaISO)}`;
     } else {
-        elTime.textContent = `⚡ ${pedido.hora || 'En caja'}`;
+        elTime.textContent = pedido.hora || 'En caja';
     }
 
     const extras = [
@@ -1272,14 +1297,30 @@ function mostrarPaseAppleWallet(pedido) {
         ...(pedido.toppingDetalle || []),
         ...(pedido.bebidaDetalle || [])
     ];
-    const htmlItems = [
-        `<div>🥣 <strong>Base:</strong> ${ui.esc(pedido.bowl)}</div>`,
-        ...extras.map((i) => `<div>• ${ui.esc(i.nombre)} <strong>x${Number(i.cantidad)}</strong> (${ui.fmt((i.precio || 0) * i.cantidad)})</div>`),
-        pedido.notas ? `<div style="margin-top:6px; color:#653BA0; font-style:italic;">📝 "${ui.esc(pedido.notas)}"</div>` : ''
-    ].join('');
 
-    document.getElementById('walletPassItems').innerHTML = htmlItems;
-    document.getElementById('walletPassDate').textContent = `${pedido.fechaLocal || obtenerFechaHoyStr()} · Muestra este pase en caja`;
+    const filas = [];
+    if (pedido.bowl && pedido.bowl !== 'Compra Individual' && pedido.bowl !== 'Solo Extras / Bebida') {
+        filas.push(`
+            <div class="ticket-row">
+                <span><strong>1×</strong> ${ui.esc(pedido.bowl)} <small>(Base)</small></span>
+            </div>
+        `);
+    }
+    extras.forEach((i) => {
+        const sub = (i.precio || 0) * (i.cantidad || 1);
+        filas.push(`
+            <div class="ticket-row">
+                <span><strong>${Number(i.cantidad)}×</strong> ${ui.esc(i.nombre)}</span>
+                <span>${ui.fmt(sub)}</span>
+            </div>
+        `);
+    });
+    if (pedido.notas) {
+        filas.push(`<div class="ticket-note">📝 ${ui.esc(pedido.notas)}</div>`);
+    }
+
+    document.getElementById('walletPassItems').innerHTML = filas.join('');
+    document.getElementById('walletPassDate').textContent = `${pedido.fechaLocal || obtenerFechaHoyStr()} · Gracias por tu compra`;
 
     modal.style.display = 'flex';
 }

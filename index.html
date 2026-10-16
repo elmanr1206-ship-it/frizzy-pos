@@ -347,43 +347,49 @@
   </div>
 
   <!-- MODAL PASE APPLE WALLET -->
+<!-- MODAL TICKET COMPACTO (LO ESENCIAL) -->
   <div id="walletPassModal" class="modal-backdrop" style="display: none;">
-    <div style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px;">
-      <div id="walletPassCapture" class="apple-wallet-pass">
-        <div class="wallet-pass-header">
-          <span style="background: #FBBB1E; color: #1B0836; font-family: 'Fredoka', sans-serif; font-weight: 900; padding: 3px 10px; border-radius: 8px; font-size: 0.86rem;">FRIZZY PASS</span>
-          <span id="walletPassCode" style="font-family: 'Fredoka', sans-serif; font-size: 0.95rem; color: #FBBB1E;">#FZ-0000</span>
+    <div class="mini-ticket-wrapper">
+      <div id="walletPassCapture" class="mini-ticket">
+        <div class="mini-ticket-top">
+          <span class="mini-ticket-brand">FRIZZY</span>
+          <span id="walletPassCode" class="mini-ticket-code">#FZ-0000</span>
         </div>
-        <div class="wallet-pass-body">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-            <div>
-              <div style="font-size: 0.65rem; font-weight: 800; color: #653BA0;">CLIENTE</div>
-              <div id="walletPassClient" style="font-size: 1.15rem; font-weight: 900; color: #1B0836;">Camila</div>
-            </div>
-            <div style="text-align: right;">
-              <div style="font-size: 0.65rem; font-weight: 800; color: #653BA0;">ENTREGA</div>
-              <div id="walletPassTime" style="font-size: 0.9rem; font-weight: 900; color: #2A0E4F;">En caja</div>
-            </div>
+
+        <div class="mini-ticket-meta">
+          <div>
+            <span class="meta-label">CLIENTE</span>
+            <strong id="walletPassClient" class="meta-value">Cliente</strong>
           </div>
-          <div id="walletPassItems" style="background: #FFFFFF; border: 1px solid #EFE6D5; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.85rem; color: #2A0E4F; font-weight: 700; line-height: 1.45;"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span id="walletPassPay" style="font-size: 0.84rem; font-weight: 800; color: #4E2286;">Efectivo</span>
-            <span id="walletPassTotal" style="font-family: 'Fredoka', sans-serif; font-size: 1.5rem; font-weight: 700; color: #1B0836;">$0</span>
+          <div style="text-align: right;">
+            <span class="meta-label">ENTREGA</span>
+            <strong id="walletPassTime" class="meta-value time-pill">En caja</strong>
           </div>
         </div>
-        <div class="wallet-pass-divider">
-          <span class="notch-left"></span>
-          <div class="dashed-line"></div>
-          <span class="notch-right"></span>
+
+        <div class="mini-ticket-divider"></div>
+
+        <div id="walletPassItems" class="mini-ticket-items"></div>
+
+        <div class="mini-ticket-divider"></div>
+
+        <div class="mini-ticket-total-row">
+          <div>
+            <span class="meta-label">PAGO</span>
+            <strong id="walletPassPay" class="meta-pay">Efectivo</strong>
+          </div>
+          <div style="text-align: right;">
+            <span class="meta-label">TOTAL</span>
+            <strong id="walletPassTotal" class="meta-total">$0</strong>
+          </div>
         </div>
-        <div class="wallet-pass-footer">
-          <div class="barcode-bars"></div>
-          <div id="walletPassDate" style="font-size: 0.7rem; font-weight: 700; color: #653BA0; margin-top: 6px;">Presenta este pase en caja</div>
-        </div>
+
+        <div id="walletPassDate" class="mini-ticket-foot">Presenta este ticket en caja</div>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button type="button" id="btnSaveWalletImage" class="btn-guardar" style="margin-top: 0; flex: 1;">📸 Guardar Pase</button>
-        <button type="button" id="btnCloseWalletModal" class="btn-apple-subtle" style="background: #FFF; flex: 0.6;">Cerrar</button>
+
+      <div class="mini-ticket-actions">
+        <button type="button" id="btnSaveWalletImage" class="btn-guardar" style="margin-top: 0; flex: 1; padding: 11px;">📸 Guardar Ticket</button>
+        <button type="button" id="btnCloseWalletModal" class="btn-apple-subtle" style="background: rgba(255,255,255,0.92); width: auto; padding: 11px 18px;">Cerrar</button>
       </div>
     </div>
   </div>

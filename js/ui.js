@@ -191,7 +191,37 @@ export const ui = {
                 : this.esc(p.bowl);
 
             const sumaExtras = todosLosExtras.reduce((acc, i) => acc + (Number(i.precio || 0) * Number(i.cantidad || 0)), 0);
-            const precioBowl = Math.max(0, Number(p.total || 0) - sumaExtras);
+            const precioBowl = p.precioBowl || (
+                p.total - [
+                    ...(p.acompDetalle || []),
+                    ...(p.toppingDetalle || []),
+                    ...(p.bebidaDetalle || [])
+                ].reduce((s, x) => s + (x.subtotal || (x.precio * x.cantidad) || 0), 0)
+            );
+
+            const bowlLine = (p.bowl && p.bowl !== 'Compra Individual' && p.bowl !== 'Solo Extras / Bebida')
+                ? `<div class="apple-receipt-row is-base">
+                     <div class="receipt-item-left">
+                       <span class="receipt-badge base">BASE</span>
+                       <span class="receipt-item-name">${this.esc(p.bowl)}</span>
+                     </div>
+                     <span class="receipt-item-price">${precioBowl > 0 ? this.fmt(precioBowl) : ''}</span>
+                   </div>`
+                : '';
+
+            const mapDetalles = (arr) => (arr || []).map((x) => {
+                const sub = x.subtotal || ((x.precio || 0) * (x.cantidad || 1));
+                const cant = Number(x.cantidad || 1);
+                return `<div class="apple-receipt-row">
+                          <div class="receipt-item-left">
+                            <span class="receipt-badge ${cant > 1 ? 'multi' : ''}">${cant}×</span>
+                            <span class="receipt-item-name">${this.esc(x.nombre)}</span>
+                          </div>
+                          <span class="receipt-item-price">${this.fmt(sub)}</span>
+                        </div>`;
+            }).join('');
+
+            const extrasList = mapDetalles(p.acompDetalle) + mapDetalles(p.toppingDetalle) + mapDetalles(p.bebidaDetalle);
 
             const filasDetalleHTML = todosLosExtras.map((i) => `
                 <div class="apple-receipt-row">

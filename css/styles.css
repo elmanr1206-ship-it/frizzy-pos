@@ -1423,3 +1423,509 @@ hr.divider {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
 }
+
+/* ==========================================================================
+   1. QUITAR FLECHAS ARRIBA/ABAJO EN INPUTS DE PRECIO (MENÚ Y AJUSTES)
+   ========================================================================== */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* ==========================================================================
+   2. DESGLOSE DE PEDIDOS DE HOY: LECTURA RÁPIDA Y CLARA (TIPO COMANDA)
+   ========================================================================== */
+.order-head .who {
+  font-weight: 900;
+  font-size: 1.02rem;
+  color: var(--morado-950);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-head .meta {
+  font-size: 0.8rem;
+  color: var(--morado-700);
+  font-weight: 800;
+  margin-top: 3px;
+}
+
+.apple-chevron {
+  font-size: 1rem;
+  color: var(--morado-800);
+  font-weight: 900;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(56, 20, 102, 0.08);
+  transition: transform 0.22s var(--apple-spring), background 0.2s ease;
+}
+
+.order-item.open .apple-chevron {
+  background: rgba(245, 166, 35, 0.25);
+  color: var(--morado-950);
+}
+
+/* Contenedor de filas de ingredientes dentro del pedido abierto */
+.apple-receipt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  margin-bottom: 6px;
+  background: rgba(249, 244, 232, 0.75);
+  border: 1px solid rgba(56, 20, 102, 0.08);
+  border-radius: 12px;
+  font-size: 0.94rem;
+  color: var(--morado-950);
+}
+
+.apple-receipt-row.is-base {
+  background: linear-gradient(135deg, rgba(255, 246, 214, 0.95), rgba(255, 236, 179, 0.75));
+  border-color: rgba(245, 166, 35, 0.45);
+}
+
+.receipt-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Pastilla de cantidad (1x, 2x, BASE) para identificar cantidades de un vistazo */
+.receipt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: rgba(56, 20, 102, 0.12);
+  color: var(--morado-900);
+  font-weight: 900;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.receipt-badge.base {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.receipt-badge.multi {
+  background: var(--dorado);
+  color: var(--morado-950);
+  box-shadow: 0 2px 6px rgba(245, 166, 35, 0.35);
+}
+
+.receipt-item-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--morado-950);
+}
+
+.receipt-item-price,
+.apple-receipt-row > strong {
+  font-weight: 900;
+  font-size: 0.92rem;
+  color: var(--morado-800);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* Compatibilidad por si ui.js usa el formato anterior de span + strong */
+.apple-qty-tag {
+  display: inline-block;
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+/* Caja de Nota destacada para que cocina/caja la vea de inmediato */
+.apple-note-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFF4D6;
+  border-left: 4px solid var(--dorado-fuerte);
+  padding: 9px 12px;
+  border-radius: 10px;
+  margin-top: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--morado-950);
+}
+
+/* ==========================================================================
+   3. PEQUEÑO TICKET MINIMALISTA (PASE DEL PEDIDO)
+   ========================================================================== */
+.mini-ticket-wrapper {
+  width: 100%;
+  max-width: 305px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: appleModalPop 0.28s var(--apple-spring) both;
+}
+
+.mini-ticket {
+  background: #FFFDF9;
+  color: var(--morado-950);
+  border-radius: 22px;
+  padding: 20px 18px 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  position: relative;
+}
+
+.mini-ticket-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.mini-ticket-brand {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  padding: 4px 11px;
+  border-radius: 9px;
+}
+
+.mini-ticket-code {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--morado-700);
+}
+
+.mini-ticket-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.meta-label {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--morado-700);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.meta-value {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--morado-950);
+}
+
+.meta-value.time-pill {
+  display: inline-block;
+  font-size: 0.82rem;
+  background: #FFF3D2;
+  color: var(--morado-950);
+  border: 1px solid var(--dorado);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.mini-ticket-divider {
+  border-top: 1.5px dashed #DFD3B8;
+  margin: 12px 0;
+}
+
+.mini-ticket-items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.88rem;
+  color: var(--morado-900);
+}
+
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.ticket-row strong {
+  color: var(--morado-950);
+  font-weight: 900;
+}
+
+.ticket-note {
+  margin-top: 4px;
+  padding: 6px 9px;
+  background: #FAF3E0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--morado-800);
+}
+
+.mini-ticket-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.meta-pay {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--morado-900);
+}
+
+.meta-total {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.48rem;
+  font-weight: 700;
+  color: var(--morado-950);
+  line-height: 1;
+}
+
+.mini-ticket-foot {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--morado-700);
+  opacity: 0.8;
+}
+
+.mini-ticket-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   CENTRO DE NOTIFICACIONES ESTILO APPLE iOS / visionOS LIQUID GLASS
+   ========================================================================== */
+#appleNotificationCenter {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 20px;
+  width: min(375px, calc(100vw - 24px));
+  z-index: 3100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+/* 1. Banner de Alarma de Apartado (Apple Ruby Glass) */
+#alarmBanner {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  background: linear-gradient(145deg, rgba(58, 12, 28, 0.88), rgba(34, 8, 24, 0.92)) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(210%) !important;
+  backdrop-filter: blur(36px) saturate(210%) !important;
+  border: 1.5px solid rgba(255, 120, 120, 0.45) !important;
+  border-radius: 24px !important;
+  padding: 15px 18px !important;
+  color: #FFFFFF !important;
+  box-shadow:
+    0 24px 48px -8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  pointer-events: auto;
+  animation: appleNotifSlideIn 0.38s var(--apple-spring) both;
+}
+
+.btn-silence-alarm,
+#btnStopAlarm {
+  min-height: 36px !important;
+  padding: 7px 15px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #7A1224 !important;
+  font-family: inherit !important;
+  font-weight: 900 !important;
+  font-size: 0.78rem !important;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s var(--apple-spring), background 0.18s ease;
+}
+
+.btn-silence-alarm:hover,
+#btnStopAlarm:hover {
+  transform: scale(1.04);
+  background: #FFFFFF !important;
+}
+
+.btn-silence-alarm:active,
+#btnStopAlarm:active {
+  transform: scale(0.94);
+}
+
+/* 2. Pila 3D de Nuevos Pedidos / Apartados (Apple Dark Frosted Glass) */
+#incomingOrderStack {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  min-height: 230px;
+  pointer-events: none;
+}
+
+#incomingOrderStack:empty {
+  display: none !important;
+  min-height: 0 !important;
+}
+
+@keyframes appleNotifSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.green-order-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(155deg, rgba(28, 12, 54, 0.90) 0%, rgba(18, 6, 38, 0.94) 100%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  backdrop-filter: blur(40px) saturate(210%);
+  color: #FFFDF9;
+  border: 1.5px solid rgba(255, 255, 255, 0.26);
+  border-radius: 26px;
+  padding: 16px 18px;
+  box-shadow:
+    0 26px 54px -10px rgba(6, 1, 16, 0.65),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.42);
+  pointer-events: auto;
+  transition:
+    transform 0.4s var(--apple-spring),
+    opacity 0.32s var(--apple-spring),
+    filter 0.32s ease;
+  transform-origin: top center;
+  animation: appleNotifSlideIn 0.38s var(--apple-spring) both;
+}
+
+/* Posiciones del mazo apilado estilo iOS Notification Stack */
+.green-order-card[data-stack-pos="0"] {
+  z-index: 30;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+}
+
+.green-order-card[data-stack-pos="1"] {
+  z-index: 29;
+  transform: translate3d(0, 14px, 0) scale(0.95);
+  opacity: 0.88;
+  filter: brightness(0.84);
+  pointer-events: none;
+}
+
+.green-order-card[data-stack-pos="2"] {
+  z-index: 28;
+  transform: translate3d(0, 26px, 0) scale(0.90);
+  opacity: 0.72;
+  filter: brightness(0.70);
+  pointer-events: none;
+}
+
+.green-order-card[data-stack-pos="hidden"] {
+  z-index: 27;
+  transform: translate3d(0, 36px, 0) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Cabecera e insignias internas de la notificación */
+.green-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #FFE082;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+/* Botón inferior translúcido estilo iOS Action Pill */
+.green-card-close-btn {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.12));
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 14px rgba(0, 0, 0, 0.22);
+  transition: all 0.2s var(--apple-spring);
+}
+
+.green-card-close-btn:hover {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--morado-950);
+  transform: translateY(-1px);
+}
+
+.green-card-close-btn:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 640px) {
+  #appleNotificationCenter {
+    right: 50%;
+    transform: translateX(50%);
+    top: calc(10px + env(safe-area-inset-top));
+    width: calc(100vw - 20px);
+  }
+}
