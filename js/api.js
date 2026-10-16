@@ -421,14 +421,13 @@ export const api = {
         }
     },
 
-    // Obtiene el PIN dinámico de clientes y si el acceso de clientes está abierto (Punto C)
-    async obtenerConfiguracionSistema() {
+async obtenerConfiguracionSistema() {
         const sb = await getSupabase();
         if (!sb) return null;
         const { data, error } = await sb
             .from('configuracion_sistema')
             .select('clave, valor')
-            .in('clave', ['cliente_pin', 'clientes_habilitados', 'telegram_chat_id']);
+            .in('clave', ['cliente_pin', 'clientes_habilitados']);
 
         if (error || !data) return null;
         const mapa = {};
@@ -436,8 +435,7 @@ export const api = {
         return mapa;
     },
 
-    // Guarda el PIN de clientes, el estado abierto/cerrado y los Chat IDs de Telegram en la nube
-    async guardarConfiguracionSistema({ clientePin, clientesHabilitados, telegramChatIds }) {
+    async guardarConfiguracionSistema({ clientePin, clientesHabilitados }) {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión' } };
 
@@ -447,9 +445,6 @@ export const api = {
         }
         if (clientesHabilitados !== undefined) {
             filas.push({ clave: 'clientes_habilitados', valor: clientesHabilitados ? 'true' : 'false', updated_at: new Date().toISOString() });
-        }
-        if (telegramChatIds !== undefined) {
-            filas.push({ clave: 'telegram_chat_id', valor: String(telegramChatIds).trim(), updated_at: new Date().toISOString() });
         }
 
         const { error } = await sb

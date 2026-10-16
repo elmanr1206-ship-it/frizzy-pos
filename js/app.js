@@ -346,30 +346,45 @@ function actualizarPreviewProgramador() {
 // ---------------- GESTIÓN DE ROLES (ADMIN vs CLIENTE) ----------------
 async function aplicarVistaPorRol() {
     await cargarConfiguracionClientes();
+    const gate = document.getElementById('authGateModal');
     const adminAside = document.getElementById('adminAsideColumn');
     const adminButtons = document.getElementById('adminOrderButtons');
     const mainGrid = document.getElementById('mainAppGrid');
     const sessionBadge = document.getElementById('userSessionBadge');
+    const pinPillContainer = document.getElementById('pinPillContainer');
+    const pinPillSep = document.getElementById('pinPillSep');
     const loyaltyBanner = document.getElementById('clienteLoyaltyBanner');
     const loyaltyTitle = document.getElementById('clienteLoyaltyTitle');
     const loyaltySub = document.getElementById('clienteLoyaltySub');
     const inputNombre = document.getElementById('nombreCliente');
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
-    const btnToggleRole = document.getElementById('btnToggleRoleView');
 
+    // Verificar si existe una sesión real de Supabase Auth para el Administrador
     if (!usuarioActual) {
-        usuarioActual = { rol: 'admin', nombre: 'Administrador' };
-        localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+        const sbSession = await api.getSession();
+        if (sbSession?.user) {
+            usuarioActual = { rol: 'admin', nombre: sbSession.user.email || 'Administrador' };
+            localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
+        }
     }
+
+    // SI NO HAY SESIÓN ACTIVA, MOSTRAR SIEMPRE EL LOGIN EN PRIMER PLANO
+    if (!usuarioActual) {
+        if (gate) gate.style.display = 'flex';
+        return;
+    }
+
+    if (gate) gate.style.display = 'none';
 
     if (usuarioActual.rol === 'admin') {
         if (adminAside) adminAside.style.display = 'block';
         if (adminButtons) adminButtons.style.display = 'block';
+        if (pinPillContainer) pinPillContainer.style.display = 'inline';
+        if (pinPillSep) pinPillSep.style.display = 'inline';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '';
         if (loyaltyBanner) loyaltyBanner.style.display = 'none';
-        if (sessionBadge) sessionBadge.textContent = '🔐 Admin';
-        if (btnToggleRole) btnToggleRole.textContent = '👤 Vista Cliente';
+        if (sessionBadge) sessionBadge.textContent = `🔐 Admin`;
         if (bannerPedidos) bannerPedidos.textContent = 'Pedidos de Hoy (Todos los Dispositivos)';
         if (bannerApartados) bannerApartados.textContent = 'Apartados Activos (Con Temporizador)';
         if (inputNombre && !estado.clienteBloqueado) {
@@ -380,9 +395,10 @@ async function aplicarVistaPorRol() {
         const nombreCli = normalizarNombreCliente(usuarioActual.nombre);
         if (adminAside) adminAside.style.display = 'none';
         if (adminButtons) adminButtons.style.display = 'none';
+        if (pinPillContainer) pinPillContainer.style.display = 'none';
+        if (pinPillSep) pinPillSep.style.display = 'none';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
-        if (sessionBadge) sessionBadge.textContent = `👤 ${nombreCli}`;
-        if (btnToggleRole) btnToggleRole.textContent = '🔐 Volver a Admin';
+        if (sessionBadge) sessionBadge.textContent = `👤 Cliente: ${nombreCli}`;
         if (bannerPedidos) bannerPedidos.textContent = `Mis Pedidos de Hoy (${nombreCli})`;
         if (bannerApartados) bannerApartados.textContent = `Mis Pedidos Apartados (${nombreCli})`;
 
@@ -396,7 +412,7 @@ async function aplicarVistaPorRol() {
             loyaltyBanner.style.display = 'block';
             const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli) : 0;
             const faltan = 5 - (compras % 5);
-            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} compras`;
+            loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} ${compras === 1 ? 'compra' : 'compras'}`;
             loyaltySub.textContent = compras > 0 && compras % 5 === 0
                 ? '🎉 ¡Felicidades! En este pedido tienes un TOPPING GRATIS incluido.'
                 : `Te faltan ${faltan} ${faltan === 1 ? 'compra' : 'compras'} para tu próximo topping gratis.`;
@@ -865,18 +881,10 @@ async function verificarCorteAutomaticoMedianoche() {
 
     if (fechaJornadaActiva !== hoyStr || pedidosDiaAnterior.length > 0) {
         if (pedidos.length > 0) {
-            const listaParaReporte = pedidosDiaAnterior.length > 0 ? pedidosDiaAnterior : [...pedidos];
-            const fechaReporte = listaParaReporte[0]?.fechaLocal || fechaJornadaActiva;
-            const resumenTxt = construirMensajeWhatsApp(listaParaReporte, fechaReporte);
-            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
-
             if (navigator.onLine) {
-                await api.cerrarJornadaServidor(apiKeyGuardada);
-                if (apiKeyGuardada) {
-                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, resumenTxt, apiKeyGuardada);
-                }
+                await sincronizarCola();
+                await api.cerrarJornadaServidor();
             }
-
             pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
             fechaJornadaActiva = hoyStr;
             idsPedidosConocidos.clear();
@@ -884,7 +892,7 @@ async function verificarCorteAutomaticoMedianoche() {
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-            ui.mostrarToast(`🌙 Corte automático de medianoche completado`);
+            ui.mostrarToast('🌙 Corte de medianoche enviado automáticamente a Telegram');
         } else {
             fechaJornadaActiva = hoyStr;
             saveState();
@@ -1223,9 +1231,6 @@ async function cargarConfiguracionClientes() {
         if (cfg.cliente_pin) configClientes.pin = String(cfg.cliente_pin).trim();
         if (cfg.clientes_habilitados !== undefined) {
             configClientes.habilitado = cfg.clientes_habilitados !== 'false';
-        }
-        if (cfg.telegram_chat_id) {
-            localStorage.setItem('fz_whatsapp_apikey', cfg.telegram_chat_id);
         }
         localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
     }
@@ -1676,7 +1681,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
             const btnTest = document.createElement('button');
             btnTest.type = 'button';
             btnTest.id = 'btnTestWhatsappAuto';
-            btnTest.textContent = '🧪 Probar WhatsApp';
+            btnTest.textContent = 'Ingresar';
             btnTest.style.cssText = 'min-height:36px; padding:6px 12px; border-radius:8px; border:none; background:#25D366; color:#1B0836; font-weight:900; font-size:0.75rem; cursor:pointer;';
             inputApiKey.parentElement.appendChild(btnTest);
 
@@ -1820,25 +1825,25 @@ async function init() {
         if (tabla === 'pedidos') await sincronizarDesdeNubeMultiDispositivo();
     });
 
-    const tabCli = document.getElementById('tabRoleCliente');
     const tabAdm = document.getElementById('tabRoleAdmin');
-    const formCli = document.getElementById('formLoginCliente');
+    const tabCli = document.getElementById('tabRoleCliente');
     const formAdm = document.getElementById('formLoginAdminGate');
+    const formCli = document.getElementById('formLoginCliente');
     const gateErr = document.getElementById('authGateError');
-
-    tabCli?.addEventListener('click', () => {
-        tabCli.classList.add('active');
-        tabAdm.classList.remove('active');
-        formCli.style.display = 'block';
-        formAdm.style.display = 'none';
-        if (gateErr) gateErr.style.display = 'none';
-    });
 
     tabAdm?.addEventListener('click', () => {
         tabAdm.classList.add('active');
         tabCli.classList.remove('active');
         formAdm.style.display = 'block';
         formCli.style.display = 'none';
+        if (gateErr) gateErr.style.display = 'none';
+    });
+
+    tabCli?.addEventListener('click', () => {
+        tabCli.classList.add('active');
+        tabAdm.classList.remove('active');
+        formCli.style.display = 'block';
+        formAdm.style.display = 'none';
         if (gateErr) gateErr.style.display = 'none';
     });
 
@@ -2129,20 +2134,20 @@ async function init() {
         ui.mostrarToast(`✅ Producto "${nombre}" agregado a la base de datos y al front`);
     });
 
-    btnGuardarPrecios?.addEventListener('click', async () => {
+    document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
         const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '1234').trim();
         const nuevoAccesoCli = document.getElementById('btnToggleClientAccess')?.getAttribute('data-enabled') !== 'false';
-        const chatIdsTelegram = (document.getElementById('adminWhatsappApiKey')?.value || '7412641484').trim();
 
         configClientes = { pin: nuevoPinCli, habilitado: nuevoAccesoCli };
         localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
-        localStorage.setItem('fz_whatsapp_apikey', chatIdsTelegram);
+
+        const pinDisplay = document.getElementById('pillPinDisplay');
+        if (pinDisplay) pinDisplay.textContent = nuevoPinCli;
 
         if (navigator.onLine && typeof api.guardarConfiguracionSistema === 'function') {
             await api.guardarConfiguracionSistema({
                 clientePin: nuevoPinCli,
-                clientesHabilitados: nuevoAccesoCli,
-                telegramChatIds: chatIdsTelegram
+                clientesHabilitados: nuevoAccesoCli
             });
         }
         const inputs = listaDiv.querySelectorAll('input[data-id]');
@@ -2269,21 +2274,11 @@ async function init() {
 
     document.getElementById('btnCerrar')?.addEventListener('click', () => {
         if (pedidos.length === 0) return ui.mostrarToast('La caja ya está en cero');
-        ui.confirmarAccion('¿Cerrar el día y reiniciar la caja en todos los dispositivos? (El reporte se envía en segundo plano y los datos quedan en el Dashboard)', async () => {
-            const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
-            const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
-
-            // 1. Subir cualquier pedido pendiente antes de cerrar
+        ui.confirmarAccion('¿Cerrar el día, enviar el reporte por el Bot de Telegram y reiniciar la caja en todos los dispositivos?', async () => {
             if (navigator.onLine) {
                 await sincronizarCola();
-                // 2. Marcar como 'cerrado' en Supabase y disparar WhatsApp desde el servidor
-                await api.cerrarJornadaServidor(apiKeyGuardada);
-                if (apiKeyGuardada) {
-                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
-                }
+                await api.cerrarJornadaServidor();
             }
-
-            // 3. Reiniciar inmediatamente la caja local a 0 (sin abrir links externos)
             pedidos = [];
             colaCartasVerdes = [];
             filtroPago = null;
@@ -2291,7 +2286,7 @@ async function init() {
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-            ui.mostrarToast('✅ Día cerrado y caja reiniciada en todos los dispositivos.');
+            ui.mostrarToast('✈️ Día cerrado y reporte enviado a tu Telegram.');
         });
     });
 }

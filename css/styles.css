@@ -1,18 +1,19 @@
 :root {
-  --morado-950: #1B0836;
-  --morado-900: #2A0E4F;
-  --morado-800: #3B1766;
+  --morado-950: #16052E;
+  --morado-900: #260C4A;
+  --morado-800: #381563;
   --morado-700: #4E2286;
-  --morado-600: #653BA0;
+  --morado-600: #6A3AA8;
   --dorado: #F5A623;
-  --dorado-claro: #FBBB1E;
-  --dorado-fuerte: #E8930C;
-  --crema: #F7EFDD;
-  --crema-2: #FFFAEF;
-  --rojo: #D1272B;
-  --verde: #3E9B5C;
-  --sombra: 0 18px 40px rgba(12, 2, 28, 0.36);
-  --sombra-suave: 0 6px 16px rgba(15, 3, 34, 0.10);
+  --dorado-claro: #FFC436;
+  --dorado-fuerte: #DF8908;
+  --crema: #F8F1E1;
+  --crema-2: #FFFDF7;
+  --rojo: #D92D20;
+  --verde: #12B76A;
+  --glass-bg: rgba(255, 252, 245, 0.84);
+  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-shadow: 0 22px 48px -12px rgba(10, 2, 24, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.92);
   --apple-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -24,21 +25,19 @@
 html, body {
   margin: 0;
   padding: 0;
-}
-
-html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
 }
 
 body {
   background:
-    radial-gradient(1100px 560px at 105% -8%, var(--morado-600) 0%, transparent 58%),
-    radial-gradient(900px 520px at -8% 108%, var(--morado-700) 0%, transparent 55%),
-    linear-gradient(180deg, var(--morado-950), var(--morado-900) 40%, var(--morado-950));
+    radial-gradient(950px 580px at 15% -10%, rgba(123, 67, 190, 0.48) 0%, transparent 60%),
+    radial-gradient(900px 540px at 95% 10%, rgba(245, 166, 35, 0.18) 0%, transparent 55%),
+    radial-gradient(1000px 620px at 50% 110%, rgba(92, 39, 156, 0.45) 0%, transparent 62%),
+    linear-gradient(180deg, #1A0636 0%, #240B46 50%, #15042C 100%);
   background-attachment: fixed;
   color: var(--crema);
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
@@ -49,11 +48,7 @@ body {
   overflow-x: hidden;
 }
 
-button, .choice-card, .qty-btn, .order-head, input, textarea, select {
-  touch-action: manipulation;
-}
-
-/* Prevención de auto-zoom en Safari iPadOS/iOS y target mínimo de 44px */
+/* Regla estricta iPadOS: evita auto-zoom en inputs y asegura área táctil mínima de 44px */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -65,54 +60,37 @@ textarea {
   min-height: 44px;
 }
 
+button, .choice-card, .qty-btn, .order-head {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
 h1, h2, h3, .banner, .logo-plate text {
   font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 26px 26px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-header, .app, #toast {
-  position: relative;
-  z-index: 1;
-}
-
-/* ---------- Header Estilo Apple ---------- */
+/* ---------- Header y Cápsula Superior Apple Glass ---------- */
 header {
-  padding: calc(20px + env(safe-area-inset-top)) 16px 14px;
+  padding: calc(18px + env(safe-area-inset-top)) 16px 14px;
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .logo-wrap {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  max-width: 100%;
+  gap: 6px;
 }
 
 .logo-plate {
-  position: relative;
-  padding: 4px 18px 6px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.42));
   transition: transform 0.3s var(--apple-spring);
 }
 
-.logo-plate svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
 .tagline {
-  font-family: 'Nunito', sans-serif;
   font-size: 0.72rem;
   letter-spacing: 0.16em;
   color: var(--dorado-claro);
@@ -121,36 +99,178 @@ header {
   opacity: 0.92;
 }
 
-/* ---------- Layout Principal ---------- */
+.apple-status-pill {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.10);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #FFFDF7;
+}
+
+.apple-status-pill .pill-sep {
+  opacity: 0.35;
+}
+
+.apple-status-pill .pill-action {
+  background: rgba(255, 107, 107, 0.18);
+  border: 1px solid rgba(255, 138, 138, 0.4);
+  color: #FFD2D2;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 999px;
+  min-height: 28px;
+  transition: all 0.2s var(--apple-spring);
+}
+
+.apple-status-pill .pill-action:hover {
+  background: rgba(255, 107, 107, 0.32);
+  color: #FFFFFF;
+}
+
+/* ---------- Pantalla de Login en Primer Plano (Apple Lock Screen Glass) ---------- */
+.auth-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(106, 58, 168, 0.55) 0%, rgba(22, 5, 46, 0.92) 70%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  z-index: 3200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.auth-gate-card {
+  background: rgba(255, 252, 245, 0.90);
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  backdrop-filter: blur(36px) saturate(200%);
+  color: var(--morado-900);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 30px;
+  padding: 30px 26px;
+  width: 100%;
+  max-width: 430px;
+  box-shadow:
+    0 32px 64px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95);
+  text-align: center;
+  animation: appleScaleIn 0.35s var(--apple-spring);
+}
+
+@keyframes appleScaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.auth-gate-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 0.88rem;
+  color: var(--morado-700);
+  font-weight: 800;
+}
+
+.role-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(42, 14, 79, 0.08);
+  padding: 5px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(42, 14, 79, 0.08);
+}
+
+.role-tab {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--morado-800);
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: all 0.22s var(--apple-spring);
+}
+
+.role-tab.active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  box-shadow: 0 6px 16px rgba(38, 12, 74, 0.28);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--morado-700);
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+.auth-error-msg {
+  color: var(--rojo);
+  background: rgba(217, 45, 32, 0.1);
+  border: 1px solid rgba(217, 45, 32, 0.25);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  margin: 14px 0 0 0;
+}
+
+/* ---------- Layout Principal y Paneles Liquid Glass ---------- */
 .app {
-  max-width: 1240px;
+  max-width: 1260px;
   margin: 0 auto;
-  padding: 6px 16px 0;
+  padding: 8px 18px 0;
   display: grid;
   grid-template-columns: 1.55fr 1fr;
   gap: 22px;
   align-items: start;
+  position: relative;
+  z-index: 1;
 }
 
-@media (max-width: 940px) {
+@media (max-width: 960px) {
   .app {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 18px;
   }
 }
 
 .panel {
-  background: linear-gradient(180deg, rgba(255, 251, 242, 0.97), rgba(247, 239, 221, 0.95));
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(30px) saturate(195%);
+  backdrop-filter: blur(30px) saturate(195%);
   color: var(--morado-900);
-  border-radius: 26px;
-  padding: 22px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 18px 38px rgba(12, 2, 28, 0.34);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
   margin-bottom: 20px;
+}
+
+.glass-loyalty {
+  background: linear-gradient(135deg, rgba(255, 248, 224, 0.92), rgba(255, 232, 168, 0.88));
+  border-color: var(--dorado);
 }
 
 .banner {
@@ -160,62 +280,63 @@ header {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  padding: 9px 22px;
-  border-radius: 12px 20px 12px 20px;
-  transform: rotate(-1deg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 4px 0 var(--dorado-fuerte), var(--sombra-suave);
-  font-size: 1.04rem;
+  padding: 8px 20px;
+  border-radius: 14px 20px 14px 20px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.75), 0 4px 12px rgba(245, 166, 35, 0.32);
+  font-size: 1rem;
   margin-bottom: 16px;
 }
 
 .banner.small {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   padding: 7px 16px;
 }
 
 .subhead {
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--morado-700);
-  font-weight: 800;
-  margin: 0 0 8px 2px;
+  font-weight: 900;
+  margin: 0 0 10px 2px;
 }
 
-/* ---------- Formulario ---------- */
+/* ---------- Inputs & Formularios ---------- */
 .field {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   position: relative;
 }
 
 .field label {
   display: block;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--morado-800);
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"],
+input[type="number"],
+select,
 textarea {
   width: 100%;
   padding: 12px 16px;
-  border-radius: 15px;
-  border: 1.5px solid #E5D8B8;
-  background: rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  border: 1.5px solid rgba(56, 21, 99, 0.16);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--morado-900);
   font-family: inherit;
+  font-weight: 700;
   box-shadow: inset 0 1px 2px rgba(15, 3, 34, 0.04);
-  transition: border-color 0.22s var(--apple-spring), box-shadow 0.22s var(--apple-spring), background 0.2s ease;
+  transition: all 0.2s var(--apple-spring);
 }
 
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
+input:focus,
+select:focus,
 textarea:focus {
   outline: none;
   background: #FFFFFF;
@@ -223,24 +344,19 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.24);
 }
 
-textarea {
-  resize: vertical;
-  min-height: 54px;
-}
-
-/* ---------- Autocompletado de Clientes (Top 3) ---------- */
+/* ---------- Sugerencias de Clientes ---------- */
 #sugerenciasClientes {
   display: none;
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(255, 252, 245, 0.98);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-  border: 2px solid var(--morado-900);
+  background: rgba(255, 253, 248, 0.96);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1.5px solid var(--morado-800);
   border-radius: 16px;
-  box-shadow: 0 16px 34px rgba(15, 3, 34, 0.26);
+  box-shadow: 0 18px 36px rgba(15, 3, 34, 0.25);
   z-index: 200;
   margin-top: 6px;
   overflow: hidden;
@@ -250,10 +366,10 @@ textarea {
   width: 100%;
   min-height: 46px;
   text-align: left;
-  padding: 10px 15px;
+  padding: 10px 16px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #E9DEC0;
+  border-bottom: 1px solid rgba(56, 21, 99, 0.1);
   font-family: inherit;
   font-size: 16px;
   color: var(--morado-900);
@@ -262,19 +378,13 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background 0.15s ease;
 }
 
-.sugerencia-item:last-child {
-  border-bottom: none;
+.sugerencia-item:hover {
+  background: rgba(245, 166, 35, 0.18);
 }
 
-.sugerencia-item:hover,
-.sugerencia-item:active {
-  background: #FFF3D2;
-}
-
-/* ---------- Tarjetas Estilo Apple iOS ---------- */
+/* ---------- Tarjetas Interactivas de Productos ---------- */
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
@@ -282,23 +392,22 @@ textarea {
 }
 
 .choice-card {
-  border: 1.5px solid #E6DAC0;
-  background: rgba(255, 252, 245, 0.9);
-  border-radius: 17px;
-  padding: 13px 15px;
+  border: 1.5px solid rgba(56, 21, 99, 0.12);
+  background: rgba(255, 255, 255, 0.74);
+  border-radius: 18px;
+  padding: 14px 15px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(15, 3, 34, 0.04);
-  transition: transform 0.22s var(--apple-spring), border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 4px 10px rgba(15, 3, 34, 0.04);
+  transition: all 0.2s var(--apple-spring);
   user-select: none;
-  min-height: 52px;
 }
 
 .choice-card:hover {
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 #FFFFFF, var(--sombra-suave);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .choice-card:active {
@@ -321,37 +430,26 @@ textarea {
 
 .choice-card.selected {
   border-color: var(--dorado);
-  background: linear-gradient(160deg, #FFF6D9, #FFE5A3);
-  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 8px 18px rgba(245, 166, 35, 0.22);
-}
-
-.choice-card.selected .name {
-  color: var(--morado-950);
+  background: linear-gradient(155deg, #FFF9E6, #FFE6A3);
+  box-shadow: inset 0 0 0 1.5px var(--dorado), 0 10px 20px rgba(245, 166, 35, 0.22);
 }
 
 .qty-card {
-  border: 1.5px solid #E6DAC0;
-  background: rgba(255, 252, 245, 0.9);
-  border-radius: 17px;
+  border: 1.5px solid rgba(56, 21, 99, 0.12);
+  background: rgba(255, 255, 255, 0.74);
+  border-radius: 18px;
   padding: 11px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(15, 3, 34, 0.04);
-  transition: transform 0.2s var(--apple-spring), border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-  min-height: 56px;
-}
-
-.qty-card:hover {
-  transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 #FFFFFF, var(--sombra-suave);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 4px 10px rgba(15, 3, 34, 0.04);
+  transition: all 0.2s var(--apple-spring);
 }
 
 .qty-card.active {
   border-color: var(--dorado);
-  background: linear-gradient(160deg, #FFF6D9, #FFE5A3);
+  background: linear-gradient(155deg, #FFF9E6, #FFE6A3);
   box-shadow: inset 0 0 0 1.5px var(--dorado), 0 8px 18px rgba(245, 166, 35, 0.2);
 }
 
@@ -361,9 +459,7 @@ textarea {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  flex: 1 1 110px;
-  overflow: hidden;
-  cursor: pointer;
+  flex: 1;
 }
 
 .qty-card .name,
@@ -388,31 +484,25 @@ textarea {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .qty-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: 50%;
   border: none;
   background: var(--morado-900);
   color: var(--dorado-claro);
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 900;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
-  box-shadow: 0 4px 10px rgba(42, 14, 79, 0.26);
-  transition: transform 0.14s var(--apple-spring), background 0.14s ease;
-}
-
-.qty-btn:hover {
-  background: var(--morado-800);
+  box-shadow: 0 4px 10px rgba(38, 12, 74, 0.25);
+  transition: transform 0.14s var(--apple-spring);
 }
 
 .qty-btn:active {
@@ -424,7 +514,7 @@ textarea {
   min-width: 22px;
   text-align: center;
   font-weight: 900;
-  font-size: 1.02rem;
+  font-size: 1rem;
   color: var(--morado-950);
 }
 
@@ -442,47 +532,44 @@ textarea {
 
 hr.divider {
   border: none;
-  border-top: 2px dashed #E9DEC0;
-  margin: 22px 0;
+  border-top: 1.5px dashed rgba(56, 21, 99, 0.14);
+  margin: 20px 0;
 }
 
-/* ---------- Barra Flotante de Total (Sticky Apple Dock) ---------- */
+/* ---------- Barra Flotante de Total (Apple Dock Glass) ---------- */
 .total-bar {
   position: sticky;
   bottom: calc(12px + env(safe-area-inset-bottom));
-  z-index: 40;
-  background: linear-gradient(135deg, rgba(27, 8, 54, 0.90), rgba(59, 23, 102, 0.90));
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  backdrop-filter: blur(24px) saturate(190%);
+  z-index: 30;
+  background: linear-gradient(135deg, rgba(22, 5, 46, 0.88), rgba(56, 21, 99, 0.88));
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  backdrop-filter: blur(28px) saturate(200%);
   color: var(--crema);
-  border-radius: 20px;
-  padding: 14px 20px;
+  border-radius: 22px;
+  padding: 15px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 18px;
-  box-shadow: 0 14px 32px rgba(12, 2, 28, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(251, 187, 30, 0.38);
+  box-shadow: 0 16px 36px rgba(10, 2, 24, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 196, 54, 0.42);
 }
 
-.total-bar .label,
-.total-bar .total-label {
-  font-size: 0.72rem;
+.total-bar .label {
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--dorado-claro);
   font-weight: 800;
 }
 
-.total-bar .amount,
-.total-bar .total-amount {
+.total-bar .amount {
   font-family: 'Fredoka', sans-serif;
-  font-size: 1.65rem;
+  font-size: 1.7rem;
   font-weight: 700;
 }
 
-.btn-guardar,
-.btn-primario {
+.btn-guardar {
   background: linear-gradient(180deg, var(--dorado-claro), var(--dorado));
   color: var(--morado-950);
   border: none;
@@ -492,38 +579,87 @@ hr.divider {
   letter-spacing: 0.03em;
   padding: 15px 20px;
   border-radius: 16px;
-  font-size: 1rem;
+  font-size: 0.98rem;
   cursor: pointer;
   width: 100%;
   margin-top: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 0 var(--dorado-fuerte), 0 8px 18px rgba(232, 147, 12, 0.25);
-  transition: transform 0.14s var(--apple-spring), box-shadow 0.14s ease, filter 0.14s ease;
-  min-height: 48px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 6px 18px rgba(245, 166, 35, 0.34);
+  transition: all 0.16s var(--apple-spring);
 }
 
-.btn-guardar:hover,
-.btn-primario:hover {
-  filter: brightness(1.03);
+.btn-guardar:active {
+  transform: scale(0.98);
 }
 
-.btn-guardar:active,
-.btn-primario:active {
-  transform: translateY(3px) scale(0.99);
-  box-shadow: 0 1px 0 var(--dorado-fuerte);
-}
-
-.btn-guardar:disabled,
-.btn-primario:disabled {
+.btn-guardar:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-/* ---------- Resumen (Cierre de Caja) ---------- */
-#summaryCapture {
-  padding-top: 2px;
+.btn-apple-subtle {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 15px;
+  border: 1.5px solid rgba(56, 21, 99, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--morado-900);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.18s var(--apple-spring);
 }
 
+.btn-apple-subtle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Cajón Plegable de Apartados ---------- */
+.apple-apartado-drawer {
+  margin-top: 10px;
+  border: 1.5px solid rgba(56, 21, 99, 0.14);
+  background: rgba(255, 255, 255, 0.62);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.apple-apartado-drawer summary {
+  list-style: none;
+  padding: 12px 16px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--morado-800);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apple-apartado-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.apple-apartado-drawer .drawer-badge {
+  font-size: 0.72rem;
+  background: rgba(56, 21, 99, 0.1);
+  color: var(--morado-900);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.apple-apartado-drawer .drawer-content {
+  padding: 12px 16px 16px;
+  border-top: 1px solid rgba(56, 21, 99, 0.1);
+}
+
+/* ---------- Cierre de Caja y Estadísticas ---------- */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -532,19 +668,18 @@ hr.divider {
 }
 
 .stat {
-  background: linear-gradient(160deg, #FFFFFF, #FBF1D8);
-  border-radius: 17px;
-  padding: 13px 12px;
-  border: 1.5px solid #E6DAC0;
-  box-shadow: inset 0 1px 0 #FFFFFF, 0 2px 6px rgba(15, 3, 34, 0.04);
+  background: rgba(255, 255, 255, 0.84);
+  border-radius: 18px;
+  padding: 14px 12px;
+  border: 1px solid rgba(56, 21, 99, 0.12);
+  box-shadow: inset 0 1px 0 #FFFFFF;
 }
 
 .stat .n {
   font-family: 'Fredoka', sans-serif;
-  font-size: 1.45rem;
+  font-size: 1.42rem;
   font-weight: 700;
   color: var(--morado-900);
-  word-break: break-word;
 }
 
 .stat .l {
@@ -556,7 +691,6 @@ hr.divider {
   margin-top: 2px;
 }
 
-.pay-summary,
 .pay-breakdown {
   display: flex;
   flex-direction: column;
@@ -567,53 +701,33 @@ hr.divider {
 .pay-row {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: 8px;
-  background: rgba(255, 252, 245, 0.92);
-  border: 1.5px solid #E6DAC0;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1.5px solid rgba(56, 21, 99, 0.12);
   border-radius: 17px;
   padding: 12px 15px;
-  box-shadow: inset 0 1px 0 #FFFFFF;
-  transition: border-color 0.2s var(--apple-spring), transform 0.2s var(--apple-spring), box-shadow 0.2s ease;
+  cursor: pointer;
+  transition: all 0.2s var(--apple-spring);
 }
 
 .pay-row:hover {
   border-color: var(--dorado);
-  box-shadow: var(--sombra-suave);
 }
 
 .pay-row .pay-row-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
-  gap: 12px;
 }
 
-.pay-row .pn {
-  font-weight: 800;
-  font-size: 0.96rem;
-  color: var(--morado-900);
-}
-
-.pay-row .pc {
-  font-size: 0.78rem;
-  color: var(--morado-700);
-  font-weight: 700;
-  margin-top: 2px;
-}
-
-.pay-row .pv {
-  font-weight: 900;
-  font-size: 1.12rem;
-  font-family: 'Fredoka', sans-serif;
-  color: var(--morado-950);
-}
+.pay-row .pn { font-weight: 800; font-size: 0.95rem; color: var(--morado-900); }
+.pay-row .pc { font-size: 0.76rem; color: var(--morado-700); font-weight: 700; }
+.pay-row .pv { font-weight: 900; font-size: 1.1rem; font-family: 'Fredoka', sans-serif; color: var(--morado-950); }
 
 .pay-progress-track {
   width: 100%;
   height: 7px;
-  background: #E9DEC0;
+  background: rgba(56, 21, 99, 0.1);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -622,10 +736,8 @@ hr.divider {
   height: 100%;
   background: linear-gradient(90deg, var(--dorado-claro), var(--dorado-fuerte));
   border-radius: 999px;
-  transition: width 0.4s var(--apple-spring);
 }
 
-/* ---------- Más Vendidos ---------- */
 .top-list {
   display: flex;
   flex-direction: column;
@@ -636,29 +748,20 @@ hr.divider {
 .top-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   font-size: 0.88rem;
   padding: 7px 4px;
-  border-bottom: 1px dotted #E9DEC0;
+  border-bottom: 1px dashed rgba(56, 21, 99, 0.12);
 }
 
-.top-row span:last-child,
-.top-row strong {
-  font-weight: 800;
-  color: var(--morado-700);
-}
-
-/* ---------- Botones de Exportación y Administración ---------- */
 .export-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
   margin-bottom: 12px;
 }
 
 .btn-export {
-  flex: 1 1 90px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -667,123 +770,268 @@ hr.divider {
   border: none;
   font-family: inherit;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding: 11px 10px;
-  border-radius: 13px;
+  padding: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.14s var(--apple-spring);
-  min-height: 44px;
-}
-
-.btn-export:hover {
-  background: var(--morado-800);
-}
-
-.btn-export:active {
-  transform: scale(0.96);
+  transition: all 0.16s var(--apple-spring);
 }
 
 .btn-secundario {
   width: 100%;
-  background: transparent;
-  border: 2px solid var(--rojo);
+  background: rgba(217, 45, 32, 0.08);
+  border: 1.5px solid var(--rojo);
   color: var(--rojo);
   font-family: inherit;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 15px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, transform 0.14s var(--apple-spring);
-  min-height: 46px;
-}
-
-.btn-secundario:hover {
-  background: rgba(209, 39, 43, 0.08);
-}
-
-.btn-secundario:active {
-  transform: scale(0.98);
+  transition: all 0.16s var(--apple-spring);
 }
 
 .btn-admin {
   border-color: var(--dorado-fuerte) !important;
   color: var(--morado-950) !important;
-  background: linear-gradient(160deg, #FFF3D2, #FFE3A0) !important;
+  background: linear-gradient(160deg, #FFF6D6, #FFE299) !important;
   margin-bottom: 8px;
 }
 
 .btn-dashboard {
-  border-color: var(--morado-800) !important;
+  border-color: rgba(56, 21, 99, 0.25) !important;
   color: var(--morado-900) !important;
-  background: var(--crema-2) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
   margin-bottom: 8px;
 }
 
-/* ---------- Lista de Pedidos ---------- */
+/* ---------- Modal Menú y Ajustes (Ancho Ampliado + Botones -500/+500 Centrados) ---------- */
+#confirmOverlay,
+#adminModal,
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 4, 34, 0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  padding: 18px;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+#confirmOverlay.show {
+  display: flex;
+}
+
+.admin-modal-box {
+  background: rgba(255, 252, 245, 0.95);
+  -webkit-backdrop-filter: blur(32px);
+  backdrop-filter: blur(32px);
+  color: var(--morado-900);
+  border-radius: 28px;
+  padding: 26px 24px;
+  max-width: 680px; /* Más ancho para evitar textos cortados */
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.5), inset 0 1px 1px #FFFFFF;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+}
+
+.btn-close-circle {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(56, 21, 99, 0.1);
+  color: var(--morado-900);
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-access-card {
+  background: rgba(255, 246, 218, 0.9);
+  border: 1.5px solid var(--dorado);
+  border-radius: 18px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pin-input-box {
+  width: 105px !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  text-align: center;
+  font-weight: 900;
+}
+
+.btn-access-toggle {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: #E6F4EA;
+  color: #1E7E34;
+}
+
+.admin-add-box {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(56, 21, 99, 0.14);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.admin-add-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .admin-add-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.btn-add-prod {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  border: none;
+  border-radius: 12px;
+  padding: 0 16px;
+  font-weight: 900;
+  cursor: pointer;
+  height: 44px;
+}
+
+.admin-prod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 44vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-prod-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(56, 21, 99, 0.12);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+/* Botones -500 y +500 perfectamente centrados */
+.btn-step-minus,
+.btn-step-plus {
+  min-width: 54px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1.5px solid rgba(56, 21, 99, 0.2);
+  background: #FFF8E7;
+  color: var(--morado-950);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: transform 0.12s var(--apple-spring), background 0.15s ease;
+}
+
+.btn-step-minus:active,
+.btn-step-plus:active {
+  transform: scale(0.92);
+  background: #FFE5A3;
+}
+
+/* ---------- Lista de Pedidos y Buscador Spotlight ---------- */
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.apple-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1.5px solid rgba(56, 21, 99, 0.15);
+  border-radius: 999px;
+  padding: 2px 14px;
+  flex: 1 1 210px;
+  max-width: 280px;
+}
+
+.apple-search-bar input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 6px 0 !important;
+  min-height: 36px !important;
+}
+
 .order-item {
-  border: 1.5px solid #E6DAC0;
-  border-radius: 17px;
+  border: 1.5px solid rgba(56, 21, 99, 0.12);
+  border-radius: 18px;
   margin-bottom: 10px;
   overflow: hidden;
-  background: rgba(255, 252, 245, 0.94);
-  box-shadow: inset 0 1px 0 #FFFFFF;
-  transition: border-color 0.2s var(--apple-spring), box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.82);
+  transition: all 0.2s var(--apple-spring);
 }
 
 .order-item.open {
   border-color: var(--dorado);
-  box-shadow: var(--sombra-suave);
+  background: #FFFFFF;
 }
 
 .order-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 15px;
+  padding: 13px 16px;
   cursor: pointer;
   gap: 8px;
-  min-height: 50px;
 }
 
-.order-head:hover {
-  background: rgba(245, 166, 35, 0.06);
-}
-
-.order-head .who {
-  font-weight: 900;
-  font-size: 0.96rem;
-  color: var(--morado-950);
-}
-
-.order-head .meta {
-  font-size: 0.74rem;
-  color: var(--morado-700);
-  font-weight: 700;
-}
-
-.order-head .right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.order-head .amt,
-.order-head .order-total {
-  font-weight: 900;
-  color: var(--morado-900);
-  font-family: 'Fredoka', sans-serif;
-  font-size: 1.08rem;
-}
+.order-head .who { font-weight: 900; font-size: 0.96rem; color: var(--morado-950); }
+.order-head .meta { font-size: 0.75rem; color: var(--morado-700); font-weight: 700; }
+.order-head .right { display: flex; align-items: center; gap: 8px; }
+.order-head .amt { font-weight: 900; color: var(--morado-900); font-family: 'Fredoka', sans-serif; font-size: 1.08rem; }
 
 .chip {
   font-size: 0.66rem;
@@ -799,300 +1047,86 @@ hr.divider {
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.28s var(--apple-spring);
-  padding: 0 15px;
+  padding: 0 16px;
 }
 
 .order-body.open {
-  max-height: 950px;
-  padding: 0 15px 15px;
+  max-height: 900px;
+  padding: 0 16px 16px;
 }
 
-.empty-msg {
-  text-align: center;
-  color: var(--morado-700);
-  font-size: 0.85rem;
-  padding: 24px 10px;
-}
-
-/* ---------- Toast Estilo Cápsula Apple ---------- */
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom));
-  transform: translate(-50%, 20px) scale(0.95);
-  background: rgba(27, 8, 54, 0.92);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  backdrop-filter: blur(20px) saturate(190%);
-  color: var(--dorado-claro);
-  padding: 13px 24px;
-  border-radius: 999px;
-  border: 1px solid rgba(251, 187, 30, 0.38);
-  font-weight: 800;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s var(--apple-spring), transform 0.25s var(--apple-spring);
-  z-index: 3500;
-  font-size: 0.9rem;
-  max-width: 92vw;
-  text-align: center;
-}
-
-#toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0) scale(1);
-}
-
-/* ---------- Modales ---------- */
-#confirmOverlay,
-#adminModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 3, 34, 0.62);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-#confirmOverlay.show {
+.apple-order-toolbar {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(56, 21, 99, 0.1);
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.confirm-box,
-.admin-modal-box {
-  background: linear-gradient(180deg, var(--crema-2), var(--crema));
+.apple-tool-pill {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 21, 99, 0.16);
+  background: #FAF6EE;
   color: var(--morado-900);
-  border-radius: 26px;
-  padding: 22px 20px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 86vh;
-  overflow-y: auto;
-  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--dorado);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.apple-tool-pill.primary { background: #FFF3D2; border-color: var(--dorado); }
+.apple-tool-pill.success { background: #E6F4EA; border-color: #B7DFC2; color: #1E7E34; }
+.apple-tool-pill.danger { background: #FDECEA; border-color: #F5C2C7; color: var(--rojo); }
+
+/* ---------- Chips Auxiliares, Confirmación y Toast ---------- */
+.note-chip, .timer-chip, .bill-chip {
+  min-height: 38px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(56, 21, 99, 0.18);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--morado-900);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.note-chip.active, .timer-chip.active, .bill-chip.active {
+  background: var(--morado-900);
+  color: var(--dorado-claro);
+  border-color: var(--morado-900);
+}
+
+.choice-card.agotado, .qty-card.agotado {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .confirm-box {
-  max-width: 350px;
-  text-align: center;
-}
-
-.confirm-box .msg {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-bottom: 18px;
-  line-height: 1.4;
-}
-
-.confirm-box .btns {
-  display: flex;
-  gap: 10px;
-}
-
-.confirm-box .btns button {
-  flex: 1;
-  border-radius: 13px;
-  padding: 11px;
-  font-weight: 800;
-  font-size: 0.85rem;
-  cursor: pointer;
-  border: none;
-  text-transform: uppercase;
-  min-height: 44px;
-}
-
-.confirm-box .btn-no {
-  background: #E9DEC0;
+  background: #FFFDF7;
   color: var(--morado-900);
-}
-
-.confirm-box .btn-si {
-  background: var(--rojo);
-  color: #fff;
-}
-
-/* ---------- Combos Rápidos, Chips de Notas, Billetes y Agotados ---------- */
-.combo-chip {
-  min-height: 44px;
-  padding: 8px 14px;
-  border-radius: 14px;
-  border: 1.5px solid var(--dorado);
-  background: linear-gradient(160deg, #FFF9EB, #FFE8B3);
-  color: var(--morado-950);
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 900;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), var(--sombra-suave);
-  transition: transform 0.16s var(--apple-spring), background 0.12s ease;
-}
-
-.combo-chip:active {
-  transform: scale(0.95);
-}
-
-.note-chip {
-  min-height: 40px;
-  padding: 6px 13px;
-  border-radius: 999px;
-  border: 1.5px solid #D8C9A8;
-  background: var(--crema-2);
-  color: var(--morado-800);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.16s var(--apple-spring);
-}
-
-.note-chip.active {
-  background: var(--morado-900);
-  color: var(--dorado-claro);
-  border-color: var(--morado-900);
-}
-
-.bill-chip {
-  flex: 1 1 auto;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1.5px solid var(--morado-800);
-  background: var(--crema-2);
-  color: var(--morado-950);
-  font-family: inherit;
-  font-size: 0.84rem;
-  font-weight: 900;
-  cursor: pointer;
-  transition: all 0.14s var(--apple-spring);
-}
-
-.bill-chip.active,
-.bill-chip:active {
-  background: var(--morado-900);
-  color: var(--dorado-claro);
-}
-
-.choice-card.agotado,
-.qty-card.agotado {
-  opacity: 0.52;
-  background: #EFE8D8 !important;
-  border-color: #C9BFA8 !important;
-  cursor: not-allowed !important;
-  box-shadow: none !important;
-}
-
-.badge-agotado {
-  background: var(--rojo);
-  color: #FFFFFF;
-  font-size: 0.65rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
-  letter-spacing: 0.04em;
-}
-
-/* ---------- Login Inicial por Roles ---------- */
-.auth-gate-backdrop {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at top, #3B1766 0%, #1B0836 100%);
-  z-index: 3000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-}
-
-.auth-gate-card {
-  background: linear-gradient(180deg, var(--crema-2), var(--crema));
-  color: var(--morado-900);
-  border: 2px solid var(--dorado);
   border-radius: 26px;
-  padding: 26px 22px;
+  padding: 24px 20px;
+  max-width: 360px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: var(--sombra);
   text-align: center;
+  border: 2px solid var(--dorado);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
 }
 
-.role-tabs {
-  display: flex;
-  gap: 6px;
-  background: #E9DEC0;
-  padding: 5px;
-  border-radius: 14px;
-  margin-bottom: 18px;
-}
+.confirm-box .msg { font-size: 0.95rem; font-weight: 800; margin-bottom: 18px; }
+.confirm-box .btns { display: flex; gap: 10px; }
+.confirm-box .btns button { flex: 1; border-radius: 13px; padding: 11px; font-weight: 900; border: none; cursor: pointer; }
+.confirm-box .btn-no { background: #E9DEC0; color: var(--morado-900); }
+.confirm-box .btn-si { background: var(--rojo); color: #FFFFFF; }
 
-.role-tab {
-  flex: 1;
-  min-height: 44px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--morado-900);
-  font-family: inherit;
-  font-weight: 900;
-  font-size: 0.86rem;
-  cursor: pointer;
-  transition: all 0.2s var(--apple-spring);
-}
-
-.role-tab.active {
-  background: var(--morado-900);
-  color: var(--dorado-claro);
-  box-shadow: var(--sombra-suave);
-}
-
-/* ---------- Programador de Alarma de Apartados ---------- */
-.apartado-scheduler {
-  margin-top: 16px;
-  padding: 14px;
-  background: linear-gradient(160deg, #F6F0FF, #EDE2FF);
-  border: 1.5px dashed var(--morado-700);
-  border-radius: 18px;
-}
-
-.timer-chip {
-  flex: 1 1 auto;
-  min-height: 40px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1.5px solid var(--morado-700);
-  background: #FFFFFF;
-  color: var(--morado-900);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s var(--apple-spring);
-}
-
-.timer-chip.active {
-  background: var(--morado-900);
-  color: var(--dorado-claro);
-  border-color: var(--morado-900);
-}
-
-@keyframes pulseAlarm {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(209, 39, 43, 0.7); border-color: #D1272B; }
-  50% { box-shadow: 0 0 0 8px rgba(209, 39, 43, 0); border-color: #F5A623; }
-}
-
-.order-item.alarm-due {
-  animation: pulseAlarm 1.2s infinite;
-  background: #FFF0F0 !important;
-}
-
-/* ---------- Centro de Notificaciones Apple Unificado (Cero Superposición con el Header) ---------- */
+/* ---------- Centro de Notificaciones Apple y Toast ---------- */
 #appleNotificationCenter {
   position: fixed;
   top: calc(16px + env(safe-area-inset-top));
@@ -1105,682 +1139,49 @@ hr.divider {
   pointer-events: none;
 }
 
-/* Sobrescribir estilos inline antiguos de #alarmBanner para que nunca se encime con las cartas verdes */
 #alarmBanner {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  transform: none !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  background: linear-gradient(145deg, rgba(185, 28, 28, 0.94), rgba(136, 19, 55, 0.94)) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(190%);
-  backdrop-filter: blur(26px) saturate(190%);
-  border: 1.5px solid rgba(251, 187, 30, 0.75) !important;
-  border-radius: 22px !important;
-  padding: 14px 16px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 18px 38px rgba(0, 0, 0, 0.45) !important;
+  background: linear-gradient(145deg, rgba(185, 28, 28, 0.94), rgba(136, 19, 55, 0.94));
+  -webkit-backdrop-filter: blur(26px);
+  backdrop-filter: blur(26px);
+  border: 1.5px solid rgba(251, 187, 30, 0.75);
+  border-radius: 22px;
+  padding: 14px 16px;
   pointer-events: auto;
-  animation: appleSlideIn 0.35s var(--apple-spring);
 }
 
-#incomingOrderStack {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  transform: none !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-height: 215px;
-  pointer-events: none;
+.btn-silence-alarm {
+  background: #FFFFFF;
+  color: #991B1B;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 900;
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 
-#incomingOrderStack:empty {
-  display: none;
-  min-height: 0;
-}
-
-@keyframes appleSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-16px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.green-order-card {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(145deg, rgba(16, 82, 45, 0.94) 0%, rgba(24, 114, 63, 0.94) 100%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  backdrop-filter: blur(28px) saturate(200%);
-  color: #FFFFFF;
-  border: 1.5px solid rgba(168, 240, 192, 0.65);
-  border-radius: 24px;
-  padding: 16px 18px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    0 20px 44px rgba(5, 28, 14, 0.52);
-  pointer-events: auto;
-  transition:
-    transform 0.38s var(--apple-spring),
-    opacity 0.32s var(--apple-spring),
-    filter 0.32s ease;
-  transform-origin: top center;
-}
-
-/* Carta 1 en primer plano */
-.green-order-card[data-stack-pos="0"] {
-  z-index: 30;
-  transform: translate3d(0, 0, 0) scale(1);
-  opacity: 1;
-}
-
-/* Carta 2 asomando debajo estilo Apple iOS Notification Stack */
-.green-order-card[data-stack-pos="1"] {
-  z-index: 29;
-  transform: translate3d(0, 13px, 0) scale(0.95);
-  opacity: 0.92;
-  filter: brightness(0.88);
-  pointer-events: none;
-}
-
-/* Carta 3 en el mazo */
-.green-order-card[data-stack-pos="2"] {
-  z-index: 28;
-  transform: translate3d(0, 25px, 0) scale(0.90);
-  opacity: 0.78;
-  filter: brightness(0.76);
-  pointer-events: none;
-}
-
-/* Cartas adicionales detrás */
-.green-order-card[data-stack-pos="hidden"] {
-  z-index: 27;
-  transform: translate3d(0, 34px, 0) scale(0.85);
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px) scale(0.95);
+  background: rgba(22, 5, 46, 0.92);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
+  color: var(--dorado-claro);
+  padding: 13px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 196, 54, 0.4);
+  font-weight: 800;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
   opacity: 0;
   pointer-events: none;
+  transition: all 0.25s var(--apple-spring);
+  z-index: 3500;
+  font-size: 0.9rem;
 }
 
-.green-card-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(168, 240, 192, 0.95);
-  color: #0B381E;
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
-  letter-spacing: 0.04em;
-}
-
-.green-card-close-btn {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 12px;
-  border: none;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #0F4C29;
-  font-family: inherit;
-  font-weight: 900;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: transform 0.14s var(--apple-spring), background 0.15s ease;
-}
-
-.green-card-close-btn:active {
-  transform: scale(0.96);
-}
-
-/* ---------- Optimización Responsiva para Celulares ---------- */
-@media (max-width: 640px) {
-  #appleNotificationCenter {
-    right: 50%;
-    transform: translateX(50%);
-    top: calc(10px + env(safe-area-inset-top));
-    width: calc(100vw - 20px);
-  }
-  header {
-    padding-top: calc(14px + env(safe-area-inset-top));
-  }
-  .panel {
-    padding: 16px 14px;
-    border-radius: 22px;
-  }
-  .choice-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  #acompGrid, #toppingGrid, #bebidaGrid {
-    grid-template-columns: 1fr;
-  }
-  .pay-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
-  }
-  .summary-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 7px;
-  }
-  .stat {
-    padding: 10px 8px;
-    text-align: center;
-  }
-  .stat .n {
-    font-size: 1.15rem;
-  }
-  .stat .l {
-    font-size: 0.6rem;
-  }
-  .total-bar {
-    padding: 12px 16px;
-    border-radius: 18px;
-  }
-  .total-bar .amount {
-    font-size: 1.4rem;
-  }
-  .order-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .order-head .right {
-    width: 100%;
-    justify-content: space-between;
-    padding-top: 6px;
-    border-top: 1px dashed #E9DEC0;
-  }
-}
-
-::selection {
-  background: var(--dorado);
-  color: var(--morado-950);
-}
-
-/* ---------- Ajuste de Ancho y Alineación Perfecta en Modal Admin ---------- */
-#adminModal .admin-modal-box {
-  max-width: 720px !important;
-  width: 95% !important;
-  padding: 26px 24px !important;
-}
-
-/* Grilla amplia para Crear Producto sin cortar "Nombre (Ej. Maicitos)" */
-.admin-add-grid {
-  display: grid;
-  grid-template-columns: 1.8fr 1.1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-@media (max-width: 640px) {
-  .admin-add-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Fila de cada producto en el Modal Admin */
-.admin-prod-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  background: #FFFAEF;
-  border: 1.5px solid #E6DAC0;
-  border-radius: 16px;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  gap: 12px;
-}
-
-/* Botones -500 y +500 perfectamente centrados y más anchos */
-.btn-step-minus,
-.btn-step-plus {
-  min-width: 56px !important;
-  height: 42px !important;
-  padding: 0 10px !important;
-  border-radius: 11px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-family: inherit !important;
-  font-size: 0.86rem !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform 0.12s var(--apple-spring), filter 0.12s ease;
-}
-
-.btn-step-minus {
-  background: #FFFFFF !important;
-  color: var(--morado-900) !important;
-  border: 1.5px solid #D3C4A3 !important;
-}
-
-.btn-step-plus {
-  background: linear-gradient(180deg, var(--dorado-claro), var(--dorado)) !important;
-  color: var(--morado-950) !important;
-  border: none !important;
-  box-shadow: 0 2px 0 var(--dorado-fuerte);
-}
-
-.btn-step-minus:active,
-.btn-step-plus:active {
-  transform: scale(0.94);
-}
-
-/* Quitar las flechitas nativas (spinners) de los inputs de precio para centrar el número */
-#adminListaProductos input[type="number"]::-webkit-outer-spin-button,
-#adminListaProductos input[type="number"]::-webkit-inner-spin-button,
-#newProdPrecio::-webkit-outer-spin-button,
-#newProdPrecio::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-#adminListaProductos input[type="number"],
-#newProdPrecio {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-/* ---------- Buscador Instantáneo Estilo iOS Spotlight (Idea 3) ---------- */
-.apple-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid #E5D8B8;
-  border-radius: 16px;
-  padding: 6px 14px;
-  box-shadow: inset 0 1px 2px rgba(15, 3, 34, 0.05);
-  transition: border-color 0.2s var(--apple-spring), box-shadow 0.2s var(--apple-spring);
-}
-
-.apple-search-bar:focus-within {
-  border-color: var(--dorado);
-  box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.22);
-  background: #FFFFFF;
-}
-
-.apple-search-bar input {
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 6px 0 !important;
-  min-height: 36px !important;
-  flex: 1;
-  font-weight: 700;
-}
-
-.apple-search-bar button {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: #E9DEC0;
-  color: var(--morado-900);
-  font-weight: 900;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ---------- Píldoras de Edición Rápida en Pedidos Guardados (Punto B + Idea 5) ---------- */
-.order-quick-edit-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0 6px;
-  border-bottom: 1px dashed #E9DEC0;
-  margin-bottom: 8px;
-}
-
-.btn-quick-edit {
-  min-height: 38px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #D8C9A8;
-  background: #FFFAEF;
-  color: var(--morado-900);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: transform 0.12s var(--apple-spring), background 0.15s ease;
-}
-
-.btn-quick-edit:active {
-  transform: scale(0.95);
-}
-
-/* ---------- Pase Visual Estilo Apple Wallet (Idea 4) ---------- */
-.apple-wallet-pass {
-  background: linear-gradient(180deg, #FFFAEF 0%, #F7EFDD 100%);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5);
-  border: 2px solid var(--dorado);
-  color: var(--morado-950);
-}
-
-.wallet-pass-header {
-  background: linear-gradient(135deg, #1B0836 0%, #3B1766 100%);
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--dorado);
-}
-
-.wallet-pass-body {
-  padding: 18px 20px 12px;
-}
-
-.wallet-pass-divider {
-  position: relative;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.wallet-pass-divider .dashed-line {
-  width: 86%;
-  border-top: 2px dashed #C9B896;
-}
-
-.wallet-pass-divider .notch-left,
-.wallet-pass-divider .notch-right {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  background: #1B0836;
-  border-radius: 50%;
-  top: 2px;
-}
-
-.wallet-pass-divider .notch-left {
-  left: -14px;
-}
-
-.wallet-pass-divider .notch-right {
-  right: -14px;
-}
-
-.wallet-pass-footer {
-  padding: 8px 20px 18px;
-  text-align: center;
-}
-
-.barcode-bars {
-  height: 42px;
-  width: 82%;
-  margin: 0 auto;
-  border-radius: 4px;
-  background: repeating-linear-gradient(
-    90deg,
-    #1B0836 0px,
-    #1B0836 3px,
-    transparent 3px,
-    transparent 6px,
-    #1B0836 6px,
-    #1B0836 7px,
-    transparent 7px,
-    transparent 11px,
-    #1B0836 11px,
-    #1B0836 15px,
-    transparent 15px,
-    transparent 18px
-  );
-}
-
-/* ---------- Rediseño Minimalista Apple (Cero Saturación Visual) ---------- */
-.apple-status-pill {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-  padding: 5px 14px;
-  background: rgba(255, 255, 255, 0.08);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: rgba(255, 250, 239, 0.9);
-}
-
-.apple-status-pill .pill-sep {
-  opacity: 0.35;
-}
-
-.apple-status-pill .pill-action {
-  background: none;
-  border: none;
-  color: var(--dorado-claro);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 800;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 99px;
-}
-
-.apple-status-pill .pill-logout {
-  color: #FF8A8A;
-}
-
-/* Botón secundario sutil estilo iOS */
-.btn-apple-subtle {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid #DFD2B5;
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--morado-900);
-  font-family: inherit;
-  font-size: 0.84rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.18s var(--apple-spring);
-}
-
-.btn-apple-subtle:hover {
-  background: #FFFFFF;
-}
-
-.btn-apple-subtle:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Cajón plegable de Apartados */
-.apple-apartado-drawer {
-  margin-top: 10px;
-  border: 1px solid #E5D8B8;
-  background: rgba(255, 255, 255, 0.55);
-  border-radius: 15px;
-  overflow: hidden;
-}
-
-.apple-apartado-drawer summary {
-  list-style: none;
-  padding: 11px 15px;
-  font-size: 0.84rem;
-  font-weight: 800;
-  color: var(--morado-800);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-}
-
-.apple-apartado-drawer summary::-webkit-details-marker {
-  display: none;
-}
-
-.apple-apartado-drawer .drawer-badge {
-  font-size: 0.72rem;
-  background: #EFE6D5;
-  color: var(--morado-900);
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-
-.apple-apartado-drawer .drawer-content {
-  padding: 12px 15px 15px;
-  border-top: 1px solid #EFE6D5;
-}
-
-/* Cabecera de Panel con Buscador Integrado a la Derecha */
-.panel-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.panel-header-row .apple-search-bar {
-  flex: 1 1 210px;
-  max-width: 280px;
-  padding: 3px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-}
-
-@media (max-width: 640px) {
-  .panel-header-row .apple-search-bar {
-    max-width: 100%;
-  }
-}
-
-/* Calculadora de cambio compacta */
-.apple-cash-box {
-  background: rgba(255, 248, 231, 0.9);
-  border: 1px solid var(--dorado);
-  border-radius: 15px;
-  padding: 11px 14px;
-  margin-bottom: 14px;
-}
-
-/* Tarjeta de pedido minimalista */
-.apple-chevron {
-  font-size: 1.1rem;
-  color: var(--morado-700);
-  font-weight: 900;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #F4EFE4;
-}
-
-.apple-receipt-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px dashed #EFE6D5;
-  font-size: 0.86rem;
-  color: var(--morado-900);
-}
-
-.apple-qty-tag {
-  color: var(--morado-700);
-  font-size: 0.78rem;
-  margin-left: 4px;
-}
-
-.apple-note-box {
-  background: #FAF6EE;
-  padding: 7px 10px;
-  border-radius: 10px;
-  margin-top: 8px;
-  font-size: 0.82rem;
-  color: var(--morado-800);
-}
-
-.apple-order-toolbar {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #F2ECE1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.apple-tool-pill {
-  min-height: 34px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  border: 1px solid #E2D6C1;
-  background: #FAF6EE;
-  color: var(--morado-900);
-  font-family: inherit;
-  font-size: 0.76rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.12s var(--apple-spring), background 0.15s ease;
-}
-
-.apple-tool-pill:hover {
-  background: #EFE6D5;
-}
-
-.apple-tool-pill:active {
-  transform: scale(0.95);
-}
-
-.apple-tool-pill.primary {
-  background: #FFF3D2;
-  border-color: var(--dorado);
-  color: var(--morado-950);
-}
-
-.apple-tool-pill.success {
-  background: #E6F4EA;
-  border-color: #B7DFC2;
-  color: #1E7E34;
-}
-
-.apple-tool-pill.danger {
-  background: #FDECEA;
-  border-color: #F5C2C7;
-  color: var(--rojo);
-  padding: 5px 9px;
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
 }
