@@ -240,6 +240,9 @@ export const api = {
             if (!rpcError && rpcOk) {
                 return { ok: true, permanent: false };
             }
+            if (rpcError && ['23503', '22P02', '22023', '23514'].includes(rpcError.code)) {
+                return { ok: false, permanent: true, reason: rpcError.message };
+            }
 
             // Respaldo con Upsert directo si el RPC aún no tiene los nuevos parámetros
             const { data: clienteData, error: clienteError } = await sb
@@ -327,12 +330,13 @@ export const api = {
                 .in('estado', ['completado', 'apartado'])
                 .or(`created_at.gte.${inicioHoyBogota},estado.eq.apartado`)
                 .order('created_at', { ascending: false });
+            if (retry.error) return null;
             return retry.data || [];
         }
         return data || [];
     },
 
-    async cerrarJornadaServidor(apiKeyOpcional = '') {
+    async cerrarJornadaServidor(apiKeyOpcional = '', { soloAnteriores = false } = {}) {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión' } };
 
@@ -342,10 +346,11 @@ export const api = {
 
         if (error) {
             // Respaldo directo si aún no se ha corrido el RPC
-            const { error: updErr } = await sb
-                .from('pedidos')
-                .update({ estado: 'cerrado' })
-                .eq('estado', 'completado');
+            let q = sb.from('pedidos').update({ estado: 'cerrado' }).eq('estado', 'completado');
+            if (soloAnteriores) {
+                q = q.lt('created_at', obtenerFechaBogotaISO().slice(0, 10) + 'T00:00:00-05:00');
+            }
+            const { error: updErr } = await q;
             return { data: null, error: updErr };
         }
         return { data, error: null };
@@ -361,26 +366,18 @@ export const api = {
     async obtenerComprasCliente(nombreCliente) {
         const sb = await getSupabase();
         if (!sb) return 0;
-        try {
-            const nombreLimpio = normalizarNombreCliente(nombreCliente);
-            const { data: cliente, error: errCli } = await sb
-                .from('clientes')
-                .select('id')
-                .ilike('nombre', nombreLimpio)
-                .maybeSingle();
+        const { data, error } = await sb.rpc('contar_compras_cliente', {
+            p_nombre: normalizarNombreCliente(nombreCliente)
+        });
+        return error ? 0 : Number(data) || 0;
+    },
 
-            if (errCli || !cliente) return 0;
-
-            const { count, error: errPed } = await sb
-                .from('pedidos')
-                .select('*', { count: 'exact', head: true })
-                .eq('cliente_id', cliente.id);
-
-            if (errPed) return 0;
-            return count || 0;
-        } catch (error) {
-            return 0;
-        }
+    // El PIN se valida en el servidor; devuelve { habilitado, pin_ok } o null si falla
+    async verificarAccesoCliente(pin) {
+        const sb = await getSupabase();
+        if (!sb) return null;
+        const { data, error } = await sb.rpc('acceso_clientes', { p_pin: String(pin || '').trim() });
+        return error ? null : data;
     },
 
     // Corrige el nombre del cliente o cambia el medio de pago en un pedido ya guardado (Punto B + Idea 5)

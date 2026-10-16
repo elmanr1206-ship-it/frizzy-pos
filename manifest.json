@@ -2,22 +2,30 @@
   "name": "Frizzy POS",
   "short_name": "Frizzy",
   "description": "Sistema POS Offline-First para Frizzy",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#F7EFDD",
   "theme_color": "#2B113F",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%232B113F'/%3E%3Ctext x='96' y='130' font-family='sans-serif' font-size='100' font-weight='bold' fill='%23F4B41A' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%232B113F'/%3E%3Ctext x='256' y='350' font-family='sans-serif' font-size='280' font-weight='bold' fill='%23F4B41A' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "scope": "/",
+  "id": "/"
 }

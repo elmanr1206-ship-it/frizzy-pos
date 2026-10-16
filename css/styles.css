@@ -1929,3 +1929,8 @@ input[type="number"] {
     width: calc(100vw - 20px);
   }
 }
+
+/* Estados de agotado y apartado vencido */
+.badge-agotado { display:inline-flex; align-items:center; background:#FDECEA; color:#D1272B; font-size:0.68rem; font-weight:900; padding:2px 8px; border-radius:99px; text-transform:uppercase; letter-spacing:0.04em; }
+.order-item.alarm-due { border-color:#D1272B !important; box-shadow:0 0 0 2px rgba(209,39,43,0.25); animation:fz-alarm-pulse 1.4s ease-in-out infinite; }
+@keyframes fz-alarm-pulse { 0%,100% { box-shadow:0 0 0 2px rgba(209,39,43,0.25); } 50% { box-shadow:0 0 0 6px rgba(209,39,43,0.12); } }

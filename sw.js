@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frizzy-pos-v18';
+const CACHE_NAME = 'frizzy-pos-v19';
 const ASSETS = [
     '/',
     '/index.html',
@@ -7,12 +7,29 @@ const ASSETS = [
     '/js/ui.js',
     '/js/dbSync.js',
     '/js/api.js',
-    '/manifest.json'
+    '/manifest.json',
+    '/dashboard.html',
+    '/js/dashboard.js',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+    '/icons/apple-touch-icon.png'
+];
+
+// Librerías externas: se guardan sin bloquear la instalación si alguna falla
+const CDN_ASSETS = [
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm'
 ];
 
 self.addEventListener('install', (e) => {
     self.skipWaiting();
-    e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
+    e.waitUntil(
+        caches.open(CACHE_NAME).then((c) =>
+            c.addAll(ASSETS).then(() => Promise.allSettled(CDN_ASSETS.map((u) => c.add(u))))
+        )
+    );
 });
 
 self.addEventListener('activate', (e) => {

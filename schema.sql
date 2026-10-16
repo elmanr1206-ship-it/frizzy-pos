@@ -1,210 +1,205 @@
 -- ============================================================================
--- FRIZZY POS — ESQUEMA RELACIONAL 3NF, RPC ATÓMICO Y POLÍTICAS RLS (SUPABASE)
+-- FRIZZY POS — ESQUEMA ACTUALIZADO (idempotente y NO destructivo)
+-- ANTES de ejecutar: Supabase > Authentication > Sign In / Providers >
+--   desactiva "Allow new users to sign up" (admin = cualquier usuario autenticado).
+-- NO incluye cerrar_jornada_y_notificar (envía el reporte a Telegram): no se
+--   redefine aquí para no pisar tu versión actual.
+-- Tras ejecutarlo: entra como admin > Menú y Ajustes y define el PIN de clientes
+--   (ya no hay PIN por defecto).
 -- ============================================================================
+create extension if not exists pgcrypto;
 
--- 1. Extensiones necesarias para generación de UUID
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Admin = usuario autenticado. Para restringir a un correo:
+--   select (auth.jwt()->>'email') = 'tu@correo.com'
+create or replace function public.es_admin() returns boolean
+language sql stable as $$ select auth.uid() is not null $$;
 
--- 2. Tabla: productos (Catálogo maestro del menú)
-CREATE TABLE IF NOT EXISTS public.productos (
-    id VARCHAR(50) PRIMARY KEY,
-    categoria VARCHAR(30) NOT NULL DEFAULT 'general',
-    nombre VARCHAR(100) NOT NULL,
-    precio_actual NUMERIC(12, 2) NOT NULL CHECK (precio_actual >= 0),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- ---------- Tablas ----------
+create table if not exists public.productos (
+    id varchar(50) primary key,
+    categoria varchar(30) not null default 'general',
+    nombre varchar(100) not null,
+    precio_actual numeric(12,2) not null check (precio_actual >= 0),
+    updated_at timestamptz not null default now()
 );
+alter table public.productos add column if not exists disponible boolean not null default true;
+alter table public.productos add column if not exists activo boolean not null default true;
 
-ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS categoria VARCHAR(30) DEFAULT 'general';
-ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS nombre VARCHAR(100);
-ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS precio_actual NUMERIC(12, 2) DEFAULT 0;
+insert into public.productos (id, categoria, nombre, precio_actual) values
+    ('papas','bowl','Papas',10000), ('yuca','bowl','Yuca',8000),
+    ('salchicha','acompanante','Salchicha',3000), ('chorizo','acompanante','Chorizo',5000),
+    ('pollo','acompanante','Pollo (Nuggets)',4000), ('carne','acompanante','Carne',5000),
+    ('papachongo','topping','Papa Chongo',1000), ('lechuga','topping','Lechuga',500),
+    ('picodegallo','topping','Pico de Gallo',1000), ('queso','topping','Queso',2000),
+    ('tocineta','topping','Salsa de Tocineta',2000), ('vasito','bebida','Vasito',1500)
+on conflict (id) do nothing;
 
--- Semilla inicial e idempotente de productos de Frizzy
-INSERT INTO public.productos (id, categoria, nombre, precio_actual) VALUES
-    ('papas', 'bowl', 'Papas', 10000),
-    ('yuca', 'bowl', 'Yuca', 8000),
-    ('salchicha', 'acompanante', 'Salchicha', 3000),
-    ('chorizo', 'acompanante', 'Chorizo', 5000),
-    ('pollo', 'acompanante', 'Pollo (Nuggets)', 4000),
-    ('carne', 'acompanante', 'Carne', 5000),
-    ('papachongo', 'topping', 'Papa Chongo', 1000),
-    ('lechuga', 'topping', 'Lechuga', 500),
-    ('picodegallo', 'topping', 'Pico de Gallo', 1000),
-    ('queso', 'topping', 'Queso', 2000),
-    ('tocineta', 'topping', 'Salsa de Tocineta', 2000),
-    ('vasito', 'bebida', 'Vasito', 1500)
-ON CONFLICT (id) DO NOTHING;
-
--- 3. Tabla: clientes (Fidelización y cumplimiento Ley 1581 de 2012)
-CREATE TABLE IF NOT EXISTS public.clientes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre VARCHAR(120) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+create table if not exists public.clientes (
+    id uuid primary key default gen_random_uuid(),
+    nombre varchar(120) not null,
+    created_at timestamptz not null default now()
 );
+create unique index if not exists clientes_nombre_key on public.clientes (nombre);
 
--- Normalización de nombres previos y eliminación segura de duplicados
-UPDATE public.clientes SET nombre = INITCAP(TRIM(nombre));
-
-DELETE FROM public.clientes a USING public.clientes b
-WHERE a.id > b.id AND LOWER(TRIM(a.nombre)) = LOWER(TRIM(b.nombre));
-
-ALTER TABLE public.clientes DROP CONSTRAINT IF EXISTS clientes_nombre_key;
-ALTER TABLE public.clientes ADD CONSTRAINT clientes_nombre_key UNIQUE (nombre);
-
--- 4. Tabla: pedidos (Cabecera transaccional de ventas)
-CREATE TABLE IF NOT EXISTS public.pedidos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE RESTRICT,
-    medio_pago VARCHAR(40) NOT NULL,
-    total NUMERIC(12, 2) NOT NULL CHECK (total >= 0),
-    notas TEXT DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+create table if not exists public.pedidos (
+    id uuid primary key default gen_random_uuid(),
+    cliente_id uuid not null references public.clientes(id) on delete restrict,
+    medio_pago varchar(40) not null,
+    total numeric(12,2) not null check (total >= 0),
+    notas text default '',
+    created_at timestamptz not null default now()
 );
+alter table public.pedidos add column if not exists estado text not null default 'completado';
+alter table public.pedidos add column if not exists entrega_programada_at timestamptz;
+alter table public.pedidos drop constraint if exists pedidos_estado_check;
+alter table public.pedidos add constraint pedidos_estado_check
+    check (estado in ('completado','apartado','cerrado')) not valid;
+-- Nota: si tu tabla tiene la columna extra "creado_en" y es NOT NULL sin default, dale un default now().
 
-ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT '';
-ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
-
--- 5. Tabla: pedido_detalles (Líneas de pedido en 3NF con precio_unitario_historico)
-CREATE TABLE IF NOT EXISTS public.pedido_detalles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pedido_id UUID NOT NULL REFERENCES public.pedidos(id) ON DELETE CASCADE,
-    producto_id VARCHAR(50) NOT NULL REFERENCES public.productos(id) ON DELETE RESTRICT,
-    cantidad INTEGER NOT NULL CHECK (cantidad > 0),
-    precio_unitario_historico NUMERIC(12, 2) NOT NULL CHECK (precio_unitario_historico >= 0)
+create table if not exists public.pedido_detalles (
+    id uuid primary key default gen_random_uuid(),
+    pedido_id uuid not null references public.pedidos(id) on delete cascade,
+    producto_id varchar(50) not null references public.productos(id) on delete restrict,
+    cantidad integer not null check (cantidad > 0),
+    precio_unitario_historico numeric(12,2) not null check (precio_unitario_historico >= 0)
 );
+alter table public.pedido_detalles add column if not exists producto_nombre_historico text;
+create unique index if not exists pedido_detalles_pedido_producto_unique
+    on public.pedido_detalles (pedido_id, producto_id);
 
--- Limpiar posibles líneas duplicadas previas y aplicar restricción UNIQUE compuesta
-DELETE FROM public.pedido_detalles a USING public.pedido_detalles b
-WHERE a.ctid > b.ctid AND a.pedido_id = b.pedido_id AND a.producto_id = b.producto_id;
+create table if not exists public.configuracion_sistema (
+    clave text primary key,
+    valor text not null default '',
+    updated_at timestamptz not null default now()
+);
+insert into public.configuracion_sistema (clave, valor) values ('clientes_habilitados','true')
+on conflict (clave) do nothing;
 
-ALTER TABLE public.pedido_detalles DROP CONSTRAINT IF EXISTS pedido_detalles_pedido_producto_unique;
-ALTER TABLE public.pedido_detalles ADD CONSTRAINT pedido_detalles_pedido_producto_unique UNIQUE (pedido_id, producto_id);
+-- ---------- Funciones (se recrean sin dejar sobrecargas viejas) ----------
+do $$ declare r record; begin
+  for r in select oid::regprocedure as sig from pg_proc
+           where pronamespace = 'public'::regnamespace
+             and proname in ('registrar_pedido_atomico','actualizar_pedido_existente',
+                             'contar_compras_cliente','acceso_clientes')
+  loop execute 'drop function ' || r.sig; end loop;
+end $$;
 
--- Garantizar ON DELETE CASCADE al eliminar un pedido desde la caja
-ALTER TABLE public.pedido_detalles DROP CONSTRAINT IF EXISTS pedido_detalles_pedido_id_fkey;
-ALTER TABLE public.pedido_detalles ADD CONSTRAINT pedido_detalles_pedido_id_fkey
-    FOREIGN KEY (pedido_id) REFERENCES public.pedidos(id) ON DELETE CASCADE;
+create function public.registrar_pedido_atomico(
+    p_pedido_id uuid, p_cliente_nombre varchar, p_medio_pago varchar, p_total numeric,
+    p_notas text, p_created_at timestamptz, p_items jsonb,
+    p_estado text default 'completado', p_entrega_programada_at timestamptz default null
+) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+    v_cliente_id uuid; v_item jsonb; v_nombre varchar; v_actual text;
+begin
+    v_nombre := initcap(trim(coalesce(p_cliente_nombre, '')));
+    if v_nombre = '' or length(v_nombre) > 120 then
+        raise exception 'Nombre de cliente inválido' using errcode = '22023'; end if;
+    if p_estado not in ('completado','apartado') then
+        raise exception 'Estado inválido' using errcode = '22023'; end if;
+    if p_total is null or p_total < 0 then
+        raise exception 'Total inválido' using errcode = '22023'; end if;
+    if p_items is null or jsonb_typeof(p_items) <> 'array'
+       or jsonb_array_length(p_items) not between 1 and 60 then
+        raise exception 'Ítems inválidos' using errcode = '22023'; end if;
 
--- 6. Función RPC Transaccional y Atómica (ACID) para sincronización Offline-First
-CREATE OR REPLACE FUNCTION public.registrar_pedido_atomico(
-    p_pedido_id UUID,
-    p_cliente_nombre VARCHAR,
-    p_medio_pago VARCHAR,
-    p_total NUMERIC,
-    p_notas TEXT,
-    p_created_at TIMESTAMPTZ,
-    p_items JSONB
-) RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_cliente_id UUID;
-    v_item JSONB;
-    v_nombre_limpio VARCHAR;
-BEGIN
-    v_nombre_limpio := INITCAP(TRIM(p_cliente_nombre));
+    select estado into v_actual from public.pedidos where id = p_pedido_id;
+    if v_actual = 'cerrado' then return true; end if;   -- un día cerrado no se reescribe
 
-    -- 1. Upsert del cliente normalizado
-    INSERT INTO public.clientes (nombre)
-    VALUES (v_nombre_limpio)
-    ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre
-    RETURNING id INTO v_cliente_id;
+    insert into public.clientes (nombre) values (v_nombre)
+    on conflict (nombre) do update set nombre = excluded.nombre
+    returning id into v_cliente_id;
 
-    -- 2. Upsert de la cabecera del pedido respetando la hora real de venta en el iPad
-    INSERT INTO public.pedidos (id, cliente_id, medio_pago, total, notas, created_at)
-    VALUES (
-        p_pedido_id,
-        v_cliente_id,
-        p_medio_pago,
-        p_total,
-        COALESCE(p_notas, ''),
-        COALESCE(p_created_at, now())
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        total = EXCLUDED.total,
-        notas = EXCLUDED.notas,
-        medio_pago = EXCLUDED.medio_pago;
+    insert into public.pedidos (id, cliente_id, medio_pago, total, notas, created_at, estado, entrega_programada_at)
+    values (p_pedido_id, v_cliente_id, p_medio_pago, p_total, coalesce(p_notas,''),
+            coalesce(p_created_at, now()), p_estado, p_entrega_programada_at)
+    on conflict (id) do update set
+        total = excluded.total, notas = excluded.notas, medio_pago = excluded.medio_pago,
+        estado = excluded.estado, entrega_programada_at = excluded.entrega_programada_at,
+        created_at = excluded.created_at;
 
-    -- 3. Upsert idempotente de cada línea de detalle con su precio_unitario_historico
-    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-    LOOP
-        INSERT INTO public.pedido_detalles (
-            pedido_id,
-            producto_id,
-            cantidad,
-            precio_unitario_historico
-        )
-        VALUES (
-            p_pedido_id,
-            v_item->>'id',
-            (v_item->>'cantidad')::INT,
-            (v_item->>'precio')::NUMERIC
-        )
-        ON CONFLICT (pedido_id, producto_id) DO UPDATE SET
-            cantidad = EXCLUDED.cantidad,
-            precio_unitario_historico = EXCLUDED.precio_unitario_historico;
-    END LOOP;
+    for v_item in select * from jsonb_array_elements(p_items) loop
+        insert into public.pedido_detalles (pedido_id, producto_id, cantidad, precio_unitario_historico, producto_nombre_historico)
+        values (p_pedido_id, v_item->>'id', (v_item->>'cantidad')::int,
+                (v_item->>'precio')::numeric, v_item->>'nombre')
+        on conflict (pedido_id, producto_id) do update set
+            cantidad = excluded.cantidad,
+            precio_unitario_historico = excluded.precio_unitario_historico,
+            producto_nombre_historico = excluded.producto_nombre_historico;
+    end loop;
+    return true;
+end $$;
 
-    RETURN TRUE;
-END;
+create function public.actualizar_pedido_existente(
+    p_pedido_id uuid, p_nuevo_nombre varchar, p_nuevo_pago varchar
+) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_cliente_id uuid; v_nombre varchar;
+begin
+    if not public.es_admin() then raise exception 'No autorizado' using errcode = '42501'; end if;
+    v_nombre := initcap(trim(coalesce(p_nuevo_nombre, '')));
+    if v_nombre = '' then raise exception 'Nombre inválido' using errcode = '22023'; end if;
+    insert into public.clientes (nombre) values (v_nombre)
+    on conflict (nombre) do update set nombre = excluded.nombre
+    returning id into v_cliente_id;
+    update public.pedidos set cliente_id = v_cliente_id, medio_pago = p_nuevo_pago
+    where id = p_pedido_id;
+    return found;
+end $$;
+
+create function public.contar_compras_cliente(p_nombre varchar) returns integer
+language sql stable security definer set search_path = public as $$
+    select count(*)::int from public.pedidos p join public.clientes c on c.id = p.cliente_id
+    where lower(c.nombre) = lower(initcap(trim(coalesce(p_nombre,''))));
 $$;
 
--- 7. Políticas Row Level Security (RLS)
-ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pedidos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pedido_detalles ENABLE ROW LEVEL SECURITY;
+create function public.acceso_clientes(p_pin text) returns jsonb
+language sql stable security definer set search_path = public as $$
+    select jsonb_build_object(
+        'habilitado', coalesce((select valor from public.configuracion_sistema where clave = 'clientes_habilitados'), 'true') <> 'false',
+        'pin_ok', exists (select 1 from public.configuracion_sistema
+                          where clave = 'cliente_pin' and valor <> '' and valor = btrim(coalesce(p_pin,''))));
+$$;
 
--- Productos: lectura pública para el POS, actualización exclusiva para Administrador autenticado
-DROP POLICY IF EXISTS "public_select_productos" ON public.productos;
-CREATE POLICY "public_select_productos" ON public.productos
-    FOR SELECT TO anon, authenticated USING (true);
+revoke all on function public.actualizar_pedido_existente(uuid, varchar, varchar) from public, anon;
+grant execute on function public.actualizar_pedido_existente(uuid, varchar, varchar) to authenticated;
+grant execute on function public.registrar_pedido_atomico(uuid, varchar, varchar, numeric, text, timestamptz, jsonb, text, timestamptz) to anon, authenticated;
+grant execute on function public.contar_compras_cliente(varchar) to anon, authenticated;
+grant execute on function public.acceso_clientes(text) to anon, authenticated;
 
-DROP POLICY IF EXISTS "auth_update_productos" ON public.productos;
-CREATE POLICY "auth_update_productos" ON public.productos
-    FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+-- ---------- RLS: se eliminan las políticas abiertas anteriores ----------
+alter table public.productos enable row level security;
+alter table public.clientes enable row level security;
+alter table public.pedidos enable row level security;
+alter table public.pedido_detalles enable row level security;
+alter table public.configuracion_sistema enable row level security;
 
--- Clientes: lectura e inserción/actualización operativa desde el POS
-DROP POLICY IF EXISTS "anon_select_clientes" ON public.clientes;
-CREATE POLICY "anon_select_clientes" ON public.clientes
-    FOR SELECT TO anon, authenticated USING (true);
+do $$ declare r record; begin
+  for r in select schemaname, tablename, policyname from pg_policies
+           where schemaname = 'public'
+             and tablename in ('productos','clientes','pedidos','pedido_detalles','configuracion_sistema')
+  loop execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename); end loop;
+end $$;
 
-DROP POLICY IF EXISTS "anon_insert_clientes" ON public.clientes;
-CREATE POLICY "anon_insert_clientes" ON public.clientes
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
+-- Menú: lectura pública (el POS lo necesita); escritura solo admin
+create policy menu_lectura on public.productos for select to anon, authenticated using (true);
+create policy menu_admin on public.productos for all to authenticated
+    using (public.es_admin()) with check (public.es_admin());
+-- Todo lo demás: solo admin. Los clientes anónimos escriben únicamente vía RPC.
+create policy clientes_admin on public.clientes for all to authenticated
+    using (public.es_admin()) with check (public.es_admin());
+create policy pedidos_admin on public.pedidos for all to authenticated
+    using (public.es_admin()) with check (public.es_admin());
+create policy detalles_admin on public.pedido_detalles for all to authenticated
+    using (public.es_admin()) with check (public.es_admin());
+create policy config_admin on public.configuracion_sistema for all to authenticated
+    using (public.es_admin()) with check (public.es_admin());
 
-DROP POLICY IF EXISTS "anon_update_clientes" ON public.clientes;
-CREATE POLICY "anon_update_clientes" ON public.clientes
-    FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-
--- Pedidos: lectura, inserción, actualización y eliminación propagada
-DROP POLICY IF EXISTS "anon_select_pedidos" ON public.pedidos;
-CREATE POLICY "anon_select_pedidos" ON public.pedidos
-    FOR SELECT TO anon, authenticated USING (true);
-
-DROP POLICY IF EXISTS "anon_insert_pedidos" ON public.pedidos;
-CREATE POLICY "anon_insert_pedidos" ON public.pedidos
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
-
-DROP POLICY IF EXISTS "anon_update_pedidos" ON public.pedidos;
-CREATE POLICY "anon_update_pedidos" ON public.pedidos
-    FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "auth_delete_pedidos" ON public.pedidos;
-CREATE POLICY "auth_delete_pedidos" ON public.pedidos
-    FOR DELETE TO anon, authenticated USING (true);
-
--- Detalles de pedido: lectura, inserción y actualización
-DROP POLICY IF EXISTS "anon_select_detalles" ON public.pedido_detalles;
-CREATE POLICY "anon_select_detalles" ON public.pedido_detalles
-    FOR SELECT TO anon, authenticated USING (true);
-
-DROP POLICY IF EXISTS "anon_insert_detalles" ON public.pedido_detalles;
-CREATE POLICY "anon_insert_detalles" ON public.pedido_detalles
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
-
-DROP POLICY IF EXISTS "anon_update_detalles" ON public.pedido_detalles;
-CREATE POLICY "anon_update_detalles" ON public.pedido_detalles
-    FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-
-ALTER TABLE public.productos ADD COLUMN IF NOT EXISTS disponible BOOLEAN NOT NULL DEFAULT true;
+-- Realtime (si la publicación existe)
+do $$ begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin alter publication supabase_realtime add table public.pedidos; exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.productos; exception when duplicate_object then null; end;
+  end if;
+end $$;

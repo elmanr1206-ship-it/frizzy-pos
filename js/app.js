@@ -38,9 +38,6 @@ const COMBOS_RAPIDOS = [
 
 const NOTAS_RAPIDAS = ['Sin mucha salsa', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Con servilletas', 'Sin acompañante', 'Sin topping', 'Sin bebida', 'Con todo'];
 
-const WHATSAPP_ADMIN_PHONE = '573503129384';
-const CLIENT_ACCESS_PIN = '1234';
-
 function leerStorageSeguro(clave, defecto = []) {
     try {
         const raw = localStorage.getItem(clave);
@@ -100,7 +97,7 @@ let fechaJornadaActiva = localStorage.getItem('fz_fecha_jornada') || obtenerFech
 let filtroPago = null;
 let textoBusquedaPedidos = '';
 let configClientes = leerStorageSeguro('fz_config_clientes', {
-    pin: '1234',
+    pin: '',
     habilitado: true
 });
 let sincronizando = false;
@@ -110,7 +107,7 @@ let audioCtx = null;
 
 // Variables del Mazo de Notificaciones estilo Apple iOS
 let idsPedidosConocidos = new Set(leerStorageSeguro('fz_ids_pedidos_conocidos', []));
-let colaCartasVerdes = leerStorageSeguro('fz_cola_cartas_verdes', []);
+let colaCartasVerdes = leerStorageSeguro('fz_cola_cartas_verdes', []).filter((c) => c && c.nombre);
 let cargaInicialCompletada = false;
 
 const getBowls = () => catalogoMenu.filter((p) => normalizarCategoria(p.categoria) === 'bowl');
@@ -173,23 +170,19 @@ function encolarNotificacionVerdeNuevoPedido(pedidoObj) {
     }
 
     if (!colaCartasVerdes.some((c) => c.id === pedidoObj.id)) {
-        const extrasList = [
-            ...(pedidoObj.acompDetalle || []),
-            ...(pedidoObj.toppingDetalle || []),
-            ...(pedidoObj.bebidaDetalle || [])
-        ].map((i) => `${i.nombre} x${i.cantidad}`).join(', ');
-
         colaCartasVerdes.push({
             id: pedidoObj.id,
-            cliente: pedidoObj.nombre,
+            nombre: pedidoObj.nombre,
             hora: pedidoObj.hora,
             bowl: pedidoObj.bowl,
-            extras: extrasList || 'Sin adiciones extras',
+            acompDetalle: pedidoObj.acompDetalle || [],
+            toppingDetalle: pedidoObj.toppingDetalle || [],
+            bebidaDetalle: pedidoObj.bebidaDetalle || [],
             notas: pedidoObj.notas || '',
             pago: pedidoObj.pago,
             total: pedidoObj.total,
-            esApartado: pedidoObj.estado === 'apartado',
-            horaEntrega: pedidoObj.entregaProgramadaISO ? formatearHoraBogota(pedidoObj.entregaProgramadaISO) : null
+            estado: pedidoObj.estado || 'completado',
+            entregaProgramadaISO: pedidoObj.entregaProgramadaISO || null
         });
         saveState();
         renderizarPilaNotificacionesVerdes();
@@ -504,6 +497,7 @@ async function sincronizarDesdeNubeMultiDispositivo() {
     if (!navigator.onLine) return;
     try {
         await sincronizarCola();
+        if (usuarioActual?.rol === 'cliente') return;
 
         const remotos = await api.obtenerPedidosJornadaHoy();
         if (!Array.isArray(remotos)) return;
@@ -853,62 +847,9 @@ function alternarNotaRapida(etiqueta) {
     ui.renderQuickNotes('quickNotesGrid', NOTAS_RAPIDAS, inputNotas.value, alternarNotaRapida);
 }
 
-// ---------------- WHATSAPP Y CORTE AUTOMÁTICO DE MEDIANOCHE ----------------
-function construirMensajeWhatsApp(listaPedidos, fechaEtiqueta) {
-    const totalVentas = listaPedidos.reduce((s, p) => s + Number(p.total || 0), 0);
-    const personasUnicas = new Set(
-        listaPedidos.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)
-    ).size;
-
-    const desglosePagos = PAGOS.map((pg) => {
-        const filtrados = listaPedidos.filter((p) => (p.pago || '').toLowerCase() === pg.nombre.toLowerCase());
-        const sub = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
-        return `• ${pg.nombre}: ${ui.fmt(sub)} (${filtrados.length} ped.)`;
-    }).join('\n');
-
-    const conteo = {};
-    listaPedidos.forEach((p) => {
-        if (p.bowlId && p.bowlId !== 'ninguno') conteo[p.bowl] = (conteo[p.bowl] || 0) + 1;
-        [...(p.acompDetalle || []), ...(p.toppingDetalle || []), ...(p.bebidaDetalle || [])].forEach((i) => {
-            conteo[i.nombre] = (conteo[i.nombre] || 0) + i.cantidad;
-        });
-    });
-
-    const topTexto = Object.entries(conteo)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([nom, cant], i) => `${i + 1}. ${nom}: ${cant} uds.`)
-        .join('\n') || 'Sin ítems';
-
-    return (
-        `📊 *REPORTE DE CIERRE FRIZZY POS*\n` +
-        `📅 *Fecha:* ${fechaEtiqueta}\n` +
-        `────────────────────\n` +
-        `🧾 *Pedidos (Bowls):* ${listaPedidos.length}\n` +
-        `👥 *Personas atendidas:* ${personasUnicas}\n` +
-        `💰 *Total Ventas:* ${ui.fmt(totalVentas)}\n` +
-        `────────────────────\n` +
-        `💳 *Por Medio de Pago:*\n${desglosePagos}\n` +
-        `────────────────────\n` +
-        `🏆 *Top Más Vendidos:*\n${topTexto}`
-    );
-}
-
-function abrirWhatsAppConReporte(mensaje) {
-    const encoded = encodeURIComponent(mensaje);
-    const numLimpio = String(WHATSAPP_ADMIN_PHONE || '').replace(/\D/g, '');
-    const url = `https://api.whatsapp.com/send?phone=${numLimpio}&text=${encoded}`;
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-
+// ---------------- CORTE AUTOMÁTICO DE MEDIANOCHE ----------------
 async function verificarCorteAutomaticoMedianoche() {
+    if (usuarioActual?.rol !== 'admin') return;
     const hoyStr = obtenerFechaHoyStr();
     const pedidosDiaAnterior = pedidos.filter((p) => p.fechaLocal && p.fechaLocal !== hoyStr);
 
@@ -916,7 +857,7 @@ async function verificarCorteAutomaticoMedianoche() {
         if (pedidos.length > 0) {
             if (navigator.onLine) {
                 await sincronizarCola();
-                await api.cerrarJornadaServidor();
+                await api.cerrarJornadaServidor('', { soloAnteriores: true });
             }
             pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
             fechaJornadaActiva = hoyStr;
@@ -1261,6 +1202,7 @@ function prepararSiguienteBowlMismoCliente(nombreCliente, pagoIdOpcional = null)
 
 // Sincroniza el PIN de clientes y si el local acepta pedidos de clientes desde Supabase (Punto C)
 async function cargarConfiguracionClientes() {
+    if (usuarioActual?.rol !== 'admin') return;
     if (!navigator.onLine || typeof api.obtenerConfiguracionSistema !== 'function') return;
     const cfg = await api.obtenerConfiguracionSistema();
     if (cfg) {
@@ -1271,7 +1213,7 @@ async function cargarConfiguracionClientes() {
         localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
     }
     const pinDisplay = document.getElementById('pillPinDisplay');
-    if (pinDisplay) pinDisplay.textContent = configClientes.pin || '1234';
+    if (pinDisplay) pinDisplay.textContent = configClientes.pin || '—';
 }
 
 // IDEA 4: Mostrar el Ticket estilo Apple Wallet al cliente o admin
@@ -1520,43 +1462,6 @@ let pedidosVisibles = esAdmin
         }
     }, esAdmin);
 
-    ui.renderOrders(apartadosVisibles, 'apartadosList', true, {
-        onToggle: (id) => {
-            const p = apartados.find((x) => x.id === id);
-            if (p) {
-                p.abierto = !p.abierto;
-                saveState();
-                renderAll();
-            }
-        },
-        onDelete: (id) => {
-            ui.confirmarAccion('¿Cancelar y eliminar este pedido apartado?', async () => {
-                apartados = apartados.filter((x) => x.id !== id);
-                colaCartasVerdes = colaCartasVerdes.filter((c) => c.id !== id);
-                alarmasSilenciadas.add(id);
-                saveState();
-                renderAll();
-                renderizarPilaNotificacionesVerdes();
-                await dbSync.removeFromQueue(id);
-                if (navigator.onLine) await api.deletePedido(id);
-                else await dbSync.saveDeleteToQueue(id);
-                ui.mostrarToast('Apartado cancelado');
-            });
-        },
-        onConfirm: async (p) => {
-            apartados = apartados.filter((x) => x.id !== p.id);
-            alarmasSilenciadas.add(p.id);
-            const ahora = new Date();
-            p.estado = 'completado';
-            p.entregaProgramadaISO = null;
-            p.abierto = true;
-            p.fechaISO = obtenerFechaBogotaISO(ahora);
-            p.fechaLocal = formatearFechaBogota(ahora);
-            p.hora = formatearHoraBogota(ahora);
-            await procesarGuardado(p, { modoReset: 'ninguno', esApartado: false });
-        }
-    }, esAdmin);
-
     if (esAdmin) {
         const conteo = {};
         pedidos.forEach((p) => {
@@ -1721,40 +1626,6 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
     const addSec = document.getElementById('adminAddProductSection');
     if (addSec) addSec.style.display = 'block';
 
-    const inputApiKey = document.getElementById('adminWhatsappApiKey');
-        if (inputApiKey) {
-            inputApiKey.value = localStorage.getItem('fz_whatsapp_apikey') || '';
-            inputApiKey.onchange = (e) => {
-            localStorage.setItem('fz_whatsapp_apikey', e.target.value.trim());
-        };
-
-        // Crear botón para probar el envío automático a WhatsApp en cualquier momento
-        if (!document.getElementById('btnTestWhatsappAuto')) {
-            const btnTest = document.createElement('button');
-            btnTest.type = 'button';
-            btnTest.id = 'btnTestWhatsappAuto';
-            btnTest.textContent = 'Ingresar';
-            btnTest.style.cssText = 'min-height:36px; padding:6px 12px; border-radius:8px; border:none; background:#25D366; color:#1B0836; font-weight:900; font-size:0.75rem; cursor:pointer;';
-            inputApiKey.parentElement.appendChild(btnTest);
-
-            btnTest.addEventListener('click', async () => {
-                const key = inputApiKey.value.trim();
-                localStorage.setItem('fz_whatsapp_apikey', key);
-                const msgPrueba = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr() + ' (PRUEBA)');
-                if (key) {
-                    btnTest.disabled = true;
-                    btnTest.textContent = 'Enviando...';
-                    await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msgPrueba, key);
-                    btnTest.disabled = false;
-                    btnTest.textContent = '🧪 Probar WhatsApp';
-                    ui.mostrarToast('📲 Petición automática enviada a +57 3503129384');
-                } else {
-                    abrirWhatsAppConReporte(msgPrueba);
-                }
-            });
-        }
-    }
-
     listaDiv.innerHTML = '';
 
     const mapaCategorias = [
@@ -1901,25 +1772,17 @@ async function init() {
 
     formCli?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        await cargarConfiguracionClientes();
         const nombre = normalizarNombreCliente(document.getElementById('loginClienteNombre').value);
         const pin = document.getElementById('loginClienteCodigo').value.trim();
-
         if (!nombre) return;
-        if (!configClientes.habilitado) {
-            if (gateErr) {
-                gateErr.textContent = '🌙 En este momento la recepción de pedidos para clientes está cerrada.';
-                gateErr.style.display = 'block';
-            }
-            return;
-        }
-        if (pin !== String(configClientes.pin || CLIENT_ACCESS_PIN)) {
-            if (gateErr) {
-                gateErr.textContent = '🔒 Código PIN del local incorrecto. Solicita el PIN de hoy en caja.';
-                gateErr.style.display = 'block';
-            }
-            return;
-        }
+
+        const errorGate = (txt) => {
+            if (gateErr) { gateErr.textContent = txt; gateErr.style.display = 'block'; }
+        };
+        const acceso = navigator.onLine ? await api.verificarAccesoCliente(pin) : null;
+        if (!acceso) return errorGate('📡 Necesitas conexión a internet para entrar. Intenta de nuevo.');
+        if (!acceso.habilitado) return errorGate('🌙 En este momento la recepción de pedidos para clientes está cerrada.');
+        if (!acceso.pin_ok) return errorGate('🔒 Código PIN del local incorrecto. Solicita el PIN de hoy en caja.');
 
         usuarioActual = { rol: 'cliente', nombre };
         localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
@@ -1945,23 +1808,6 @@ async function init() {
         renderAll();
     });
 
-    document.getElementById('btnToggleRoleView')?.addEventListener('click', async () => {
-        if (usuarioActual?.rol === 'admin') {
-            const nombreCli = prompt('Ingresa tu nombre para entrar en Vista Cliente:') || 'Cliente';
-            const pinIngresado = prompt('Ingresa el PIN de acceso del local:');
-            if (pinIngresado !== String(configClientes.pin || '1234')) {
-                return ui.mostrarToast('🔒 PIN incorrecto');
-            }
-            usuarioActual = { rol: 'cliente', nombre: normalizarNombreCliente(nombreCli) };
-        } else {
-            usuarioActual = { rol: 'admin', nombre: 'Administrador' };
-        }
-        localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
-        resetForm();
-        await aplicarVistaPorRol();
-        ui.mostrarToast(usuarioActual.rol === 'admin' ? '🔓 Vista Administrador activa' : '👤 Vista Cliente activa');
-    });
-
     document.getElementById('btnCloseWalletModal')?.addEventListener('click', () => {
         document.getElementById('walletPassModal').style.display = 'none';
     });
@@ -1978,7 +1824,7 @@ async function init() {
 
     const btnToggleAccess = document.getElementById('btnToggleClientAccess');
     const pinInputAdmin = document.getElementById('adminClientPinInput');
-    if (pinInputAdmin) pinInputAdmin.value = configClientes.pin || '1234';
+    if (pinInputAdmin) pinInputAdmin.value = configClientes.pin || '';
     if (btnToggleAccess) {
         const pintarEstadoAcceso = (abierto) => {
             btnToggleAccess.setAttribute('data-enabled', abierto ? 'true' : 'false');
@@ -2187,7 +2033,7 @@ async function init() {
     });
 
     document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
-        const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '1234').trim();
+        const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '').trim();
         const nuevoAccesoCli = document.getElementById('btnToggleClientAccess')?.getAttribute('data-enabled') !== 'false';
 
         configClientes = { pin: nuevoPinCli, habilitado: nuevoAccesoCli };
@@ -2206,11 +2052,6 @@ async function init() {
         btnGuardarPrecios.disabled = true;
         btnGuardarPrecios.textContent = 'Sincronizando...';
         let fallos = 0;
-
-        const inputApiKey = document.getElementById('adminWhatsappApiKey');
-        if (inputApiKey) {
-            localStorage.setItem('fz_whatsapp_apikey', inputApiKey.value.trim());
-        }
 
         for (const inpt of inputs) {
             const val = Number(inpt.value);
@@ -2251,25 +2092,6 @@ async function init() {
         btnGuardarPrecios.textContent = 'Guardar Cambios en Nube';
         renderAll();
         ui.mostrarToast(fallos === 0 ? '✅ Menú sincronizado en todos los dispositivos' : `⚠️ Guardado con ${fallos} errores`);
-    });
-
-    document.getElementById('btnWhatsapp')?.addEventListener('click', async () => {
-        if (pedidos.length === 0) {
-            const ultimoAuto = leerStorageSeguro('fz_ultimo_cierre_auto', null);
-            if (ultimoAuto && ultimoAuto.resumen) {
-                abrirWhatsAppConReporte(ultimoAuto.resumen);
-                return;
-            }
-            return ui.mostrarToast('No hay pedidos hoy para reportar');
-        }
-        const msg = construirMensajeWhatsApp(pedidos, obtenerFechaHoyStr());
-        const apiKeyGuardada = localStorage.getItem('fz_whatsapp_apikey') || '';
-        if (apiKeyGuardada && navigator.onLine && typeof api.enviarWhatsAppAutomaticoCloud === 'function') {
-            await api.enviarWhatsAppAutomaticoCloud(WHATSAPP_ADMIN_PHONE, msg, apiKeyGuardada);
-            ui.mostrarToast('📲 Reporte enviado automáticamente a tu WhatsApp (+57 3503129384)');
-        } else {
-            abrirWhatsAppConReporte(msg);
-        }
     });
 
     document.getElementById('btnExcel')?.addEventListener('click', () => {
