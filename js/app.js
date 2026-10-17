@@ -3,6 +3,7 @@ import { dbSync } from './dbSync.js';
 import {
     api,
     normalizarNombreCliente,
+    nombreCompletoValido,
     obtenerFechaBogotaISO,
     formatearHoraBogota,
     formatearFechaBogota
@@ -1117,7 +1118,7 @@ function calcularTotal() {
     if (elTotal) elTotal.textContent = ui.fmt(t);
 
     const inputNombre = document.getElementById('nombreCliente');
-    const nombreOk = inputNombre && inputNombre.value.trim().length > 0;
+    const nombreOk = Boolean(inputNombre) && nombreCompletoValido(inputNombre.value);
     const pagoOk = estado.pago !== null;
     const tieneItems =
         estado.bowl !== null ||
@@ -1372,6 +1373,10 @@ async function corregirNombreEnPedido(pedidoObj) {
     if (!nuevoRaw) return;
     const nuevoNombre = normalizarNombreCliente(nuevoRaw);
     if (!nuevoNombre || nuevoNombre === pedidoObj.nombre) return;
+    if (!nombreCompletoValido(nuevoNombre)) {
+        ui.mostrarToast('✍️ Escribe nombre y apellido');
+        return;
+    }
 
     const nombreAnterior = pedidoObj.nombre;
     pedidoObj.nombre = nuevoNombre;
@@ -1610,6 +1615,7 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             fechaISO: pedido.fechaISO,
             estado: esApartado ? 'apartado' : 'completado',
             entregaProgramadaISO: pedido.entregaProgramadaISO || null,
+            pin: usuarioActual?.rol === 'cliente' ? (usuarioActual.pin || null) : null,
             items: [...itemsArray, ...pedido.acompDetalle, ...pedido.toppingDetalle, ...pedido.bebidaDetalle]
         };
 
@@ -1686,6 +1692,7 @@ async function sincronizarCola() {
                 }
             } else if (resultado.permanent) {
                 if (localRef) localRef.syncError = true;
+                if (resultado.pin) break;
             }
         }
 
@@ -1858,17 +1865,19 @@ async function init() {
         e.preventDefault();
         const nombre = normalizarNombreCliente(document.getElementById('loginClienteNombre').value);
         const pin = document.getElementById('loginClienteCodigo').value.trim();
-        if (!nombre) return;
-
         const errorGate = (txt) => {
             if (gateErr) { gateErr.textContent = txt; gateErr.style.display = 'block'; }
         };
+        if (!nombreCompletoValido(nombre)) {
+            return errorGate('✍️ Escribe tu nombre y apellido (por ejemplo: Camila Pérez).');
+        }
         const acceso = navigator.onLine ? await api.verificarAccesoCliente(pin) : null;
         if (!acceso) return errorGate('📡 Necesitas conexión a internet para entrar. Intenta de nuevo.');
         if (!acceso.habilitado) return errorGate('🌙 En este momento la recepción de pedidos para clientes está cerrada.');
+        if (acceso.bloqueado) return errorGate('⏳ Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.');
         if (!acceso.pin_ok) return errorGate('🔒 Código PIN del local incorrecto. Solicita el PIN de hoy en caja.');
 
-        usuarioActual = { rol: 'cliente', nombre };
+        usuarioActual = { rol: 'cliente', nombre, pin };
         localStorage.setItem('fz_usuario_actual', JSON.stringify(usuarioActual));
         registrarClienteEnCache(nombre);
         resetForm();

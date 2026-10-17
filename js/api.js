@@ -38,6 +38,11 @@ export function normalizarNombreCliente(nombre) {
         .replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_m, sep, letra) => sep + letra.toUpperCase());
 }
 
+// Nombre y apellido: al menos 2 palabras de 2+ letras, sin números (misma regla que el servidor)
+export function nombreCompletoValido(nombre) {
+    return /^[^\p{N}\s]{2,}(\s+[^\p{N}\s]{2,})+$/u.test(String(nombre || '').trim());
+}
+
 // Genera timestamp ISO con el offset exacto de Colombia (-05:00) para evitar el desfase de 5 horas (4:00 UTC)
 export function obtenerFechaBogotaISO(dateObj = new Date()) {
     const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -235,58 +240,21 @@ export const api = {
                 p_created_at: fechaVentaBogota,
                 p_items: pedidoLocal.items,
                 p_estado: estadoPedido,
-                p_entrega_programada_at: entregaProgramada
+                p_entrega_programada_at: entregaProgramada,
+                p_pin: pedidoLocal.pin || null
             });
 
             if (!rpcError && rpcOk) {
                 return { ok: true, permanent: false };
             }
-            if (rpcError && ['23503', '22P02', '22023', '23514'].includes(rpcError.code)) {
-                return { ok: false, permanent: true, reason: rpcError.message };
+            if (!rpcError && rpcOk === false) {
+                return { ok: false, permanent: true, pin: true, reason: 'PIN del local incorrecto o bloqueado' };
             }
-
-            // Respaldo con Upsert directo si el RPC aún no tiene los nuevos parámetros
-            const { data: clienteData, error: clienteError } = await sb
-                .from('clientes')
-                .upsert([{ nombre: nombreNormalizado }], { onConflict: 'nombre' })
-                .select('id')
-                .single();
-
-            if (clienteError) throw clienteError;
-
-            const { error: pedidoError } = await sb
-                .from('pedidos')
-                .upsert([{
-                    id: pedidoLocal.id,
-                    cliente_id: clienteData.id,
-                    medio_pago: pedidoLocal.pago,
-                    total: pedidoLocal.total,
-                    notas: pedidoLocal.notas || '',
-                    created_at: fechaVentaBogota,
-                    estado: estadoPedido,
-                    entrega_programada_at: entregaProgramada
-                }], { onConflict: 'id' });
-
-            if (pedidoError) throw pedidoError;
-
-            const detalles = pedidoLocal.items.map((item) => ({
-                pedido_id: pedidoLocal.id,
-                producto_id: item.id,
-                cantidad: item.cantidad,
-                precio_unitario_historico: item.precio || 0
-            }));
-
-            const { error: detallesError } = await sb
-                .from('pedido_detalles')
-                .upsert(detalles, { onConflict: 'pedido_id,producto_id' });
-
-            if (detallesError) throw detallesError;
-
-            return { ok: true, permanent: false };
+            const esPermanente = Boolean(rpcError && ['23503', '22P02', '22023', '23514'].includes(rpcError.code));
+            return { ok: false, permanent: esPermanente, reason: rpcError?.message || 'Error de red' };
         } catch (error) {
             console.error('Fallo al sincronizar con Supabase:', error);
-            const esPermanente = error?.code === '23503' || error?.code === '22P02';
-            return { ok: false, permanent: esPermanente, reason: error?.message || 'Error de red' };
+            return { ok: false, permanent: false, reason: error?.message || 'Error de red' };
         }
     },
 
@@ -346,15 +314,7 @@ export const api = {
             p_solo_anteriores: soloAnteriores
         });
 
-        if (error) {
-            // Respaldo directo si aún no se ha corrido el RPC
-            let q = sb.from('pedidos').update({ estado: 'cerrado' }).eq('estado', 'completado');
-            if (soloAnteriores) {
-                q = q.lt('created_at', obtenerFechaBogotaISO().slice(0, 10) + 'T00:00:00-05:00');
-            }
-            const { error: updErr } = await q;
-            return { data: null, error: updErr };
-        }
+        if (error) return { data: null, error };
         return { data, error: null };
     },
 
@@ -395,29 +355,8 @@ export const api = {
             p_nuevo_pago: nuevoPago
         });
 
-        if (!rpcErr && rpcOk) {
-            return { error: null };
-        }
-
-        // Respaldo directo si aún no se ha ejecutado el RPC en Supabase
-        try {
-            const { data: cli, error: errCli } = await sb
-                .from('clientes')
-                .upsert([{ nombre: nombreNorm }], { onConflict: 'nombre' })
-                .select('id')
-                .single();
-
-            if (errCli) throw errCli;
-
-            const { error: errPed } = await sb
-                .from('pedidos')
-                .update({ cliente_id: cli.id, medio_pago: nuevoPago })
-                .eq('id', pedidoId);
-
-            return { error: errPed };
-        } catch (err) {
-            return { error: err };
-        }
+        if (!rpcErr && rpcOk) return { error: null };
+        return { error: rpcErr || { message: 'No se pudo actualizar el pedido' } };
     },
 
     // true/false si se pudo comprobar la sesión de Supabase; null si no hay forma de comprobarla (offline)
