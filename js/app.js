@@ -113,6 +113,7 @@ let configClientes = leerStorageSeguro('fz_config_clientes', {
     habilitado: true
 });
 let sincronizando = false;
+let pinRechazado = null; // último PIN que el servidor rechazó: no se reintenta hasta que cambie
 let guardandoEnCurso = false;
 let alarmasSilenciadas = new Set();
 let audioCtx = null;
@@ -1615,7 +1616,6 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             fechaISO: pedido.fechaISO,
             estado: esApartado ? 'apartado' : 'completado',
             entregaProgramadaISO: pedido.entregaProgramadaISO || null,
-            pin: usuarioActual?.rol === 'cliente' ? (usuarioActual.pin || null) : null,
             items: [...itemsArray, ...pedido.acompDetalle, ...pedido.toppingDetalle, ...pedido.bebidaDetalle]
         };
 
@@ -1679,9 +1679,13 @@ async function sincronizarCola() {
     actualizarBadgeSincronizacion();
 
     try {
+        // El PIN no se guarda en la cola: se usa el vigente, así un PIN cambiado no deja pedidos atascados
+        const pinActual = usuarioActual?.rol === 'cliente' ? (usuarioActual.pin || null) : null;
         const cola = await dbSync.getQueue();
         for (const pedidoCola of cola) {
-            const resultado = await api.pushPedido(pedidoCola);
+            // Cada PIN fallido cuenta para el bloqueo de todos los clientes: no reintentar el mismo PIN
+            if (pinActual && pinActual === pinRechazado) break;
+            const resultado = await api.pushPedido({ ...pedidoCola, pin: pinActual });
             const localRef = pedidos.find((p) => p.id === pedidoCola.id) || apartados.find((a) => a.id === pedidoCola.id);
 
             if (resultado.ok) {
@@ -1692,7 +1696,7 @@ async function sincronizarCola() {
                 }
             } else if (resultado.permanent) {
                 if (localRef) localRef.syncError = true;
-                if (resultado.pin) break;
+                if (resultado.pin) { pinRechazado = pinActual; break; }
             }
         }
 
@@ -2131,7 +2135,7 @@ async function init() {
     document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
         const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '').trim();
         if (nuevoPinCli !== (configClientes.pin || '')) {
-            if (nuevoPinCli.length < 4) return ui.mostrarToast('⚠️ El PIN debe tener al menos 4 dígitos');
+            if (!/^\d{6,10}$/.test(nuevoPinCli)) return ui.mostrarToast('⚠️ El PIN debe tener de 6 a 10 dígitos (solo números)');
             if (!navigator.onLine) {
                 ui.mostrarToast('⚠️ Sin internet: el PIN nuevo no se guardó');
             } else {

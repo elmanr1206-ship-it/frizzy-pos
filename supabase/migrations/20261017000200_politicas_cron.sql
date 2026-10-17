@@ -9,7 +9,11 @@ create policy menu_admin on public.productos as permissive for all to authentica
 -- Permisos de ejecución
 revoke execute on function public.cerrar_jornada_y_notificar(text, boolean) from public, anon;
 revoke execute on function public.actualizar_pedido_existente(uuid, varchar, varchar) from public, anon;
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+do $$ begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
 
 -- Cierre automático 00:00 Bogotá (05:00 UTC).
 -- El token de Telegram NO va en el repo: crear con  select vault.create_secret('<TOKEN>', 'telegram_token');

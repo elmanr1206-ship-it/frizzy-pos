@@ -1,7 +1,9 @@
 -- 1) Admin real: solo usuarios con app_metadata.rol = 'admin' (no cualquier usuario autenticado).
 --    app_metadata no puede ser modificado por el propio usuario.
+-- Solo si hay un único usuario (el dueño): con más usuarios no se promueve a nadie automáticamente.
 update auth.users
-   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"rol":"admin"}'::jsonb;
+   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"rol":"admin"}'::jsonb
+ where (select count(*) from auth.users) = 1;
 
 create or replace function public.es_admin()
 returns boolean
@@ -147,17 +149,8 @@ end $function$;
 revoke execute on function public.registrar_pedido_atomico(uuid, character varying, character varying, numeric, text, timestamptz, jsonb, text, timestamptz, text) from public;
 grant execute on function public.registrar_pedido_atomico(uuid, character varying, character varying, numeric, text, timestamptz, jsonb, text, timestamptz, text) to anon, authenticated;
 
--- 5) cerrar_jornada_y_notificar: solo admin (el cron corre sin JWT y sigue funcionando)
-do $$
-declare v_def text; v_new text;
-begin
-    select pg_get_functiondef('public.cerrar_jornada_y_notificar(text, boolean)'::regprocedure) into v_def;
-    v_new := replace(v_def,
-        E'BEGIN\n    SELECT decrypted_secret',
-        E'BEGIN\n    IF auth.uid() IS NOT NULL AND NOT public.es_admin() THEN RAISE EXCEPTION ''No autorizado'' USING ERRCODE = ''42501''; END IF;\n    SELECT decrypted_secret');
-    if v_new = v_def then raise exception 'No se pudo parchear cerrar_jornada_y_notificar'; end if;
-    execute v_new;
-end $$;
+-- 5) cerrar_jornada_y_notificar solo para admin: ver 20261017210000_correcciones_revision.sql
+--    (antes se parcheaba por reemplazo de texto, que fallaba al reconstruir desde cero).
 
 -- 6) Restricción de estado ya validada contra los datos existentes
 alter table public.pedidos validate constraint pedidos_estado_check;
