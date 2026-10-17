@@ -36,7 +36,18 @@ const COMBOS_RAPIDOS = [
     { id: 'combo_repetir_ultimo', icono: '🔄', nombre: 'Repetir Último Bowl', esRepetir: true }
 ];
 
-const NOTAS_RAPIDAS = ['Sin mucha salsa', 'Para llevar', 'Salsas aparte', 'Sin salsas', 'Bien dorado', 'Con servilletas', 'Sin acompañante', 'Sin topping', 'Sin bebida', 'Con todo'];
+const NOTAS_RAPIDAS = [
+    'Sin mucha salsa',
+    'Para llevar',
+    'Salsas aparte',
+    'Sin salsas',
+    'Bien dorado',
+    'Con servilletas',
+    'Sin acompañante',
+    'Sin topping',
+    'Sin bebida',
+    'Con todo'
+];
 
 function leerStorageSeguro(clave, defecto = []) {
     try {
@@ -131,7 +142,7 @@ function saveState() {
     }
 }
 
-// ---------------- MAZO DE NOTIFICACIONES VERDES TIPO APPLE (SOLO ADMIN) ----------------
+// ---------------- MAZO DE NOTIFICACIONES TIPO APPLE (SOLO ADMIN) ----------------
 function obtenerContenedorStack() {
     let center = document.getElementById('appleNotificationCenter');
     if (!center) {
@@ -218,7 +229,6 @@ function renderizarPilaNotificacionesVerdes() {
 
         return `
             <div class="green-order-card" data-stack-pos="${posAttr}" data-card-id="${ui.esc(p.id)}">
-                <!-- Cabecera estilo notificación iOS -->
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="width:28px; height:28px; border-radius:8px; background:linear-gradient(145deg, #FFC738, #F5A623); display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem; box-shadow:0 3px 8px rgba(245,166,35,0.35);">
@@ -236,7 +246,6 @@ function renderizarPilaNotificacionesVerdes() {
                     </div>
                 </div>
 
-                <!-- Cliente y Total -->
                 <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px;">
                     <div style="font-size:1.12rem; font-weight:900; color:#FFFFFF; letter-spacing:-0.01em;">
                         ${ui.esc(p.nombre)}
@@ -246,7 +255,6 @@ function renderizarPilaNotificacionesVerdes() {
                     </div>
                 </div>
 
-                <!-- Resumen limpio en tarjeta translúcida interna -->
                 <div style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:14px; padding:9px 12px; font-size:0.83rem; line-height:1.4; color:rgba(255,255,255,0.92);">
                     <div><strong>Base:</strong> ${ui.esc(p.bowl)} · <span style="color:#FFE082; font-weight:800;">${ui.esc(p.pago)}</span></div>
                     ${extras ? `<div style="margin-top:3px; opacity:0.9;"><strong>Adiciones:</strong> ${ui.esc(extras)}</div>` : ''}
@@ -265,6 +273,7 @@ function renderizarPilaNotificacionesVerdes() {
             e.stopPropagation();
             const idCerrar = btn.getAttribute('data-dismiss-id');
             colaCartasVerdes = colaCartasVerdes.filter((item) => String(item.id) !== String(idCerrar));
+            saveState();
             renderizarPilaNotificacionesVerdes();
         });
     });
@@ -510,7 +519,6 @@ async function cerrarSesionClientePorAcceso() {
     }
 }
 
-// El cliente solo consulta SUS pedidos (por id) para ver cuándo el admin los cobra o cancela
 async function sincronizarEstadoClienteDesdeNube() {
     const acceso = await api.verificarAccesoCliente('');
     if (acceso && acceso.habilitado === false) return cerrarSesionClientePorAcceso();
@@ -529,7 +537,7 @@ async function sincronizarEstadoClienteDesdeNube() {
             apartados.forEach((a) => {
                 if (idsEnCola.has(a.id)) { siguenApartados.push(a); return; }
                 const r = mapa.get(a.id);
-                if (!r) return; // el admin lo canceló
+                if (!r) return;
                 a.sincronizado = true;
                 a.pago = r.medio_pago || a.pago;
                 if (r.estado === 'apartado') {
@@ -568,19 +576,10 @@ async function sincronizarDesdeNubeMultiDispositivo() {
     if (!navigator.onLine) return;
     try {
         await sincronizarCola();
-<<<<<<< HEAD
-        if (usuarioActual?.rol === 'cliente') return;
-=======
-        if (!usuarioActual) return;
-        if (usuarioActual.rol === 'cliente') return await sincronizarEstadoClienteDesdeNube();
-        if ((await api.haySesionAdminValida()) === false) {
-            usuarioActual = null;
-            localStorage.removeItem('fz_usuario_actual');
-            await aplicarVistaPorRol();
-            ui.mostrarToast('🔒 Tu sesión expiró, inicia sesión de nuevo');
+        if (usuarioActual?.rol === 'cliente') {
+            await sincronizarEstadoClienteDesdeNube();
             return;
         }
->>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 
         const remotos = await api.obtenerPedidosJornadaHoy();
         if (!Array.isArray(remotos)) return;
@@ -1152,9 +1151,8 @@ function construirPedido(esApartado = false) {
     const entregaISO = esApartado ? calcularEntregaProgramadaISO() : null;
     const nombreInput = document.getElementById('nombreCliente')?.value || '';
     const notasInput = (document.getElementById('notas')?.value || '').trim();
-    const horaExacta = document.getElementById('apartadoTimeInput')?.value || '';
 
-    let notasTexto = document.getElementById('notas').value.trim() || '';
+    let notasTexto = notasInput;
     if (estado.premioFidelidad && !notasTexto.includes('[Premio Fidelidad')) {
         notasTexto = (notasTexto + ' [Premio Fidelidad: Topping Gratis]').trim();
     }
@@ -1164,7 +1162,7 @@ function construirPedido(esApartado = false) {
         fechaISO: isoBogota,
         fechaLocal: formatearFechaBogota(ahora),
         hora: formatearHoraBogota(ahora),
-        nombre: normalizarNombreCliente(document.getElementById('nombreCliente').value),
+        nombre: normalizarNombreCliente(nombreInput),
         notas: notasTexto,
         bowl: bowlObj ? bowlObj.nombre : 'Individual',
         bowlId: estado.bowl || 'ninguno',
@@ -1296,7 +1294,6 @@ function pintarControlesAccesoClientes() {
     btn.style.color = abierto ? '#1E7E34' : '#D1272B';
 }
 
-// Sincroniza el PIN de clientes y si el local acepta pedidos de clientes desde Supabase (Punto C)
 async function cargarConfiguracionClientes() {
     if (usuarioActual?.rol !== 'admin') return;
     if (!navigator.onLine || typeof api.obtenerConfiguracionSistema !== 'function') return;
@@ -1310,13 +1307,9 @@ async function cargarConfiguracionClientes() {
     }
     const pinDisplay = document.getElementById('pillPinDisplay');
     if (pinDisplay) pinDisplay.textContent = configClientes.pin || '—';
-<<<<<<< HEAD
-=======
     pintarControlesAccesoClientes();
->>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 }
 
-// IDEA 4: Mostrar el Ticket estilo Apple Wallet al cliente o admin
 function mostrarPaseAppleWallet(pedido) {
     const modal = document.getElementById('walletPassModal');
     if (!modal || !pedido) return;
@@ -1367,7 +1360,6 @@ function mostrarPaseAppleWallet(pedido) {
     modal.style.display = 'flex';
 }
 
-// PUNTO B: Corregir nombre mal escrito en un pedido ya guardado
 async function corregirNombreEnPedido(pedidoObj) {
     const nuevoRaw = window.prompt('Corregir nombre del cliente:', pedidoObj.nombre);
     if (!nuevoRaw) return;
@@ -1395,7 +1387,6 @@ async function corregirNombreEnPedido(pedidoObj) {
     }
 }
 
-// IDEA 5: Cambiar el Medio de Pago en 1 Toque (Efectivo -> Nequi -> Llave)
 async function rotarMedioPagoPedido(pedidoObj) {
     const ordenPagos = ['Efectivo', 'Nequi', 'Llave'];
     const idxActual = ordenPagos.findIndex((x) => x.toLowerCase() === String(pedidoObj.pago || '').toLowerCase());
@@ -1418,7 +1409,6 @@ async function rotarMedioPagoPedido(pedidoObj) {
     ui.mostrarToast(`💳 Pago cambiado a ${nuevoPago}`);
 }
 
-// IDEA 3: Función de filtrado por el Buscador Instantáneo
 function coincideConBusqueda(pedidoObj, queryRaw) {
     const q = limpiarParaBusqueda(queryRaw);
     if (!q) return true;
@@ -1466,7 +1456,7 @@ function renderAll() {
         renderAll();
     });
 
-let pedidosVisibles = esAdmin
+    let pedidosVisibles = esAdmin
         ? pedidos
         : pedidos.filter((p) => String(p.nombre || '').toLowerCase() === nombreClienteActual);
 
@@ -1549,10 +1539,7 @@ let pedidosVisibles = esAdmin
             });
         },
         onConfirm: async (p) => {
-<<<<<<< HEAD
-=======
             if (guardandoEnCurso) return ui.mostrarToast('Espera un momento, se está guardando otro pedido');
->>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
             apartados = apartados.filter((x) => x.id !== p.id);
             alarmasSilenciadas.add(p.id);
             const ahora = new Date();
@@ -1658,7 +1645,6 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
             ui.mostrarToast(`✅ Apartado entregado y cobrado — ${ui.fmt(pedido.total)}`);
             renderAll();
         }
-
     } catch (err) {
         console.error('Error guardando en cola local:', err);
         ui.mostrarToast('⚠️ Error guardando en memoria local.');
@@ -1914,23 +1900,6 @@ async function init() {
     });
 
     const btnToggleAccess = document.getElementById('btnToggleClientAccess');
-<<<<<<< HEAD
-    const pinInputAdmin = document.getElementById('adminClientPinInput');
-    if (pinInputAdmin) pinInputAdmin.value = configClientes.pin || '';
-    if (btnToggleAccess) {
-        const pintarEstadoAcceso = (abierto) => {
-            btnToggleAccess.setAttribute('data-enabled', abierto ? 'true' : 'false');
-            btnToggleAccess.textContent = abierto ? '🟢 Acceso Clientes: ABIERTO' : '🔴 Acceso Clientes: CERRADO';
-            btnToggleAccess.style.background = abierto ? '#E6F4EA' : '#FDECEA';
-            btnToggleAccess.style.color = abierto ? '#1E7E34' : '#D1272B';
-        };
-        pintarEstadoAcceso(configClientes.habilitado);
-        btnToggleAccess.addEventListener('click', () => {
-            const actual = btnToggleAccess.getAttribute('data-enabled') === 'true';
-            pintarEstadoAcceso(!actual);
-        });
-    }
-=======
     pintarControlesAccesoClientes();
     btnToggleAccess?.addEventListener('click', async () => {
         const anterior = configClientes.habilitado !== false;
@@ -1946,7 +1915,6 @@ async function init() {
         localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
         ui.mostrarToast(!anterior ? '🟢 Acceso de clientes ABIERTO' : '🔴 Acceso de clientes CERRADO');
     });
->>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
 
     formAdm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1958,7 +1926,7 @@ async function init() {
         btn.textContent = 'Verificando...';
         const { error } = await api.loginAdmin(email, pass);
         btn.disabled = false;
-        btn.textContent = '🔓 Iniciar Sesión Admin';
+        btn.textContent = '🔓 Entrar al Sistema POS';
 
         if (error) {
             if (gateErr) {
@@ -2091,7 +2059,7 @@ async function init() {
 
     document.getElementById('btnAdmin')?.addEventListener('click', () => {
         abrirEditorPreciosEnModal(modal, listaDiv, btnGuardarPrecios);
-        cargarConfiguracionClientes(); // refresca PIN y acceso desde el servidor
+        cargarConfiguracionClientes();
     });
 
     document.getElementById('btnCerrarAdmin')?.addEventListener('click', () => {
@@ -2118,7 +2086,7 @@ async function init() {
 
         const { error } = await api.crearProductoAdmin({ id: idSlug, nombre, categoria, precio });
         btn.disabled = false;
-        btn.textContent = '➕ Crear y Sincronizar Producto';
+        btn.textContent = 'Añadir';
 
         if (error) {
             return ui.mostrarToast('⚠️ Error guardando en Supabase.');
@@ -2144,21 +2112,6 @@ async function init() {
 
     document.getElementById('btnGuardarPrecios')?.addEventListener('click', async () => {
         const nuevoPinCli = (document.getElementById('adminClientPinInput')?.value || '').trim();
-<<<<<<< HEAD
-        const nuevoAccesoCli = document.getElementById('btnToggleClientAccess')?.getAttribute('data-enabled') !== 'false';
-
-        configClientes = { pin: nuevoPinCli, habilitado: nuevoAccesoCli };
-        localStorage.setItem('fz_config_clientes', JSON.stringify(configClientes));
-
-        const pinDisplay = document.getElementById('pillPinDisplay');
-        if (pinDisplay) pinDisplay.textContent = nuevoPinCli;
-
-        if (navigator.onLine && typeof api.guardarConfiguracionSistema === 'function') {
-            await api.guardarConfiguracionSistema({
-                clientePin: nuevoPinCli,
-                clientesHabilitados: nuevoAccesoCli
-            });
-=======
         if (nuevoPinCli !== (configClientes.pin || '')) {
             if (nuevoPinCli.length < 4) return ui.mostrarToast('⚠️ El PIN debe tener al menos 4 dígitos');
             if (!navigator.onLine) {
@@ -2174,8 +2127,8 @@ async function init() {
                     if (pinDisplay) pinDisplay.textContent = nuevoPinCli;
                 }
             }
->>>>>>> 0fc1a3c (feat: correcciones graves de seguridad)
         }
+
         const inputs = listaDiv.querySelectorAll('input[data-id]');
         btnGuardarPrecios.disabled = true;
         btnGuardarPrecios.textContent = 'Sincronizando...';
@@ -2185,7 +2138,7 @@ async function init() {
             const val = Number(inpt.value);
             if (!Number.isFinite(val) || val <= 0) {
                 btnGuardarPrecios.disabled = false;
-                btnGuardarPrecios.textContent = 'Guardar Cambios en Nube';
+                btnGuardarPrecios.textContent = '💾 Guardar Cambios';
                 return ui.mostrarToast('⚠️ Todos los precios deben ser mayores a $0');
             }
         }
@@ -2217,7 +2170,7 @@ async function init() {
         depurarSeleccionPorDisponibilidad();
         modal.style.display = 'none';
         btnGuardarPrecios.disabled = false;
-        btnGuardarPrecios.textContent = 'Guardar Cambios en Nube';
+        btnGuardarPrecios.textContent = '💾 Guardar Cambios';
         renderAll();
         ui.mostrarToast(fallos === 0 ? '✅ Menú sincronizado en todos los dispositivos' : `⚠️ Guardado con ${fallos} errores`);
     });
