@@ -375,6 +375,8 @@ async function aplicarVistaPorRol() {
     const gate = document.getElementById('authGateModal');
     const adminAside = document.getElementById('adminAsideColumn');
     const adminButtons = document.getElementById('adminOrderButtons');
+    const btnGuardar = document.getElementById('btnGuardar');
+    const btnGuardarYOtro = document.getElementById('btnGuardarYOtro');
     const mainGrid = document.getElementById('mainAppGrid');
     const sessionBadge = document.getElementById('userSessionBadge');
     const pinPillContainer = document.getElementById('pinPillContainer');
@@ -386,17 +388,15 @@ async function aplicarVistaPorRol() {
     const bannerPedidos = document.getElementById('bannerPedidosTitle');
     const bannerApartados = document.getElementById('bannerApartadosTitle');
 
+    if (usuarioActual && gate) {
+        gate.style.display = 'none';
+    }
+
     if (usuarioActual?.rol === 'admin' && (await api.haySesionAdminValida()) === false) {
         usuarioActual = null;
         localStorage.removeItem('fz_usuario_actual');
     }
 
-    // 1. Si ya hay sesión en localStorage, ocultar el modal de inmediato (0 ms, cero parpadeo)
-    if (usuarioActual && gate) {
-        gate.style.display = 'none';
-    }
-
-    // 2. Si no hay sesión en memoria local, verificar sesión activa de Supabase Auth
     if (!usuarioActual) {
         const sbSession = await api.getSession();
         if (sbSession?.user) {
@@ -405,21 +405,19 @@ async function aplicarVistaPorRol() {
         }
     }
 
-    // 3. Si definitivamente no hay sesión, mostrar el Login Glass en primer plano
     if (!usuarioActual) {
         if (gate) gate.style.display = 'flex';
-        cargarConfiguracionClientes();
         return;
     }
 
     if (gate) gate.style.display = 'none';
-
-    // Cargar PIN actualizado en segundo plano sin bloquear la pantalla
     cargarConfiguracionClientes();
 
     if (usuarioActual.rol === 'admin') {
         if (adminAside) adminAside.style.display = 'block';
         if (adminButtons) adminButtons.style.display = 'block';
+        if (btnGuardar) btnGuardar.textContent = 'Guardar Pedido';
+        if (btnGuardarYOtro) btnGuardarYOtro.style.display = 'inline-flex';
         if (pinPillContainer) pinPillContainer.style.display = 'inline';
         if (pinPillSep) pinPillSep.style.display = 'inline';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '';
@@ -434,7 +432,9 @@ async function aplicarVistaPorRol() {
     } else {
         const nombreCli = normalizarNombreCliente(usuarioActual.nombre);
         if (adminAside) adminAside.style.display = 'none';
-        if (adminButtons) adminButtons.style.display = 'none';
+        if (adminButtons) adminButtons.style.display = 'block';
+        if (btnGuardar) btnGuardar.textContent = '🥣 Confirmar y Apartar mi Pedido';
+        if (btnGuardarYOtro) btnGuardarYOtro.style.display = 'none';
         if (pinPillContainer) pinPillContainer.style.display = 'none';
         if (pinPillSep) pinPillSep.style.display = 'none';
         if (mainGrid) mainGrid.style.gridTemplateColumns = '1fr';
@@ -1947,6 +1947,8 @@ async function init() {
     document.getElementById('btnLogoutApp')?.addEventListener('click', async () => {
         await api.logoutAdmin();
         usuarioActual = null;
+        cargaInicialCompletada = false;
+        colaCartasVerdes = [];
         localStorage.removeItem('fz_usuario_actual');
         resetForm();
         await aplicarVistaPorRol();

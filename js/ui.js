@@ -1,205 +1,254 @@
-import { formatearHoraBogota } from './api.js';
-
 export const ui = {
-    fmt(n) {
-        return '$' + Number(n || 0).toLocaleString('es-CO');
-    },
+    fmt: (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO'),
 
     esc(str) {
         return String(str ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
     },
 
-    formatearCuentaRegresiva(entregaISO) {
-        if (!entregaISO) return null;
-        const target = new Date(entregaISO).getTime();
+    formatearCuentaRegresiva(isoStr) {
+        if (!isoStr) return null;
+        const target = new Date(isoStr).getTime();
         if (Number.isNaN(target)) return null;
+        const diffSeg = Math.floor((target - Date.now()) / 1000);
 
-        const diffMs = target - Date.now();
-        const horaObjetivo = formatearHoraBogota(entregaISO);
+        if (diffSeg <= 0) {
+            return { vencido: true, urgente: true, texto: '🔔 ¡LISTO PARA ENTREGAR!' };
+        }
+        const horas = Math.floor(diffSeg / 3600);
+        const mins = Math.floor((diffSeg % 3600) / 60);
+        const segs = diffSeg % 60;
 
-        if (diffMs <= 0) {
+        if (horas > 0) {
             return {
-                vencido: true,
-                urgente: true,
-                texto: `🔔 Entregar (${horaObjetivo})`
+                vencido: false,
+                urgente: false,
+                texto: `⏳ En ${horas}h ${String(mins).padStart(2, '0')}m`
             };
         }
-
-        const totalSec = Math.floor(diffMs / 1000);
-        const horas = Math.floor(totalSec / 3600);
-        const mins = Math.floor((totalSec % 3600) / 60);
-        const secs = totalSec % 60;
-
-        const tiempoStr = horas > 0
-            ? `${horas}h ${String(mins).padStart(2, '0')}m`
-            : `${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
-
         return {
             vencido: false,
-            urgente: diffMs <= 5 * 60 * 1000,
-            texto: `⏰ ${tiempoStr} · ${horaObjetivo}`
+            urgente: mins < 5,
+            texto: `⏳ ${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`
         };
     },
 
     renderCombos(containerId, combos, onSelectCombo) {
-        const c = document.getElementById(containerId);
-        if (!c) return;
-        c.innerHTML = '';
-        combos.forEach((cb) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+
+        combos.forEach((c) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'combo-chip';
-            btn.innerHTML = `<span>${this.esc(cb.icono)}</span><span>${this.esc(cb.nombre)}</span>`;
-            btn.addEventListener('click', () => onSelectCombo(cb));
-            c.appendChild(btn);
+            btn.innerHTML = `<span>${this.esc(c.icono)}</span><span>${this.esc(c.nombre)}</span>`;
+            btn.addEventListener('click', () => onSelectCombo(c));
+            container.appendChild(btn);
         });
     },
 
-    renderQuickNotes(containerId, tags, currentNoteText, onToggleTag) {
-        const c = document.getElementById(containerId);
-        if (!c) return;
-        c.innerHTML = '';
-        const textoActual = String(currentNoteText || '').toLowerCase();
+    renderQuickNotes(containerId, notesList, currentText, onToggleNote) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
 
-        tags.forEach((tag) => {
-            const activo = textoActual.includes(tag.toLowerCase());
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'note-chip' + (activo ? ' active' : '');
-            btn.textContent = tag;
-            btn.addEventListener('click', () => onToggleTag(tag));
-            c.appendChild(btn);
+        const partesActuales = String(currentText || '')
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean);
+
+        notesList.forEach((nota) => {
+            const activo = partesActuales.includes(nota.toLowerCase());
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'note-chip' + (activo ? ' active' : '');
+            chip.textContent = (activo ? '✓ ' : '+ ') + nota;
+            chip.addEventListener('click', () => onToggleNote(nota));
+            container.appendChild(chip);
         });
     },
 
-    renderChoiceGrid(containerId, items, selectedIdOrFn, onSelect) {
-        const c = document.getElementById(containerId);
-        if (!c) return;
-        c.innerHTML = '';
-        const selectedId = typeof selectedIdOrFn === 'function' ? selectedIdOrFn() : selectedIdOrFn;
+    renderChoiceGrid(containerId, items, selectedId, onSelect) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+
+        const idActivo = typeof selectedId === 'function' ? selectedId() : selectedId;
+        const esPago = containerId === 'payGrid';
 
         items.forEach((it) => {
-            const agotado = it.disponible === false;
-            const isSelected = !agotado && selectedId === it.id;
-            const div = document.createElement('div');
-            div.className = 'choice-card' + (isSelected ? ' selected active' : '') + (agotado ? ' agotado' : '');
-            div.setAttribute('role', 'button');
-            div.setAttribute('tabindex', agotado ? '-1' : '0');
+            const disponible = it.disponible !== false;
+            const isSelected = Boolean(idActivo && idActivo === it.id && disponible);
+            const card = document.createElement('div');
+            card.className =
+                (esPago ? 'choice-card pay-card' : 'choice-card') +
+                (isSelected ? ' selected' : '') +
+                (!disponible ? ' agotado' : '');
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', disponible ? '0' : '-1');
+            card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            card.setAttribute('aria-disabled', !disponible ? 'true' : 'false');
 
-            div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px;">
-                    <div>
-                        <div class="name">${this.esc(it.nombre)}</div>
-                        ${it.precio !== undefined ? `<div class="price">${this.fmt(it.precio)}</div>` : ''}
-                    </div>
-                    ${agotado
-                        ? '<span class="badge-agotado">Agotado</span>'
-                        : isSelected
-                            ? '<span style="background:#2A0E4F; color:#FBBB1E; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:900;">✓</span>'
-                            : ''}
-                </div>
-            `;
+            const badgeAgotado = !disponible
+                ? `<span style="display:inline-block; background:#D1272B; color:#FFF; font-size:0.65rem; font-weight:900; padding:2px 7px; border-radius:99px; margin-top:4px; width:fit-content;">AGOTADO</span>`
+                : '';
 
-            const activar = () => {
-                if (agotado) return this.mostrarToast(`🚫 ${it.nombre} está agotado`);
-                onSelect(it.id);
-            };
-            div.addEventListener('click', activar);
-            c.appendChild(div);
+            card.innerHTML = it.precio
+                ? `<span class="name">${this.esc(it.nombre)}</span><span class="price">${this.fmt(it.precio)}</span>${badgeAgotado}`
+                : `<span class="name">${this.esc(it.nombre)}</span>${badgeAgotado}`;
+
+            if (disponible) {
+                const activar = () => onSelect(it.id);
+                card.addEventListener('click', activar);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        activar();
+                    }
+                });
+            }
+            container.appendChild(card);
         });
     },
 
     renderQtyGrid(containerId, items, stateObj, onChange) {
-        const c = document.getElementById(containerId);
-        if (!c) return;
-        c.innerHTML = '';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
 
         items.forEach((it) => {
-            const agotado = it.disponible === false;
-            const cant = agotado ? 0 : (stateObj[it.id] || 0);
-            const div = document.createElement('div');
-            div.className = 'qty-card' + (cant > 0 ? ' active selected' : '') + (agotado ? ' agotado' : '');
+            const disponible = it.disponible !== false;
+            const cant = disponible ? (stateObj[it.id] || 0) : 0;
+            const card = document.createElement('div');
+            card.className = 'qty-card' + (cant > 0 ? ' active' : '') + (!disponible ? ' agotado' : '');
 
-            div.innerHTML = `
+            card.innerHTML = `
                 <div class="info">
-                    <div class="name" style="display:flex; align-items:center; gap:6px;">
-                        <span>${this.esc(it.nombre)}</span>
-                        ${agotado ? '<span class="badge-agotado">Agotado</span>' : ''}
-                    </div>
-                    <div class="price">${this.fmt(it.precio)}</div>
+                    <span class="name">${this.esc(it.nombre)}</span>
+                    <span class="price">${disponible ? this.fmt(it.precio) : '<strong style="color:#D1272B;">AGOTADO</strong>'}</span>
                 </div>
                 <div class="qty-controls">
-                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''}>−</button>
-                    <span class="qty-num">${cant}</span>
-                    <button type="button" class="qty-btn" ${agotado ? 'disabled' : ''}>+</button>
+                    <button type="button" class="qty-btn" aria-label="Disminuir ${this.esc(it.nombre)}" ${!disponible ? 'disabled' : ''}>−</button>
+                    <span class="qty-num" aria-live="polite">${cant}</span>
+                    <button type="button" class="qty-btn" aria-label="Aumentar ${this.esc(it.nombre)}" ${!disponible ? 'disabled' : ''}>+</button>
                 </div>
             `;
 
-            div.querySelector('.info').addEventListener('click', () => {
-                if (!agotado) onChange(it.id, cant + 1);
-            });
-
-            const botones = div.querySelectorAll('.qty-btn');
-            botones[0].addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!agotado) onChange(it.id, Math.max(0, cant - 1));
-            });
-            botones[1].addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!agotado) onChange(it.id, cant + 1);
-            });
-
-            c.appendChild(div);
+            if (disponible) {
+                const [btnMinus, btnPlus] = card.querySelectorAll('.qty-btn');
+                btnMinus.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onChange(it.id, Math.max(0, cant - 1));
+                });
+                btnPlus.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onChange(it.id, cant + 1);
+                });
+            }
+            container.appendChild(card);
         });
     },
 
-    renderOrders(lista, containerId, esApartado, callbacks, esAdmin = true) {
-        // Ocultar automáticamente todo el panel de Apartados cuando está vacío para dar limpieza visual
-        if (esApartado) {
-            const panelAp = document.getElementById('panelApartados');
-            if (panelAp) {
-                panelAp.style.display = (!lista || lista.length === 0) ? 'none' : 'block';
-            }
+    renderSugerenciasClientes(sugerencias, onSelect) {
+        let box = document.getElementById('sugerenciasClientes');
+        const input = document.getElementById('nombreCliente');
+        if (!input) return;
+
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'sugerenciasClientes';
+            box.setAttribute('role', 'listbox');
+            input.parentElement.style.position = 'relative';
+            input.parentElement.appendChild(box);
         }
 
-        const c = document.getElementById(containerId);
-        if (!c) return;
-        if (!lista || lista.length === 0) {
-            c.innerHTML = `<p class="empty-msg">Sin pedidos registrados</p>`;
+        if (!sugerencias || sugerencias.length === 0) {
+            box.style.display = 'none';
+            box.innerHTML = '';
             return;
         }
-        c.innerHTML = '';
 
-        lista.forEach((p) => {
-            const infoTimer = esApartado ? this.formatearCuentaRegresiva(p.entregaProgramadaISO) : null;
-            const card = document.createElement('div');
-            card.className = 'order-item' + (p.abierto ? ' open' : '') + (infoTimer?.vencido ? ' alarm-due' : '');
+        box.innerHTML = '';
+        box.style.display = 'block';
 
-            const todosLosExtras = [
+        sugerencias.forEach((nombre) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'sugerencia-item';
+            item.innerHTML = `
+                <span>👤 ${this.esc(nombre)}</span>
+                <span style="font-size:0.75rem; color:var(--morado-700); font-weight:800;">Elegir ↵</span>
+            `;
+            const elegir = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(nombre);
+                box.style.display = 'none';
+            };
+            item.addEventListener('mousedown', elegir);
+            item.addEventListener('touchstart', elegir, { passive: false });
+            box.appendChild(item);
+        });
+    },
+
+    renderOrders(list, containerId, isApartado, callbacks, isAdmin = true) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const panelApartados = document.getElementById('panelApartados');
+        if (isApartado && panelApartados) {
+            panelApartados.style.display = 'block';
+        }
+
+        if (!list || list.length === 0) {
+            container.innerHTML = `<div class="empty">${
+                isApartado ? 'No hay pedidos apartados en este momento.' : 'Aún no hay pedidos registrados.'
+            }</div>`;
+            return;
+        }
+
+        container.innerHTML = '';
+        list.forEach((p) => {
+            const item = document.createElement('div');
+            const isOpen = Boolean(p.abierto);
+            item.className = 'order-item' + (isOpen ? ' open' : '');
+
+            const todosExtras = [
                 ...(p.acompDetalle || []),
                 ...(p.toppingDetalle || []),
                 ...(p.bebidaDetalle || [])
             ];
-            const cantExtras = todosLosExtras.reduce((acc, i) => acc + Number(i.cantidad || 0), 0);
-            const resumenCorto = cantExtras > 0
-                ? `${this.esc(p.bowl)} + ${cantExtras} ${cantExtras === 1 ? 'adición' : 'adiciones'}`
+
+            const numAdiciones = todosExtras.reduce((s, x) => s + Number(x.cantidad || 1), 0);
+            const resumenCorto = numAdiciones > 0
+                ? `${this.esc(p.bowl)} + ${numAdiciones} ${numAdiciones === 1 ? 'adición' : 'adiciones'}`
                 : this.esc(p.bowl);
 
-            const sumaExtras = todosLosExtras.reduce((acc, i) => acc + (Number(i.precio || 0) * Number(i.cantidad || 0)), 0);
-            const precioBowl = p.precioBowl || (
-                p.total - [
-                    ...(p.acompDetalle || []),
-                    ...(p.toppingDetalle || []),
-                    ...(p.bebidaDetalle || [])
-                ].reduce((s, x) => s + (x.subtotal || (x.precio * x.cantidad) || 0), 0)
-            );
+            const syncDot = p.syncError
+                ? `<span title="Error de sincronización" style="color:#D1272B;">⚠️</span>`
+                : p.sincronizado
+                ? `<span title="Sincronizado en la nube" style="color:#12B76A; font-size:0.7rem;">●</span>`
+                : `<span title="Pendiente por subir" style="color:#F5A623; font-size:0.7rem;">●</span>`;
 
-            const bowlLine = (p.bowl && p.bowl !== 'Compra Individual' && p.bowl !== 'Solo Extras / Bebida')
+            let timerBadgeHTML = '';
+            if (isApartado && p.entregaProgramadaISO) {
+                const infoTimer = this.formatearCuentaRegresiva(p.entregaProgramadaISO);
+                if (infoTimer) {
+                    const bg = infoTimer.vencido ? '#D1272B' : infoTimer.urgente ? '#F5A623' : '#2A0E4F';
+                    const fg = infoTimer.vencido ? '#FFFFFF' : infoTimer.urgente ? '#1B0836' : '#FBBB1E';
+                    timerBadgeHTML = `<span class="timer-live-badge" data-entrega="${this.esc(p.entregaProgramadaISO)}" style="background:${bg}; color:${fg}; padding:3px 9px; border-radius:999px; font-size:0.7rem; font-weight:900;">${this.esc(infoTimer.texto)}</span>`;
+                }
+            }
+
+            const sumaExtras = todosExtras.reduce((s, x) => s + (x.subtotal || ((x.precio || 0) * (x.cantidad || 1)) || 0), 0);
+            const precioBowl = p.precioBowl !== undefined ? p.precioBowl : Math.max(0, Number(p.total || 0) - sumaExtras);
+
+            const bowlLine = (p.bowl && p.bowl !== 'Individual' && p.bowl !== 'Compra Individual' && p.bowl !== 'Solo Extras / Bebida')
                 ? `<div class="apple-receipt-row is-base">
                      <div class="receipt-item-left">
                        <span class="receipt-badge base">BASE</span>
@@ -223,200 +272,175 @@ export const ui = {
 
             const extrasList = mapDetalles(p.acompDetalle) + mapDetalles(p.toppingDetalle) + mapDetalles(p.bebidaDetalle);
 
-            const filasDetalleHTML = todosLosExtras.map((i) => `
-                <div class="apple-receipt-row">
-                    <span>${this.esc(i.nombre)} <strong class="apple-qty-tag">×${Number(i.cantidad)}</strong></span>
-                    <strong>${this.fmt((i.precio || 0) * i.cantidad)}</strong>
-                </div>
-            `).join('');
-
-            const badgeTimerHTML = infoTimer
-                ? `<span class="timer-live-badge" data-entrega="${this.esc(p.entregaProgramadaISO)}" style="font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:800; background:${infoTimer.vencido ? '#D1272B' : '#2A0E4F'}; color:${infoTimer.vencido ? '#FFF' : '#FBBB1E'};">
-                    ${this.esc(infoTimer.texto)}
-                   </span>`
-                : '';
-
-            // Punto minimalista de estado en lugar de texto largo
-            const dotColor = p.syncError ? '#D1272B' : p.sincronizado ? '#3E9B5C' : '#F5A623';
-            const dotTitle = p.syncError ? 'Error de red' : p.sincronizado ? 'Sincronizado' : 'En cola local';
-
-            card.innerHTML = `
-                <div class="order-head" role="button" tabindex="0" aria-expanded="${p.abierto ? 'true' : 'false'}">
-                    <div style="flex:1; min-width:0;">
-                        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
-                            <span style="width:7px; height:7px; border-radius:50%; background:${dotColor}; display:inline-block;" title="${dotTitle}"></span>
-                            <span class="who">${this.esc(p.nombre)}</span>
-                            <span class="meta">${this.esc(p.hora)}</span>
-                            <span class="chip">${this.esc(p.pago)}</span>
-                            ${badgeTimerHTML}
+            let toolbarHTML = '';
+            if (isAdmin) {
+                toolbarHTML = `
+                    <div class="apple-order-toolbar">
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="apple-tool-pill" data-action="edit-name" title="Corregir nombre">✏️ Nombre</button>
+                            <button type="button" class="apple-tool-pill" data-action="cycle-pay" title="Cambiar medio de pago">💳 ${this.esc(p.pago)} ↻</button>
+                            <button type="button" class="apple-tool-pill" data-action="wallet-pass" title="Ver Ticket">🎟️ Ticket</button>
                         </div>
-                        <div style="font-size:0.81rem; color:#653BA0; margin-top:3px; font-weight:600;">
-                            ${resumenCorto}
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            ${isApartado
+                                ? `<button type="button" class="apple-tool-pill success" data-action="confirm">✓ Cobrar y Entregar</button>`
+                                : `<button type="button" class="apple-tool-pill primary" data-action="new-bowl">+ Otro bowl</button>`
+                            }
+                            <button type="button" class="apple-tool-pill danger" data-action="delete" title="Eliminar pedido">🗑️</button>
                         </div>
+                    </div>
+                `;
+            } else {
+                toolbarHTML = `
+                    <div class="apple-order-toolbar">
+                        <button type="button" class="apple-tool-pill primary" data-action="wallet-pass" style="width:100%; justify-content:center;">
+                            🎟️ Ver mi Ticket de Caja
+                        </button>
+                    </div>
+                `;
+            }
+
+            item.innerHTML = `
+                <div class="order-head" role="button" tabindex="0" aria-expanded="${isOpen}">
+                    <div style="min-width:0;">
+                        <div class="who">
+                            ${syncDot} ${this.esc(p.nombre)}
+                            <span style="font-weight:700; font-size:0.74rem; color:var(--morado-700); margin-left:4px;">${this.esc(p.hora || '')}</span>
+                            <span class="chip" style="margin-left:4px;">${this.esc(p.pago)}</span>
+                            ${timerBadgeHTML}
+                        </div>
+                        <div class="meta">${resumenCorto}</div>
                     </div>
                     <div class="right">
-                        <div class="amt">${this.fmt(p.total)}</div>
-                        <span class="apple-chevron">${p.abierto ? '⌃' : '⌄'}</span>
+                        <span class="amt">${this.fmt(p.total)}</span>
+                        <span class="apple-chevron">${isOpen ? '▴' : '▾'}</span>
                     </div>
                 </div>
-
-                ${p.abierto ? `
-                <div class="order-body open" style="display:block; padding:10px 15px 14px; border-top:1px solid #EFE6D5; background:#FFFFFF;">
-                    <div class="apple-receipt-row" style="border-bottom:1px solid #F2ECE1;">
-                        <span><strong>Base:</strong> ${this.esc(p.bowl)}</span>
-                        <strong>${precioBowl > 0 ? this.fmt(precioBowl) : '—'}</strong>
+                <div class="order-body ${isOpen ? 'open' : ''}">
+                    <div style="padding-top:6px;">
+                        ${bowlLine}
+                        ${extrasList}
+                        ${p.notas ? `<div class="apple-note-box">📝 <span>${this.esc(p.notas)}</span></div>` : ''}
                     </div>
-
-                    ${filasDetalleHTML || '<div style="padding:6px 0; font-size:0.82rem; color:#999;">Sin adiciones</div>'}
-
-                    ${p.notas ? `<div class="apple-note-box">📝 ${this.esc(p.notas)}</div>` : ''}
-
-                    <!-- BARRA ÚNICA MINIMALISTA DE ACCIONES -->
-                    <div class="apple-order-toolbar">
-                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                            ${esAdmin && callbacks.onEditClientName ? `
-                            <button type="button" class="apple-tool-pill btn-edit-name">✎ Nombre</button>` : ''}
-                            ${esAdmin && callbacks.onCyclePayment ? `
-                            <button type="button" class="apple-tool-pill btn-cycle-pay">💳 ${this.esc(p.pago)} ↻</button>` : ''}
-                            ${callbacks.onShowWalletPass ? `
-                            <button type="button" class="apple-tool-pill btn-wallet-pass">🎟️ Pase</button>` : ''}
-                        </div>
-
-                        <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
-                            ${!esApartado && esAdmin && callbacks.onNewForClient ? `
-                            <button type="button" class="apple-tool-pill primary btn-add-another">+ Otro bowl</button>` : ''}
-                            ${esApartado && esAdmin ? `
-                            <button type="button" class="apple-tool-pill success btn-confirm">✓ Cobrar</button>` : ''}
-                            ${esAdmin ? `
-                            <button type="button" class="apple-tool-pill danger btn-delete" title="Eliminar pedido">🗑️</button>` : ''}
-                        </div>
-                    </div>
-                </div>` : ''}
+                    ${toolbarHTML}
+                </div>
             `;
 
-            card.querySelector('.order-head').addEventListener('click', () => callbacks.onToggle(p.id));
+            const head = item.querySelector('.order-head');
+            head.addEventListener('click', () => callbacks.onToggle(p.id));
 
-            if (p.abierto) {
-                card.querySelector('.btn-wallet-pass')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    callbacks.onShowWalletPass(p);
-                });
-                if (esAdmin) {
-                    card.querySelector('.btn-edit-name')?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onEditClientName(p);
-                    });
-                    card.querySelector('.btn-cycle-pay')?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onCyclePayment(p);
-                    });
-                    card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onDelete(p.id);
-                    });
-                    card.querySelector('.btn-confirm')?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onConfirm(p);
-                    });
-                    card.querySelector('.btn-add-another')?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        callbacks.onNewForClient(p);
-                    });
-                }
-            }
-            c.appendChild(card);
+            item.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                callbacks.onDelete(p.id);
+            });
+            item.querySelector('[data-action="confirm"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (callbacks.onConfirm) callbacks.onConfirm(p);
+            });
+            item.querySelector('[data-action="new-bowl"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (callbacks.onNewForClient) callbacks.onNewForClient(p);
+            });
+            item.querySelector('[data-action="edit-name"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (callbacks.onEditClientName) callbacks.onEditClientName(p);
+            });
+            item.querySelector('[data-action="cycle-pay"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (callbacks.onCyclePayment) callbacks.onCyclePayment(p);
+            });
+            item.querySelector('[data-action="wallet-pass"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (callbacks.onShowWalletPass) callbacks.onShowWalletPass(p);
+            });
+
+            container.appendChild(item);
         });
     },
 
-    renderSugerenciasClientes(coincidencias, onSelect) {
-        const box = document.getElementById('sugerenciasClientes');
-        if (!box) return;
-
-        if (!coincidencias || coincidencias.length === 0) {
-            box.style.display = 'none';
-            box.innerHTML = '';
-            return;
-        }
-
-        box.innerHTML = coincidencias.map((nombre) => `
-            <button type="button" class="sugerencia-item" data-nombre="${this.esc(nombre)}">
-                <span>${this.esc(nombre)}</span>
-                <span style="font-size:0.72rem; color:#653BA0; font-weight:700;">Cliente frecuente</span>
-            </button>
-        `).join('');
-        box.style.display = 'block';
-
-        box.querySelectorAll('.sugerencia-item').forEach((btn) => {
-            const elegir = (e) => {
-                e.preventDefault();
-                onSelect(btn.getAttribute('data-nombre'));
-                box.style.display = 'none';
-            };
-            btn.addEventListener('mousedown', elegir);
-            btn.addEventListener('touchstart', elegir, { passive: false });
-        });
-    },
-
-    renderSummary(pedidos, pagos, topItems, filtroPagoActivo = null, onFiltrarPago = null) {
-        const totalDia = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
-        const clientesUnicos = new Set(
+    renderSummary(pedidos, pagosList, topVendidos, filtroPagoActivo, onToggleFiltroPago) {
+        const total = pedidos.reduce((s, p) => s + Number(p.total || 0), 0);
+        const personasUnicas = new Set(
             pedidos.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)
         ).size;
 
-        const elCount = document.getElementById('sumCount');
-        const elClients = document.getElementById('sumClients');
-        const elTotal = document.getElementById('sumTotal');
+        const elCount = document.getElementById('sumCount') || document.getElementById('statPedidos');
+        const elClients = document.getElementById('sumClients') || document.getElementById('statPersonas');
+        const elTotal = document.getElementById('sumTotal') || document.getElementById('statTotal');
 
         if (elCount) elCount.textContent = String(pedidos.length);
-        if (elClients) elClients.textContent = String(clientesUnicos);
-        if (elTotal) elTotal.textContent = this.fmt(totalDia);
+        if (elClients) elClients.textContent = String(personasUnicas);
+        if (elTotal) elTotal.textContent = this.fmt(total);
 
-        const payContainer = document.getElementById('payBreakdown');
-        if (payContainer) {
-            payContainer.innerHTML = pagos.map((pg) => {
+        const elPay = document.getElementById('payBreakdown');
+        if (elPay) {
+            elPay.innerHTML = pagosList.map((pg) => {
                 const filtrados = pedidos.filter((p) => (p.pago || '').toLowerCase() === pg.nombre.toLowerCase());
-                const subtotal = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
-                const porcentaje = totalDia > 0 ? Math.round((subtotal / totalDia) * 100) : 0;
-                const esActivo = filtroPagoActivo === pg.nombre;
+                const sub = filtrados.reduce((s, p) => s + Number(p.total || 0), 0);
+                const pct = total > 0 ? Math.round((sub / total) * 100) : 0;
+                const activo = filtroPagoActivo && filtroPagoActivo.toLowerCase() === pg.nombre.toLowerCase();
 
                 return `
-                    <div class="pay-row" data-pago="${this.esc(pg.nombre)}"
-                        style="cursor:${onFiltrarPago ? 'pointer' : 'default'}; border-color:${esActivo ? '#2A0E4F' : '#E6DAC0'}; background:${esActivo ? '#FFF6D9' : 'rgba(255,252,245,0.92)'};">
+                    <div class="pay-row" data-pago="${this.esc(pg.nombre)}" style="${activo ? 'border-color:var(--dorado); background:#FFF6D6;' : ''}">
                         <div class="pay-row-top">
                             <div>
-                                <div class="pn">${this.esc(pg.nombre)} ${esActivo ? '<span class="chip" style="margin-left:4px;">Filtro</span>' : ''}</div>
-                                <div class="pc">${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'} · ${porcentaje}%</div>
+                                <div class="pn">${this.esc(pg.nombre)} ${activo ? '✓' : ''}</div>
+                                <div class="pc">${filtrados.length} ${filtrados.length === 1 ? 'pedido' : 'pedidos'} · ${pct}%</div>
                             </div>
-                            <div class="pv">${this.fmt(subtotal)}</div>
+                            <div class="pv">${this.fmt(sub)}</div>
                         </div>
                         <div class="pay-progress-track">
-                            <div class="pay-progress-fill" style="width:${porcentaje}%;"></div>
+                            <div class="pay-progress-fill" style="width:${pct}%;"></div>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            if (onFiltrarPago) {
-                payContainer.querySelectorAll('.pay-row').forEach((row) => {
-                    row.addEventListener('click', () => onFiltrarPago(row.getAttribute('data-pago')));
+            if (typeof onToggleFiltroPago === 'function') {
+                elPay.querySelectorAll('.pay-row').forEach((row) => {
+                    row.addEventListener('click', () => onToggleFiltroPago(row.getAttribute('data-pago')));
                 });
             }
         }
 
-        const topContainer = document.getElementById('topList');
-        if (topContainer) {
-            topContainer.innerHTML = topItems.length === 0
-                ? '<p class="empty-msg" style="padding:12px;">Sin ventas hoy</p>'
-                : topItems.map(([nombre, cant], idx) => `
+        const elTop = document.getElementById('topList') || document.getElementById('topSold');
+        if (elTop) {
+            elTop.innerHTML = topVendidos.length
+                ? topVendidos.map(([n, c], i) => `
                     <div class="top-row">
-                        <span style="display:flex; align-items:center; gap:8px; font-weight:700;">
-                            <span style="color:#653BA0; font-size:0.78rem; font-weight:900; width:16px;">${idx + 1}.</span>
-                            ${this.esc(nombre)}
-                        </span>
-                        <span>${Number(cant)}</span>
+                        <span><strong>${i + 1}.</strong> ${this.esc(n)}</span>
+                        <strong>${c} ${c === 1 ? 'ud.' : 'uds.'}</strong>
                     </div>
-                `).join('');
+                `).join('')
+                : '<div class="empty">Sin ventas registradas hoy</div>';
         }
+    },
+
+    confirmarAccion(mensaje, onConfirm) {
+        const overlay = document.getElementById('confirmOverlay');
+        const msgEl = document.getElementById('confirmMsg');
+        const btnSi = document.getElementById('confirmBtnSi') || document.getElementById('confirmSi');
+        const btnNo = document.getElementById('confirmBtnNo') || document.getElementById('confirmNo');
+
+        if (!overlay || !msgEl || !btnSi || !btnNo) {
+            if (window.confirm(mensaje)) onConfirm();
+            return;
+        }
+
+        msgEl.textContent = mensaje;
+        overlay.classList.add('show');
+
+        const cerrar = () => {
+            overlay.classList.remove('show');
+            btnSi.onclick = null;
+            btnNo.onclick = null;
+        };
+
+        btnNo.onclick = cerrar;
+        btnSi.onclick = () => {
+            cerrar();
+            onConfirm();
+        };
     },
 
     mostrarToast(msg) {
@@ -425,33 +449,6 @@ export const ui = {
         t.textContent = msg;
         t.classList.add('show');
         clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
-    },
-
-    confirmarAccion(mensaje, onAccept) {
-        const overlay = document.getElementById('confirmOverlay');
-        const msgEl = document.getElementById('confirmMsg');
-        const btnSi = document.getElementById('confirmBtnSi');
-        const btnNo = document.getElementById('confirmBtnNo');
-
-        if (!overlay || !msgEl || !btnSi || !btnNo) {
-            if (window.confirm(mensaje)) onAccept();
-            return;
-        }
-
-        msgEl.textContent = mensaje;
-        overlay.classList.add('show');
-
-        const limpiar = () => {
-            overlay.classList.remove('show');
-            btnSi.onclick = null;
-            btnNo.onclick = null;
-        };
-
-        btnNo.onclick = () => limpiar();
-        btnSi.onclick = () => {
-            limpiar();
-            onAccept();
-        };
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
     }
 };
