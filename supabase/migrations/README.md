@@ -12,3 +12,6 @@ estaban aplicados en la base). `20261017200000_endurecer_admin_pin_nombre.sql` e
 
 Para dar permisos de admin a un usuario nuevo:
 `update auth.users set raw_app_meta_data = raw_app_meta_data || '{"rol":"admin"}' where email = '...';`
+
+`20261017220000_reporte_parcial_final.sql`: el botón del admin hace un **corte parcial**; el cron de las 00:00 (Bogotá) envía el **reporte final** del día aunque ya esté todo cerrado. Ambos incluyen "Unidades despachadas".
+`20261017215000_telegram_cola.sql`: cola de envíos a Telegram con reintentos (tabla `private.telegram_outbox`, `telegram_enviar`, `telegram_reintentar` y su cron cada minuto).

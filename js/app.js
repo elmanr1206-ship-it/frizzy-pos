@@ -2251,11 +2251,11 @@ async function init() {
 
     document.getElementById('btnCerrar')?.addEventListener('click', () => {
         if (pedidos.length === 0) return ui.mostrarToast('La caja ya está en cero');
-        ui.confirmarAccion('¿Cerrar el día, enviar el reporte por el Bot de Telegram y reiniciar la caja en todos los dispositivos?', async () => {
-            if (navigator.onLine) {
-                await sincronizarCola();
-                await api.cerrarJornadaServidor();
-            }
+        ui.confirmarAccion('¿Hacer el corte parcial, enviar el reporte por Telegram y limpiar la caja en todos los dispositivos? El reporte final del día llega solo a las 12:00 a. m.', async () => {
+            if (!navigator.onLine) return ui.mostrarToast('⚠️ Sin internet: no se puede hacer el corte');
+            await sincronizarCola();
+            const { error } = await api.cerrarJornadaServidor();
+            if (error) return ui.mostrarToast('⚠️ No se pudo hacer el corte: ' + error.message);
             pedidos = [];
             colaCartasVerdes = [];
             filtroPago = null;
@@ -2263,7 +2263,7 @@ async function init() {
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-            ui.mostrarToast('✈️ Día cerrado y reporte enviado a tu Telegram.');
+            ui.mostrarToast('🧾 Corte parcial hecho y reporte enviado a tu Telegram.');
         });
     });
 }
