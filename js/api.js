@@ -342,7 +342,8 @@ export const api = {
         if (!sb) return { error: { message: 'Sin conexión' } };
 
         const { data, error } = await sb.rpc('cerrar_jornada_y_notificar', {
-            p_api_key: apiKeyOpcional || null
+            p_api_key: apiKeyOpcional || null,
+            p_solo_anteriores: soloAnteriores
         });
 
         if (error) {

@@ -576,8 +576,16 @@ async function sincronizarDesdeNubeMultiDispositivo() {
     if (!navigator.onLine) return;
     try {
         await sincronizarCola();
-        if (usuarioActual?.rol === 'cliente') {
+        if (!usuarioActual) return;
+        if (usuarioActual.rol === 'cliente') {
             await sincronizarEstadoClienteDesdeNube();
+            return;
+        }
+        if ((await api.haySesionAdminValida()) === false) {
+            usuarioActual = null;
+            localStorage.removeItem('fz_usuario_actual');
+            await aplicarVistaPorRol();
+            ui.mostrarToast('🔒 Tu sesión expiró, inicia sesión de nuevo');
             return;
         }
 
@@ -939,7 +947,6 @@ async function verificarCorteAutomaticoMedianoche() {
         if (pedidos.length > 0) {
             if (navigator.onLine) {
                 await sincronizarCola();
-                await api.cerrarJornadaServidor('', { soloAnteriores: true });
             }
             pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
             fechaJornadaActiva = hoyStr;
@@ -948,7 +955,7 @@ async function verificarCorteAutomaticoMedianoche() {
             saveState();
             renderAll();
             renderizarPilaNotificacionesVerdes();
-            ui.mostrarToast('🌙 Corte de medianoche enviado automáticamente a Telegram');
+            ui.mostrarToast('🌙 Nuevo día: la jornada anterior ya quedó cerrada');
         } else {
             fechaJornadaActiva = hoyStr;
             saveState();
