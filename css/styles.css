@@ -1934,3 +1934,32 @@ input[type="number"] {
 .badge-agotado { display:inline-flex; align-items:center; background:#FDECEA; color:#D1272B; font-size:0.68rem; font-weight:900; padding:2px 8px; border-radius:99px; text-transform:uppercase; letter-spacing:0.04em; }
 .order-item.alarm-due { border-color:#D1272B !important; box-shadow:0 0 0 2px rgba(209,39,43,0.25); animation:fz-alarm-pulse 1.4s ease-in-out infinite; }
 @keyframes fz-alarm-pulse { 0%,100% { box-shadow:0 0 0 2px rgba(209,39,43,0.25); } 50% { box-shadow:0 0 0 6px rgba(209,39,43,0.12); } }
+
+/* === FLUIDEZ (scroll) === */
+/* 1) Fondo fijo en su propia capa de GPU: se pinta una vez, no en cada fotograma del scroll */
+html { background: #16052E; }
+body { background: none !important; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  transform: translateZ(0);
+  background:
+    radial-gradient(900px 560px at 12% 5%, rgba(132, 68, 212, 0.52) 0%, transparent 62%),
+    radial-gradient(850px 520px at 90% 12%, rgba(245, 166, 35, 0.24) 0%, transparent 58%),
+    radial-gradient(980px 640px at 50% 96%, rgba(102, 42, 178, 0.48) 0%, transparent 65%),
+    linear-gradient(180deg, #16052E 0%, #240B47 52%, #120326 100%);
+}
+
+/* 2) Sin desenfoque en elementos repetidos (tarjetas, chips, pedidos, paneles...) */
+*, *::before, *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Solo lo que flota sobre el contenido conserva un desenfoque ligero */
+.modal-backdrop, .auth-gate-backdrop, .total-bar, #alarmBanner, #toast, .green-order-card, .apple-status-pill {
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+}
