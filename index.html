@@ -43,12 +43,11 @@
       <p class="auth-gate-subtitle">Selecciona tu modo de ingreso</p>
 
       <div class="role-tabs" role="tablist">
-        <button type="button" class="role-tab active" id="tabRoleAdmin">🔐 Administrador</button>
-        <button type="button" class="role-tab" id="tabRoleCliente">👤 Soy Cliente</button>
+        <button type="button" class="role-tab active" id="tabRoleCliente">👤 Soy Cliente</button>
+        <button type="button" class="role-tab" id="tabRoleAdmin">🔐 Administrador</button>
       </div>
 
-      <!-- FORMULARIO ADMINISTRADOR (PRIMER PLANO POR DEFECTO) -->
-      <form id="formLoginAdminGate" style="display: block; text-align: left;">
+      <form id="formLoginAdminGate" style="display: none; text-align: left;">
         <div class="field">
           <label for="gateAdminEmail">Correo Administrador</label>
           <input type="email" id="gateAdminEmail" placeholder="admin@frizzy.com" autocomplete="username" required />
@@ -61,7 +60,7 @@
       </form>
 
       <!-- FORMULARIO CLIENTE -->
-      <form id="formLoginCliente" style="display: none; text-align: left;">
+      <form id="formLoginCliente" style="display: block; text-align: left;">
         <div class="field">
           <label for="loginClienteNombre">Tu nombre y apellido</label>
           <input type="text" id="loginClienteNombre" placeholder="Ej. Camila Pérez" required autocomplete="name" />

@@ -113,6 +113,7 @@ let configClientes = leerStorageSeguro('fz_config_clientes', {
     habilitado: true
 });
 let sincronizando = false;
+let ultimaFirmaNube = '';
 let pinRechazado = null; // último PIN que el servidor rechazó: no se reintenta hasta que cambie
 let guardandoEnCurso = false;
 let alarmasSilenciadas = new Set();
@@ -598,6 +599,11 @@ async function sincronizarDesdeNubeMultiDispositivo() {
         const idsEnCola = new Set(colaPendiente.map((x) => x.id));
 
         const hoyStr = obtenerFechaHoyStr();
+        // Sin cambios en la nube ni en local: no reconstruir ni repintar toda la pantalla (causaba el trabado)
+        const firma = [hoyStr, usuarioActual.rol, pedidos.length, apartados.length, idsEnCola.size].join(',') + '#' +
+            remotos.map((r) => [r.id, r.estado, r.total, r.medio_pago, r.notas, r.entrega_programada_at, r.clientes?.nombre, (r.pedido_detalles || []).length].join('|')).join(';');
+        if (firma === ultimaFirmaNube) return;
+        ultimaFirmaNube = firma;
         const nuevosPedidos = [];
         const nuevosApartados = [];
 
@@ -1835,12 +1841,16 @@ async function init() {
     setInterval(verificarCorteAutomaticoMedianoche, 15000);
     setInterval(actualizarTemporizadoresYAlarmas, 1000);
     setInterval(() => {
-        if (navigator.onLine) sincronizarDesdeNubeMultiDispositivo();
+        if (navigator.onLine && !document.hidden) sincronizarDesdeNubeMultiDispositivo();
     }, 15000);
 
-    api.suscribirCambiosRealtime(async (tabla) => {
-        if (tabla === 'productos') await cargarCatalogoProductos();
-        if (tabla === 'pedidos') await sincronizarDesdeNubeMultiDispositivo();
+    let temporizadorRealtime = null;
+    api.suscribirCambiosRealtime((tabla) => {
+        clearTimeout(temporizadorRealtime);
+        temporizadorRealtime = setTimeout(() => {
+            if (tabla === 'productos') cargarCatalogoProductos();
+            if (tabla === 'pedidos') sincronizarDesdeNubeMultiDispositivo();
+        }, 800);
     });
 
     const tabAdm = document.getElementById('tabRoleAdmin');
