@@ -330,11 +330,22 @@ export const api = {
         return { data, error: null };
     },
 
+    // Devuelve true solo si el pedido ya no existe en la nube.
+    // Con RLS, un DELETE no autorizado NO da error: simplemente borra 0 filas. Por eso se verifica.
     async deletePedido(pedidoId) {
         const sb = await getSupabase();
         if (!sb) return false;
-        const { error } = await sb.from('pedidos').delete().eq('id', pedidoId);
-        return !error;
+        const { data, error } = await sb.from('pedidos').delete().eq('id', pedidoId).select('id');
+        if (error) return false;
+        if (Array.isArray(data) && data.length > 0) return true;
+
+        // 0 filas: o ya no existía, o RLS lo impidió (sesión admin vencida). Solo con sesión admin
+        // la comprobación es fiable; sin ella se deja pendiente para reintentar.
+        const { data: sesion } = await sb.auth.getSession();
+        if (!sesion?.session) return false;
+        const { data: restante, error: errCheck } = await sb.from('pedidos').select('id').eq('id', pedidoId).maybeSingle();
+        if (errCheck) return false;
+        return !restante;
     },
 
     async obtenerComprasCliente(nombreCliente, pin = null) {
