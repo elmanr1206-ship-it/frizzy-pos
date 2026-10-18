@@ -4,6 +4,11 @@ let pedidosCache = [];
 let catalogoProductos = {};
 // INICIA EN "HOY" POR DEFECTO
 let rangoActivo = 'hoy';
+// Solo se descarga el rango que se está viendo; un rango mayor vuelve a consultar
+const ORDEN_RANGOS = ['hoy', '7d', '30d', 'todo'];
+const DIAS_A_CARGAR = { hoy: 2, '7d': 7, '30d': 30, todo: null };
+let rangoCargado = null;
+let cargaActual = 0;
 let incluirBowlsEnTop = true;
 
 let chartHorasInstance = null;
@@ -52,24 +57,24 @@ function obtenerHoraBogotaNum(isoStr) {
     return Number.isNaN(parsed) ? d.getHours() : (parsed === 24 ? 0 : parsed);
 }
 
-async function obtenerTodosLosPedidos(sb) {
+async function obtenerPedidos(sb, rango) {
     const LOTE = 1000;
     let desde = 0;
     let acumulado = [];
+    // Cota inferior generosa; el filtro exacto por día lo hace filtrarPedidosPorRango
+    const dias = DIAS_A_CARGAR[rango];
+    const desdeISO = dias ? new Date(Date.now() - dias * 86400000).toISOString() : null;
+    const consulta = (columnas) => {
+        let q = sb.from('pedidos').select(columnas).order('created_at', { ascending: false });
+        if (desdeISO) q = q.gte('created_at', desdeISO);
+        return q.range(desde, desde + LOTE - 1);
+    };
 
     while (true) {
-        const respuesta = await sb
-            .from('pedidos')
-            .select('id, cliente_id, created_at, estado, medio_pago, total, notas, pedido_detalles (producto_id, producto_nombre_historico, cantidad, precio_unitario_historico)')
-            .order('created_at', { ascending: false })
-            .range(desde, desde + LOTE - 1);
+        const respuesta = await consulta('id, cliente_id, created_at, estado, medio_pago, total, notas, pedido_detalles (producto_id, producto_nombre_historico, cantidad, precio_unitario_historico)');
 
         if (respuesta.error) {
-            const respaldo = await sb
-                .from('pedidos')
-                .select('id, cliente_id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)')
-                .order('created_at', { ascending: false })
-                .range(desde, desde + LOTE - 1);
+            const respaldo = await consulta('id, cliente_id, created_at, medio_pago, total, notas, pedido_detalles (producto_id, cantidad, precio_unitario_historico)');
 
             if (respaldo.error) {
                 throw respaldo.error;
@@ -339,14 +344,17 @@ function renderizarDashboard() {
     }
 }
 
-async function cargarDatosYRenderizar(sb) {
-    mostrarReportesFallidos(sb);
+async function cargarDatosYRenderizar(sb, { conReportes = true } = {}) {
+    if (conReportes) mostrarReportesFallidos(sb);
+    const rangoAPedir = rangoActivo;
+    const idCarga = ++cargaActual;
     try {
         const resultados = await Promise.all([
-            api.obtenerProductos(),
-            obtenerTodosLosPedidos(sb)
+            api.obtenerProductos({ incluirInactivos: true }),
+            obtenerPedidos(sb, rangoAPedir)
         ]);
 
+        if (idCarga !== cargaActual) return; // llegó una consulta más nueva
         const productosRemotos = resultados[0] || [];
         const pedidos = resultados[1] || [];
 
@@ -362,6 +370,7 @@ async function cargarDatosYRenderizar(sb) {
         });
 
         pedidosCache = pedidos;
+        rangoCargado = rangoAPedir;
         renderizarDashboard();
     } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
@@ -371,11 +380,16 @@ async function cargarDatosYRenderizar(sb) {
 function configurarControlesUI(sb) {
     const botonesRango = document.querySelectorAll('.filter-btn[data-range]');
     botonesRango.forEach((btn) => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             botonesRango.forEach((b) => b.classList.remove('active'));
             btn.classList.add('active');
             rangoActivo = btn.getAttribute('data-range') || 'hoy';
-            renderizarDashboard();
+            // Si ya se descargó un rango igual o mayor, basta con volver a filtrar
+            if (ORDEN_RANGOS.indexOf(rangoActivo) > ORDEN_RANGOS.indexOf(rangoCargado)) {
+                await cargarDatosYRenderizar(sb, { conReportes: false });
+            } else {
+                renderizarDashboard();
+            }
         });
     });
 

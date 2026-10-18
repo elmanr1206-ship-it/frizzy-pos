@@ -4,13 +4,33 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 let supabaseInstance = null;
 let supabaseInitPromise = null;
 
+// Carga un script local (/vendor) solo cuando se necesita y devuelve su global
+const libreriasCargadas = {};
+export function cargarLibreria(src, global) {
+    if (global && window[global]) return Promise.resolve(window[global]);
+    if (!libreriasCargadas[src]) {
+        libreriasCargadas[src] = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = () => resolve(global ? window[global] : true);
+            s.onerror = () => {
+                delete libreriasCargadas[src];
+                s.remove();
+                reject(new Error('No se pudo cargar ' + src));
+            };
+            document.head.appendChild(s);
+        });
+    }
+    return libreriasCargadas[src];
+}
+
 export async function getSupabase() {
     if (supabaseInstance) return supabaseInstance;
     if (supabaseInitPromise) return supabaseInitPromise;
 
     supabaseInitPromise = (async () => {
         try {
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
+            const { createClient } = await cargarLibreria('/vendor/supabase.js', 'supabase');
             supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     persistSession: true,
@@ -98,7 +118,7 @@ export const api = {
         return data?.session || null;
     },
 
-    async obtenerProductos() {
+    async obtenerProductos({ incluirInactivos = false } = {}) {
         const sb = await getSupabase();
         if (!sb) return null;
         const { data, error } = await sb
@@ -110,7 +130,7 @@ export const api = {
             return null;
         }
         // Filtrar los productos que no hayan sido desactivados/eliminados
-        return (data || []).filter((p) => p.activo !== false);
+        return incluirInactivos ? (data || []) : (data || []).filter((p) => p.activo !== false);
     },
 
     async crearProductoAdmin(nuevoProd) {
@@ -153,21 +173,13 @@ export const api = {
         const sb = await getSupabase();
         if (!sb) return { error: { message: 'Sin conexión a internet' } };
 
-        // 1. Intentar borrado físico si nunca ha tenido ventas históricas
-        const { error: delError } = await sb
-            .from('productos')
-            .delete()
-            .eq('id', productoId);
-
-        if (!delError) return { error: null };
-
-        // 2. Si tiene ventas en pedido_detalles (FK 23503), desactivar con activo = false para conservar contabilidad histórica
-        const { error: softErr } = await sb
+        // Borrado lógico: la fila se conserva para que las ventas viejas mantengan nombre y categoría
+        const { error } = await sb
             .from('productos')
             .update({ activo: false, disponible: false })
             .eq('id', productoId);
 
-        return { error: softErr };
+        return { error };
     },
 
     async actualizarProductoAdmin(productoId, cambios) {
@@ -325,11 +337,12 @@ export const api = {
         return !error;
     },
 
-    async obtenerComprasCliente(nombreCliente) {
+    async obtenerComprasCliente(nombreCliente, pin = null) {
         const sb = await getSupabase();
         if (!sb) return 0;
         const { data, error } = await sb.rpc('contar_compras_cliente', {
-            p_nombre: normalizarNombreCliente(nombreCliente)
+            p_nombre: normalizarNombreCliente(nombreCliente),
+            p_pin: pin || null
         });
         return error ? 0 : Number(data) || 0;
     },

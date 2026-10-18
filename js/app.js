@@ -2,12 +2,16 @@ import { ui } from './ui.js';
 import { dbSync } from './dbSync.js';
 import {
     api,
+    cargarLibreria,
     normalizarNombreCliente,
     nombreCompletoValido,
     obtenerFechaBogotaISO,
     formatearHoraBogota,
     formatearFechaBogota
 } from './api.js';
+
+// html2canvas solo se descarga cuando se genera una imagen
+const generarImagen = async (...args) => (await cargarLibreria('/vendor/html2canvas.min.js', 'html2canvas'))(...args);
 
 const MENU_INICIAL = [
     { id: 'papas', nombre: 'Papas', precio: 10000, categoria: 'bowl', disponible: true },
@@ -69,6 +73,12 @@ function normalizarCategoria(cat) {
     if (limpia.startsWith('bowl')) return 'bowl';
     if (limpia.startsWith('bebida')) return 'bebida';
     return 'topping';
+}
+
+// PIN del cliente en sesión (null para admin o si el servidor ya lo rechazó)
+function pinParaConsultas() {
+    const pin = usuarioActual?.rol === 'cliente' ? usuarioActual.pin || null : null;
+    return pin && pin !== pinRechazado ? pin : null;
 }
 
 function obtenerFechaHoyStr() {
@@ -453,7 +463,7 @@ async function aplicarVistaPorRol() {
 
         if (loyaltyBanner && loyaltyTitle && loyaltySub) {
             loyaltyBanner.style.display = 'block';
-            const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli) : 0;
+            const compras = navigator.onLine ? await api.obtenerComprasCliente(nombreCli, pinParaConsultas()) : 0;
             const faltan = 5 - (compras % 5);
             loyaltyTitle.textContent = `¡Hola, ${nombreCli}! 🌟 Llevas ${compras} ${compras === 1 ? 'compra' : 'compras'}`;
             loyaltySub.textContent = compras > 0 && compras % 5 === 0
@@ -811,7 +821,7 @@ async function exportarImagenDashboardEjecutivo() {
     `;
 
     try {
-        const canvas = await html2canvas(lienzo, {
+        const canvas = await generarImagen(lienzo, {
             backgroundColor: '#F7EFDD',
             scale: 2,
             windowWidth: 1120,
@@ -1043,7 +1053,7 @@ async function verificarFidelidadCliente(nombreNorm) {
     const pendientesLocales = pedidos.filter(
         (p) => !p.sincronizado && normalizarNombreCliente(p.nombre) === nombreNorm
     ).length;
-    const remotas = navigator.onLine ? await api.obtenerComprasCliente(nombreNorm) : 0;
+    const remotas = navigator.onLine ? await api.obtenerComprasCliente(nombreNorm, pinParaConsultas()) : 0;
     const totalCompras = remotas + pendientesLocales;
 
     if (totalCompras > 0 && totalCompras % 5 === 0) {
@@ -1811,7 +1821,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
 
             const btnRemove = row.querySelector('.btn-remove-prod');
             btnRemove.addEventListener('click', () => {
-                ui.confirmarAccion(`¿Eliminar definitivamente "${prod.nombre}" de la base de datos y del menú?`, async () => {
+                ui.confirmarAccion(`¿Quitar "${prod.nombre}" del menú? Las ventas anteriores se conservan.`, async () => {
                     btnRemove.disabled = true;
                     btnRemove.textContent = 'Borrando...';
 
@@ -1827,7 +1837,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
                     saveState();
                     abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar);
                     renderAll();
-                    ui.mostrarToast(`🗑️ "${prod.nombre}" eliminado de la base de datos y del front`);
+                    ui.mostrarToast(`🗑️ "${prod.nombre}" quitado del menú`);
                 });
             });
 
@@ -1939,7 +1949,12 @@ async function init() {
         const passEl = document.getElementById('walletPassCapture');
         if (!passEl) return;
         ui.mostrarToast('Guardando pase en tus imágenes...');
-        const canvas = await html2canvas(passEl, { backgroundColor: null, scale: 2 });
+        let canvas;
+        try {
+            canvas = await generarImagen(passEl, { backgroundColor: null, scale: 2 });
+        } catch (err) {
+            return ui.mostrarToast('⚠️ No se pudo generar la imagen');
+        }
         const link = document.createElement('a');
         link.download = `Pase_Frizzy_${Date.now().toString().slice(-4)}.png`;
         link.href = canvas.toDataURL('image/png');
@@ -2224,8 +2239,14 @@ async function init() {
         ui.mostrarToast(fallos === 0 ? '✅ Menú sincronizado en todos los dispositivos' : `⚠️ Guardado con ${fallos} errores`);
     });
 
-    document.getElementById('btnExcel')?.addEventListener('click', () => {
+    document.getElementById('btnExcel')?.addEventListener('click', async () => {
         if (pedidos.length === 0) return ui.mostrarToast('No hay pedidos');
+        let XLSX;
+        try {
+            XLSX = await cargarLibreria('/vendor/xlsx.full.min.js', 'XLSX');
+        } catch (err) {
+            return ui.mostrarToast('⚠️ No se pudo cargar el exportador de Excel');
+        }
         const f = obtenerFechaHoyStr();
 
         const peds = XLSX.utils.json_to_sheet(pedidos.map((p) => ({
