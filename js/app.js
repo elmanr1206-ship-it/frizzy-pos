@@ -956,7 +956,7 @@ async function verificarCorteAutomaticoMedianoche() {
             if (navigator.onLine) {
                 await sincronizarCola();
             }
-            pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr && pedidosDiaAnterior.length > 0);
+            pedidos = pedidos.filter((p) => p.fechaLocal === hoyStr);
             fechaJornadaActiva = hoyStr;
             idsPedidosConocidos.clear();
             colaCartasVerdes = [];
@@ -1676,6 +1676,19 @@ async function procesarGuardado(pedido, { modoReset = 'completo', esApartado = f
     if (navigator.onLine) sincronizarCola();
 }
 
+// El servidor no aceptó el PIN guardado (cambió o hay demasiados intentos): el cliente vuelve a entrar.
+// Su pedido sigue en la cola del dispositivo y se sube solo con el PIN nuevo.
+async function avisarPinNoAceptado() {
+    usuarioActual = null;
+    localStorage.removeItem('fz_usuario_actual');
+    await aplicarVistaPorRol();
+    const err = document.getElementById('authGateError');
+    if (err) {
+        err.textContent = '🔒 El local no aceptó tu PIN (puede haber cambiado). Vuelve a entrar con el PIN actual; tu pedido sigue guardado.';
+        err.style.display = 'block';
+    }
+}
+
 async function sincronizarCola() {
     if (sincronizando || !navigator.onLine) {
         actualizarBadgeSincronizacion();
@@ -1702,7 +1715,11 @@ async function sincronizarCola() {
                 }
             } else if (resultado.permanent) {
                 if (localRef) localRef.syncError = true;
-                if (resultado.pin) { pinRechazado = pinActual; break; }
+                if (resultado.pin) {
+                    pinRechazado = pinActual;
+                    if (usuarioActual?.rol === 'cliente') avisarPinNoAceptado();
+                    break;
+                }
             }
         }
 
