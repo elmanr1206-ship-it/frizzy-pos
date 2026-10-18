@@ -602,8 +602,13 @@ async function sincronizarDesdeNubeMultiDispositivo() {
             return;
         }
 
-        const remotos = await api.obtenerPedidosJornadaHoy();
-        if (!Array.isArray(remotos)) return;
+        const remotosNube = await api.obtenerPedidosJornadaHoy();
+        if (!Array.isArray(remotosNube)) return;
+
+        // Pedidos borrados aquí cuyo DELETE aún no llegó a la nube: no deben "resucitar" en pantalla
+        const colaBorrados = await dbSync.getDeleteQueue();
+        const idsBorradosPendientes = new Set(colaBorrados.map((x) => x.id));
+        const remotos = remotosNube.filter((r) => !idsBorradosPendientes.has(r.id));
 
         const colaPendiente = await dbSync.getQueue();
         const idsEnCola = new Set(colaPendiente.map((x) => x.id));
@@ -986,12 +991,18 @@ async function actualizarBadgeSincronizacion() {
     if (!badge) return;
     try {
         const cola = await dbSync.getQueue();
+        const borrados = await dbSync.getDeleteQueue();
         const pendientes = cola.length;
+        const borradosPend = borrados.length;
+        const sufijoBorrados = borradosPend > 0 ? ` · ${borradosPend} borrado(s) pendiente(s)` : '';
         if (!navigator.onLine) {
-            badge.textContent = `🟠 Offline · ${pendientes} en cola`;
+            badge.textContent = `🟠 Offline · ${pendientes} en cola${sufijoBorrados}`;
             badge.style.color = '#FBBB1E';
-        } else if (pendientes > 0) {
-            badge.textContent = `⏳ Subiendo ${pendientes} pedido(s)...`;
+        } else if (pendientes > 0 || borradosPend > 0) {
+            const partes = [];
+            if (pendientes > 0) partes.push(`Subiendo ${pendientes} pedido(s)`);
+            if (borradosPend > 0) partes.push(`borrando ${borradosPend} pedido(s)`);
+            badge.textContent = `⏳ ${partes.join(' · ')}...`;
             badge.style.color = '#FBBB1E';
         } else {
             badge.textContent = '🟢 En línea · Multi-dispositivo activo';
@@ -1526,17 +1537,11 @@ function renderAll() {
                 saveState();
                 renderAll();
                 renderizarPilaNotificacionesVerdes();
-                try {
-                    await dbSync.removeFromQueue(id);
-                    if (navigator.onLine) {
-                        const borradoRemoto = await api.deletePedido(id);
-                        if (!borradoRemoto) await dbSync.saveDeleteToQueue(id);
-                    } else {
-                        await dbSync.saveDeleteToQueue(id);
-                    }
-                } catch (_) {}
+                const borradoYa = await eliminarPedidoRemoto(id);
                 actualizarBadgeSincronizacion();
-                ui.mostrarToast('Pedido eliminado en todos los dispositivos');
+                ui.mostrarToast(borradoYa
+                    ? 'Pedido eliminado en todos los dispositivos'
+                    : '⚠️ Pedido quitado de la caja; el borrado en la nube quedó pendiente y se reintentará solo');
             });
         }
     }, esAdmin);
@@ -1561,10 +1566,11 @@ function renderAll() {
                 saveState();
                 renderAll();
                 renderizarPilaNotificacionesVerdes();
-                await dbSync.removeFromQueue(id);
-                if (navigator.onLine) await api.deletePedido(id);
-                else await dbSync.saveDeleteToQueue(id);
-                ui.mostrarToast('Apartado cancelado');
+                const borradoYa = await eliminarPedidoRemoto(id);
+                actualizarBadgeSincronizacion();
+                ui.mostrarToast(borradoYa
+                    ? 'Apartado cancelado'
+                    : '⚠️ Apartado quitado de la caja; el borrado en la nube quedó pendiente y se reintentará solo');
             });
         },
         onConfirm: async (p) => {
@@ -1697,6 +1703,32 @@ async function avisarPinNoAceptado() {
         err.textContent = '🔒 El local no aceptó tu PIN (puede haber cambiado). Vuelve a entrar con el PIN actual; tu pedido sigue guardado.';
         err.style.display = 'block';
     }
+}
+
+// Borra un pedido en la nube. Si no se puede (sin red, error de API o de IndexedDB),
+// lo deja en la cola de eliminados para reintentarlo. Devuelve true si ya se borró en la nube.
+async function eliminarPedidoRemoto(id) {
+    try {
+        await dbSync.removeFromQueue(id);
+    } catch (err) {
+        console.warn('No se pudo sacar el pedido de la cola local:', err);
+    }
+    let borrado = false;
+    if (navigator.onLine) {
+        try {
+            borrado = await api.deletePedido(id);
+        } catch (err) {
+            console.warn('Error borrando pedido en la nube:', err);
+        }
+    }
+    if (!borrado) {
+        try {
+            await dbSync.saveDeleteToQueue(id);
+        } catch (err) {
+            console.error('No se pudo encolar el borrado pendiente:', err);
+        }
+    }
+    return borrado;
 }
 
 async function sincronizarCola() {
