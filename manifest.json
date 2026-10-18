@@ -4,8 +4,8 @@
   "description": "Sistema POS Offline-First para Frizzy",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F7EFDD",
-  "theme_color": "#2B113F",
+  "background_color": "#140428",
+  "theme_color": "#140428",
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -27,5 +27,6 @@
     }
   ],
   "scope": "/",
-  "id": "/"
+  "id": "/",
+  "lang": "es"
 }

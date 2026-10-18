@@ -15,3 +15,9 @@ Para dar permisos de admin a un usuario nuevo:
 
 `20261017220000_reporte_parcial_final.sql`: el botón del admin hace un **corte parcial**; el cron de las 00:00 (Bogotá) envía el **reporte final** del día aunque ya esté todo cerrado. Ambos incluyen "Unidades despachadas".
 `20261017215000_telegram_cola.sql`: cola de envíos a Telegram con reintentos (tabla `private.telegram_outbox`, `telegram_enviar`, `telegram_reintentar` y su cron cada minuto).
+
+## 18/10/2026
+- `20261018100000_respaldos.sql`: `exportar_respaldo(token)` (protegida por token) y `private.restaurar_respaldo(json)`. Ver `RESPALDOS.md`.
+- `20261018100100_pin_por_ip.sql`: el bloqueo del PIN es por IP (8 fallos en 15 min) con tope global de 100.
+- `20261018100200_reportes_fallidos.sql`: los reportes de Telegram no entregados se guardan en `reportes_fallidos` (se ven en el dashboard).
+

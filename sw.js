@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frizzy-pos-v27';
+const CACHE_NAME = 'frizzy-pos-v28';
 const ASSETS = [
     '/',
     '/index.html',
@@ -41,26 +41,51 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
 });
 
+// Lo propio de la app: red primero (con 4 s de espera) y caché si no hay internet.
+// Así tras cada despliegue se carga la versión nueva sin abrir la app dos veces.
+async function redPrimero(req) {
+    try {
+        const res = await Promise.race([
+            fetch(req),
+            new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('timeout')), 4000))
+        ]);
+        if (res && res.status === 200) {
+            const copia = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(req, copia));
+        }
+        return res;
+    } catch (err) {
+        const guardado = await caches.match(req);
+        if (guardado) return guardado;
+        if (req.mode === 'navigate') {
+            const inicio = await caches.match('/index.html');
+            if (inicio) return inicio;
+        }
+        throw err;
+    }
+}
+
+// Librerías externas (versiones fijas): caché primero, se actualiza en segundo plano
+async function cachePrimero(req) {
+    const guardado = await caches.match(req);
+    const red = fetch(req)
+        .then((res) => {
+            if (res && res.status === 200) {
+                const copia = res.clone();
+                caches.open(CACHE_NAME).then((c) => c.put(req, copia));
+            }
+            return res;
+        })
+        .catch(() => guardado);
+    return guardado || red;
+}
+
 self.addEventListener('fetch', (e) => {
     if (e.request.method !== 'GET') return;
+    const url = new URL(e.request.url);
 
     // Nunca cachear llamadas a la API en tiempo real de Supabase
-    if (e.request.url.includes('supabase.co')) {
-        return;
-    }
+    if (url.hostname.endsWith('supabase.co')) return;
 
-    e.respondWith(
-        caches.match(e.request).then((cached) => {
-            const fetchPromise = fetch(e.request)
-                .then((res) => {
-                    if (res && res.status === 200) {
-                        const clone = res.clone();
-                        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
-                    }
-                    return res;
-                })
-                .catch(() => cached);
-            return cached || fetchPromise;
-        })
-    );
+    e.respondWith(url.origin === self.location.origin ? redPrimero(e.request) : cachePrimero(e.request));
 });

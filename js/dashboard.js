@@ -340,6 +340,7 @@ function renderizarDashboard() {
 }
 
 async function cargarDatosYRenderizar(sb) {
+    mostrarReportesFallidos(sb);
     try {
         const resultados = await Promise.all([
             api.obtenerProductos(),
@@ -406,6 +407,49 @@ function configurarControlesUI(sb) {
             }
             window.location.href = 'index.html';
         });
+    }
+}
+
+async function mostrarReportesFallidos(sb) {
+    try {
+        const { data } = await sb.from('reportes_fallidos').select('id, creado, texto').order('creado', { ascending: false }).limit(10);
+        document.getElementById('bannerReportesFallidos')?.remove();
+        if (!data || !data.length) return;
+
+        const caja = document.createElement('div');
+        caja.id = 'bannerReportesFallidos';
+        caja.style.cssText = 'margin:12px; padding:14px 16px; border-radius:14px; background:#FFF4E5; border:1.5px solid #F5A623; color:#5A3A00; font-weight:700;';
+        const titulo = document.createElement('div');
+        titulo.style.cssText = 'font-weight:900; margin-bottom:8px;';
+        titulo.textContent = '⚠️ Hay reportes de Telegram que no se pudieron enviar:';
+        caja.appendChild(titulo);
+
+        const vistos = new Set();
+        data.forEach((r) => {
+            const texto = String(r.texto || '').replace(/<[^>]+>/g, '');
+            if (vistos.has(texto)) return;
+            vistos.add(texto);
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'white-space:pre-wrap; margin:6px 0; font:inherit; font-size:0.85rem; font-weight:600;';
+            pre.textContent = texto;
+            caja.appendChild(pre);
+        });
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Ya los vi';
+        btn.style.cssText = 'margin-top:6px; padding:8px 14px; border:none; border-radius:10px; background:#2B113F; color:#F4B41A; font-weight:900; cursor:pointer;';
+        btn.addEventListener('click', async () => {
+            await sb.from('reportes_fallidos').delete().in('id', data.map((r) => r.id));
+            caja.remove();
+        });
+        caja.appendChild(btn);
+
+        const cabecera = document.querySelector('.header');
+        if (cabecera) cabecera.insertAdjacentElement('afterend', caja);
+        else document.body.insertAdjacentElement('afterbegin', caja);
+    } catch (err) {
+        console.warn('No se pudieron consultar los reportes fallidos:', err);
     }
 }
 
