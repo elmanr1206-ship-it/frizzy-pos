@@ -313,7 +313,7 @@ function reproducirBeepAlarma() {
             osc.start(ahora + offset);
             osc.stop(ahora + offset + 0.2);
         });
-    } catch (_) {}
+    } catch (_) { }
 }
 
 function actualizarTemporizadoresYAlarmas() {
@@ -692,12 +692,24 @@ async function exportarImagenDashboardEjecutivo() {
     const ingresosProductos = {};
     const conteoHoras = {};
 
-    for (let h = 10; h <= 22; h++) conteoHoras[h] = 0;
-
-    pedidosDeHoy.forEach((p) => {
+    const horaDePedido = (p) => {
         const d = p.fechaISO ? new Date(p.fechaISO) : new Date();
         const strH = d.toLocaleTimeString('en-US', { timeZone: 'America/Bogota', hour: '2-digit', hour12: false });
-        const h = Number.isNaN(parseInt(strH, 10)) ? d.getHours() : (parseInt(strH, 10) === 24 ? 0 : parseInt(strH, 10));
+        return Number.isNaN(parseInt(strH, 10)) ? d.getHours() : (parseInt(strH, 10) === 24 ? 0 : parseInt(strH, 10));
+    };
+
+    // Igual que el dashboard: rango base 10-22h, que se amplía si hay pedidos fuera de ese horario
+    let minHora = 10;
+    let maxHora = 22;
+    pedidosDeHoy.forEach((p) => {
+        const h = horaDePedido(p);
+        if (h < minHora) minHora = h;
+        if (h > maxHora) maxHora = h;
+    });
+    for (let h = minHora; h <= maxHora; h++) conteoHoras[h] = 0;
+
+    pedidosDeHoy.forEach((p) => {
+        const h = horaDePedido(p);
         conteoHoras[h] = (conteoHoras[h] || 0) + 1;
 
         if (p.bowlId && p.bowlId !== 'ninguno') {
@@ -1008,7 +1020,7 @@ async function actualizarBadgeSincronizacion() {
             badge.textContent = '🟢 En línea · Multi-dispositivo activo';
             badge.style.color = '#A8F0C0';
         }
-    } catch (_) {}
+    } catch (_) { }
 }
 
 function registrarClienteEnCache(nombre) {
@@ -1263,7 +1275,7 @@ function resetForm() {
     }
     const multiBadge = document.getElementById('multiOrderBadge');
     if (multiBadge) multiBadge.style.display = 'none';
-    ui.renderSugerenciasClientes([], () => {});
+    ui.renderSugerenciasClientes([], () => { });
     renderAll();
 }
 
@@ -1294,7 +1306,7 @@ function prepararSiguienteBowlMismoCliente(nombreCliente, pagoIdOpcional = null)
         inputNombre.style.cursor = 'not-allowed';
     }
     if (inputNotas) inputNotas.value = '';
-    ui.renderSugerenciasClientes([], () => {});
+    ui.renderSugerenciasClientes([], () => { });
 
     const multiBadge = document.getElementById('multiOrderBadge');
     if (multiBadge) {
@@ -1882,7 +1894,7 @@ function abrirEditorPreciosEnModal(modal, listaDiv, btnGuardar) {
 
 async function init() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').catch(() => { });
     }
 
     obtenerContenedorStack();
@@ -2139,7 +2151,7 @@ async function init() {
         });
 
         inputNombre.addEventListener('blur', async (e) => {
-            setTimeout(() => ui.renderSugerenciasClientes([], () => {}), 150);
+            setTimeout(() => ui.renderSugerenciasClientes([], () => { }), 150);
             if (estado.clienteBloqueado || usuarioActual?.rol === 'cliente') return;
             const raw = e.target.value.trim();
             if (!raw) return;
@@ -2175,7 +2187,12 @@ async function init() {
             return ui.mostrarToast('⚠️ Escribe un nombre y un precio mayor a $0');
         }
 
-        const idSlug = limpiarParaBusqueda(nombre).replace(/[^a-z0-9]/g, '') || ('prod_' + Date.now());
+        const slugBase = limpiarParaBusqueda(nombre).replace(/[^a-z0-9]/g, '') || ('prod_' + Date.now());
+        // El mismo slug pisaría al producto existente (p. ej. "Papas Fritas" y "papas fritas"): avisar y no sobrescribir
+        if (catalogoMenu.some((x) => x.id === slugBase)) {
+            return ui.mostrarToast('⚠️ Ya existe un producto con ese nombre. Edítalo en la lista o usa otro nombre');
+        }
+        const idSlug = slugBase;
         const btn = document.getElementById('btnCrearProducto');
         btn.disabled = true;
         btn.textContent = 'Creando...';
@@ -2291,7 +2308,7 @@ async function init() {
             'Pago': p.pago,
             'Total': p.total
         })));
-        peds['!cols'] = [{wch:12},{wch:8},{wch:18},{wch:12},{wch:40},{wch:24},{wch:12},{wch:12}];
+        peds['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 12 }, { wch: 40 }, { wch: 24 }, { wch: 12 }, { wch: 12 }];
 
         const totalDia = pedidos.reduce((s, p) => s + p.total, 0);
         const personasUnicas = new Set(pedidos.map((p) => String(p.nombre || '').toLowerCase().trim()).filter(Boolean)).size;
