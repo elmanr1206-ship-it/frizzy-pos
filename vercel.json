@@ -27,10 +27,6 @@
         {
           "key": "Content-Security-Policy",
           "value": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
-        },
-        {
-          "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://satsdiydoeilmdruyiru.supabase.co wss://satsdiydoeilmdruyiru.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         }
       ]
     }

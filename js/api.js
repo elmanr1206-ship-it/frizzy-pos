@@ -229,38 +229,6 @@ export const api = {
         return (data || []).map((c) => c.nombre);
     },
 
-    // Busca en la base de datos los clientes que coinciden con el texto escrito.
-    // Devuelve un arreglo de nombres, o null si no se pudo consultar (sin red / sin sesión admin).
-    async buscarClientes(texto, limite = 20) {
-        const sb = await getSupabase();
-        if (!sb) return null;
-        const { data: sesion } = await sb.auth.getSession();
-        if (!sesion?.session) return null;
-
-        // Se escapan los comodines de LIKE y las vocales/ñ se vuelven "_" para ignorar tildes.
-        // Se unen las palabras con "%" para tolerar nombres compuestos (ej. "Juan Perez" encuentra "Juan Carlos Pérez").
-        const palabras = String(texto || '')
-            .trim()
-            .replace(/[\\%_,()*]/g, ' ')
-            .split(/\s+/)
-            .filter(Boolean);
-        if (palabras.length === 0) return [];
-
-        const patron = palabras
-            .map((p) => p.replace(/[aeiouáéíóúüàèìòùäëïöâêîôûñ]/gi, '_'))
-            .join('%');
-
-        const { data, error } = await sb
-            .from('clientes')
-            .select('nombre')
-            .ilike('nombre', `%${patron}%`)
-            .order('nombre', { ascending: true })
-            .limit(limite);
-        if (error) return null;
-        return (data || []).map((c) => c.nombre);
-    },
-
-
     async pushPedido(pedidoLocal) {
         const sb = await getSupabase();
         if (!sb) return { ok: false, permanent: false };

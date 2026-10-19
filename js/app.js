@@ -113,9 +113,9 @@ let estado = {
 
 let usuarioActual = leerStorageSeguro('fz_usuario_actual', null);
 let pedidos = leerStorageSeguro('fz_pedidos', []);
-try {
-    localStorage.removeItem('fz_clientes_cache');
-} catch (_) { }
+let apartados = leerStorageSeguro('fz_apartados', []);
+// Caché efímera de nombres de clientes: se llena desde la BD en cada sincronización.
+// No se persiste en localStorage para evitar mostrar clientes ya borrados.
 let clientesConocidos = [];
 let fechaJornadaActiva = localStorage.getItem('fz_fecha_jornada') || obtenerFechaHoyStr();
 let filtroPago = null;
@@ -1025,14 +1025,49 @@ async function actualizarBadgeSincronizacion() {
     } catch (_) { }
 }
 
-function registrarClienteEnCache() {
-    // Ya no se guardan clientes en localStorage: la base de datos es la única fuente de verdad.
-}
+// No-op: se mantiene por compatibilidad con los 3 sitios que la llaman (editar nombre, guardar pedido, login cliente).
+// El cliente se registra en la BD al guardar el pedido; aquí no hace falta persistir nada.
+function registrarClienteEnCache() { }
 
+// Llena clientesConocidos desde la BD. Se ejecuta al inicio y en cada ciclo de sincronización (~30s).
+// No persiste en localStorage: al recargar se empieza vacío y se rellena fresco.
 async function sincronizarClientesConocidos() {
-    try {
-        localStorage.removeItem('fz_clientes_cache');
-    } catch (_) { }
+    try { localStorage.removeItem('fz_clientes_cache'); } catch (_) { } // limpiar residuos viejos
+
+    if (navigator.onLine && typeof api.obtenerClientes === 'function') {
+        try {
+            const remotos = await api.obtenerClientes();
+            if (Array.isArray(remotos)) {
+                const nombres = new Set();
+                const lista = [];
+                const agregar = (n) => {
+                    const limpio = normalizarNombreCliente(n || '');
+                    if (limpio && !nombres.has(limpio.toLowerCase())) {
+                        nombres.add(limpio.toLowerCase());
+                        lista.push(limpio);
+                    }
+                };
+                remotos.forEach(agregar);
+                // Añadir nombres de pedidos locales que aún no han subido a la nube
+                [...pedidos, ...apartados].filter((p) => !p.sincronizado).forEach((p) => agregar(p.nombre));
+                clientesConocidos = lista.sort((a, b) => a.localeCompare(b, 'es'));
+                return;
+            }
+        } catch (err) {
+            console.warn('No se pudieron descargar los clientes:', err);
+        }
+    }
+    // Sin conexión: solo se tienen los nombres de pedidos/apartados activos
+    const nombres = new Set();
+    const lista = [];
+    [...pedidos, ...apartados].forEach((p) => {
+        const limpio = normalizarNombreCliente(p.nombre || '');
+        if (limpio && !nombres.has(limpio.toLowerCase())) {
+            nombres.add(limpio.toLowerCase());
+            lista.push(limpio);
+        }
+    });
+    clientesConocidos = lista.sort((a, b) => a.localeCompare(b, 'es'));
 }
 
 function limpiarParaBusqueda(texto) {
@@ -1043,69 +1078,16 @@ function limpiarParaBusqueda(texto) {
         .trim();
 }
 
-async function obtenerSugerenciasClientes(textoDigitado) {
-    const query = limpiarParaBusqueda(textoDigitado);
-    if (!query) return [];
-
-    let remotos = [];
-    if (navigator.onLine && typeof api.buscarClientes === 'function') {
-        try {
-            const res = await api.buscarClientes(textoDigitado, 20);
-            if (Array.isArray(res)) remotos = res;
-        } catch (err) {
-            console.warn('Error consultando sugerencias de clientes en BD:', err);
-        }
-    }
-
-    const nombresSet = new Set();
-    const candidatos = [];
-
-    const agregar = (nom) => {
-        const limpio = normalizarNombreCliente(nom || '');
-        if (!limpio) return;
-        const key = limpio.toLowerCase();
-        if (!nombresSet.has(key)) {
-            nombresSet.add(key);
-            candidatos.push(limpio);
-        }
-    };
-
-    remotos.forEach(agregar);
-
-    // Sumar clientes de pedidos y apartados presentes en la caja local activa
-    [...pedidos, ...apartados].forEach((p) => agregar(p.nombre));
-
-    const empiezan = [];
-    const contienen = [];
-
-    for (const nombre of candidatos) {
-        const norm = limpiarParaBusqueda(nombre);
-        if (norm === query) continue;
-        if (norm.startsWith(query)) empiezan.push(nombre);
-        else if (norm.includes(query)) contienen.push(nombre);
-    }
-
-    return [...empiezan, ...contienen].slice(0, 3);
-}
-
+// Filtra clientesConocidos (caché en memoria) de forma síncrona e instantánea.
+// No hace HTTP: la caché se actualiza en sincronizarClientesConocidos().
 function obtenerTop3Clientes(textoDigitado) {
     const query = limpiarParaBusqueda(textoDigitado);
     if (!query) return [];
-    const candidatos = [];
-    const nombresSet = new Set();
-    const agregar = (nom) => {
-        const limpio = normalizarNombreCliente(nom || '');
-        if (!limpio) return;
-        const key = limpio.toLowerCase();
-        if (!nombresSet.has(key)) {
-            nombresSet.add(key);
-            candidatos.push(limpio);
-        }
-    };
-    [...pedidos, ...apartados].forEach((p) => agregar(p.nombre));
+
     const empiezan = [];
     const contienen = [];
-    for (const nombre of candidatos) {
+
+    for (const nombre of clientesConocidos) {
         const norm = limpiarParaBusqueda(nombre);
         if (norm === query) continue;
         if (norm.startsWith(query)) empiezan.push(nombre);
@@ -2184,29 +2166,15 @@ async function init() {
 
     const inputNombre = document.getElementById('nombreCliente');
     if (inputNombre) {
-        let temporizadorSugerencias = null;
-        let secuenciaSugerencias = 0;
         inputNombre.addEventListener('input', (e) => {
             if (estado.clienteBloqueado || usuarioActual?.rol === 'cliente') return;
             calcularTotal();
-            const texto = e.target.value;
-            const elegir = (nombreElegido) => {
+            const top3 = obtenerTop3Clientes(e.target.value);
+            ui.renderSugerenciasClientes(top3, (nombreElegido) => {
                 inputNombre.value = nombreElegido;
                 calcularTotal();
                 verificarFidelidadCliente(nombreElegido);
-            };
-            const miSecuencia = ++secuenciaSugerencias;
-            clearTimeout(temporizadorSugerencias);
-            if (!limpiarParaBusqueda(texto)) {
-                ui.renderSugerenciasClientes([], elegir);
-                return;
-            }
-            temporizadorSugerencias = setTimeout(async () => {
-                const sugerencias = await obtenerSugerenciasClientes(texto);
-                // Ignorar respuestas viejas: el usuario ya siguió escribiendo
-                if (miSecuencia !== secuenciaSugerencias) return;
-                ui.renderSugerenciasClientes(sugerencias, elegir);
-            }, 180);
+            });
         });
 
         inputNombre.addEventListener('blur', async (e) => {
